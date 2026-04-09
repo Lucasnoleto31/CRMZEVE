@@ -1738,8 +1738,11 @@ const CW = {
       method: 'POST',
       body: JSON.stringify({ name: name || 'Lead', phone_number: e164 })
     });
-    // Chatwoot pode retornar o contato direto ou aninhado em { contact: {...} }
-    return d.contact || d;
+    console.log('[CW] createContact raw response:', JSON.stringify(d));
+    // Tenta todos os formatos conhecidos de resposta do Chatwoot
+    const contact = d.contact || d.payload?.contact || d.payload || d;
+    if (!contact?.id) throw new Error(`createContact: id não encontrado. Resposta: ${JSON.stringify(d).slice(0,200)}`);
+    return contact;
   },
 
   async getOrCreateConversation(contactId) {
