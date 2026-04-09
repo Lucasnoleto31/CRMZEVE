@@ -325,6 +325,7 @@
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('origin')">Origem <span class="sort-icon text-blue-400" data-col="origin"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('value')">Valor <span class="sort-icon text-blue-400" data-col="value"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('capital')">Capital <span class="sort-icon text-blue-400" data-col="capital"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Tags</th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
           </tr>
@@ -371,14 +372,38 @@
           <input id="f-followup" type="date" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
         </div>
         <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">1º Contato Real</label>
+          <input id="f-first-contact" type="date" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Nível do Trader</label>
+          <select id="f-level" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+            <option value="">Selecionar…</option>
+            <option>Iniciante</option><option>Intermediário</option><option>Avançado</option><option>Profissional</option>
+          </select>
+        </div>
+        <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Status</label>
-          <select id="f-status-field" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+          <select id="f-status-field" onchange="toggleLossReason(this.value)" class="w-full border rounded-lg px-3 py-2.5 text-sm">
             <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
           </select>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Responsável</label>
           <input id="f-responsible" type="text" placeholder="Consultor" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div id="f-loss-reason-wrap" class="col-span-2 hidden">
+          <label class="block text-xs font-medium mb-1.5" style="color:#fca5a5">Motivo da Perda <span style="color:#f87171">*</span></label>
+          <select id="f-loss-reason" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(239,68,68,.3)!important;">
+            <option value="">Selecionar motivo…</option>
+            <option>Preço muito alto</option>
+            <option>Sem capital disponível</option>
+            <option>Sem interesse</option>
+            <option>Escolheu concorrente</option>
+            <option>Sem resposta</option>
+            <option>Timing ruim</option>
+            <option>Outros</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Origem</label>
@@ -390,12 +415,27 @@
           </select>
         </div>
         <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Comunidade de Origem</label>
+          <input id="f-community" type="text" placeholder="Ex: Grupo Seleto, Trade Pro…" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Produto / Serviço</label>
           <input id="f-product" type="text" placeholder="Ex: Plano Premium" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Valor Estimado (R$)</label>
           <input id="f-value" type="number" step="0.01" min="0" placeholder="0,00" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Capital Declarado (R$)</label>
+          <input id="f-capital" type="number" step="0.01" min="0" placeholder="Capital disponível para investir" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Prioridade</label>
+          <select id="f-priority" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+            <option value="">Sem prioridade</option>
+            <option>Baixo</option><option>Médio</option><option>Alto</option><option>Urgente</option>
+          </select>
         </div>
         <div class="col-span-2">
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Tags</label>
@@ -584,7 +624,7 @@
 
       <!-- Template download hint -->
       <p class="text-xs text-center" style="color:var(--t3)">
-        Colunas reconhecidas: <span style="color:var(--t2)">Nome, Telefone, Entrada, Follow-up, Status, Responsável, Origem, Produto, Valor, Tags, Notas</span>
+        Colunas reconhecidas: <span style="color:var(--t2)">Nome, Telefone, Entrada, Follow-up, 1º Contato, Status, Responsável, Origem, Comunidade, Produto, Valor, Capital, Prioridade, Nível, Tags, Notas</span>
         · <button onclick="downloadTemplate()" class="underline" style="color:#a78bfa">Baixar modelo</button>
       </p>
     </div>
@@ -657,10 +697,58 @@
   </div>
 </div>
 
+<!-- ━━━━━━━━━━━━━━━━━━━━ LOSS REASON MODAL ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="loss-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,.12);">
+        <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div>
+        <h3 class="font-semibold" style="color:var(--t1)">Lead Perdido</h3>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Qual foi o motivo da perda?</p>
+      </div>
+    </div>
+    <p class="text-sm mb-4" style="color:var(--t2)">Lead: <strong id="loss-lead-name" style="color:var(--t1)"></strong></p>
+    <select id="loss-reason-sel" class="w-full border rounded-lg px-3 py-2.5 text-sm mb-4" style="border-color:rgba(239,68,68,.3)!important;">
+      <option value="">Selecionar motivo…</option>
+      <option>Preço muito alto</option>
+      <option>Sem capital disponível</option>
+      <option>Sem interesse</option>
+      <option>Escolheu concorrente</option>
+      <option>Sem resposta</option>
+      <option>Timing ruim</option>
+      <option>Outros</option>
+    </select>
+    <div class="flex gap-3">
+      <button onclick="saveLossReason(false)"
+        class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Pular</button>
+      <button onclick="saveLossReason(true)" class="btn-red flex-1 text-white rounded-lg px-4 py-2 text-sm font-semibold transition-all">Confirmar Perda</button>
+    </div>
+  </div>
+</div>
+
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ SCRIPT ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <script>
 const STATUSES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido','Perdido'];
 const FUNNEL_STAGES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido'];
+
+// Priority config
+const PRIORITY_CFG = {
+  'Urgente': { clr:'#ef4444' },
+  'Alto':    { clr:'#f97316' },
+  'Médio':   { clr:'#fbbf24' },
+  'Baixo':   { clr:'#6b7280' },
+};
+
+// Level config
+const LEVEL_CFG = {
+  'Iniciante':     { clr:'#60a5fa' },
+  'Intermediário': { clr:'#a78bfa' },
+  'Avançado':      { clr:'#34d399' },
+  'Profissional':  { clr:'#fbbf24' },
+};
 
 // Colors per status
 const SC = {
@@ -681,8 +769,14 @@ const SETUP_SQL = `create table if not exists crm_leads (
   status text not null default 'Novo',
   responsible text,
   origin text,
+  community text,
   product text,
   value numeric default 0,
+  capital numeric default 0,
+  priority text,
+  level text,
+  first_contact text,
+  loss_reason text,
   tags text,
   notes text,
   created_at timestamptz default now(),
@@ -1076,10 +1170,18 @@ function renderTable(){
     const tags=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
     const tagsHTML=tags.map(t=>`<span class="text-xs px-2 py-0.5 rounded-full transition-all" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" onclick="toggleTagFilter(unescape('${escape(t)}'))" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
     const isSel=selectedIds.has(l.id);
+    const prio=PRIORITY_CFG[l.priority]||null;
+    const lvl=LEVEL_CFG[l.level]||null;
     return`<tr style="${isSel?'background:rgba(37,99,235,.08);':''}" id="row-${l.id}">
       <td class="px-4 py-3 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
-      <td class="px-4 py-3 max-w-[160px]">
-        <button onclick="openDrawer(${l.id})" class="text-left text-sm font-medium truncate block w-full transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+      <td class="px-4 py-3 max-w-[180px]">
+        <div class="flex items-center gap-2">
+          ${prio?`<span title="${esc(l.priority)}" style="width:8px;height:8px;border-radius:50%;background:${prio.clr};flex-shrink:0;box-shadow:0 0 6px ${prio.clr}88;"></span>`:''}
+          <div class="min-w-0">
+            <button onclick="openDrawer(${l.id})" class="text-left text-sm font-medium truncate block w-full transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+            ${lvl?`<span style="font-size:.6rem;font-weight:600;color:${lvl.clr};opacity:.8;">${esc(l.level)}</span>`:''}
+          </div>
+        </div>
       </td>
       <td class="px-4 py-3 whitespace-nowrap">
         <div class="flex items-center gap-2">
@@ -1094,13 +1196,22 @@ function renderTable(){
       <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t3)">${toDateBR(l.entry)}</td>
       <td class="px-4 py-3 whitespace-nowrap text-xs"><span class="${fuc}">${toDateBR(l.followup)}</span></td>
       <td class="px-4 py-3">
-        <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}">
-          <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
-        </button>
+        <div class="flex flex-col gap-1">
+          <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}" style="width:fit-content;">
+            <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
+          </button>
+          ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;opacity:.7;" title="Motivo: ${esc(l.loss_reason)}">↳ ${esc(l.loss_reason)}</span>`:''}
+        </div>
       </td>
       <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t2)">${esc(l.responsible||'—')}</td>
-      <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t2)">${esc(l.origin||'—')}</td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs">
+        <div class="flex flex-col gap-0.5">
+          <span style="color:var(--t2)">${esc(l.origin||'—')}</span>
+          ${l.community?`<span style="color:var(--t3);font-size:.6rem;" title="Comunidade">${esc(l.community)}</span>`:''}
+        </div>
+      </td>
       <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold" style="color:${l.value?'#6ee7b7':'var(--t3)'}">${l.value?toCur(l.value):'—'}</td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold" style="color:${l.capital?'#a78bfa':'var(--t3)'}">${l.capital?toCur(l.capital):'—'}</td>
       <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${tagsHTML||`<span style="color:var(--t3)" class="text-xs">—</span>`}</div></td>
       <td class="px-4 py-3">
         <div class="flex gap-1.5">
@@ -1187,16 +1298,55 @@ async function setLeadStatus(newStatus){
   const id=statusMenuId; closeStatusMenu();
   const lead=leads.find(l=>l.id===id); if(!lead||lead.status===newStatus)return;
   const old=lead.status; lead.status=newStatus;
+  if(newStatus==='Perdido'){openLossModal(id,old);return;}
   try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();}
   catch(e){toast('Erro: '+e.message,'error');lead.status=old;}
 }
 
+// ── LOSS REASON MODAL ────────────────────────────────────────
+let lossModalId=null, lossModalOldStatus=null;
+
+function openLossModal(id, oldStatus){
+  lossModalId=id; lossModalOldStatus=oldStatus;
+  const lead=leads.find(l=>l.id===id);
+  document.getElementById('loss-lead-name').textContent=lead?lead.name:'';
+  document.getElementById('loss-reason-sel').value=lead?.loss_reason||'';
+  document.getElementById('loss-modal').classList.remove('hidden');
+}
+
+async function saveLossReason(confirm){
+  document.getElementById('loss-modal').classList.add('hidden');
+  const id=lossModalId; const oldStatus=lossModalOldStatus;
+  lossModalId=null; lossModalOldStatus=null;
+  const lead=leads.find(l=>l.id===id); if(!lead) return;
+  if(!confirm){lead.status=oldStatus;renderAll();return;}
+  const reason=document.getElementById('loss-reason-sel').value||null;
+  lead.loss_reason=reason;
+  try{
+    const s=await DB.upsert(lead);
+    leads[leads.findIndex(l=>l.id===id)]=s;
+    await DB.log(id,'Status alterado',`${oldStatus} → Perdido${reason?' ('+reason+')':''}`,s.responsible||'—');
+    renderAll();
+    toast('Lead marcado como perdido','warn');
+  }catch(e){toast('Erro: '+e.message,'error');lead.status=oldStatus;}
+}
+
 // ── MODAL ────────────────────────────────────────────────────
+function toggleLossReason(status){
+  const wrap=document.getElementById('f-loss-reason-wrap');
+  if(status==='Perdido')wrap.classList.remove('hidden');
+  else{wrap.classList.add('hidden');document.getElementById('f-loss-reason').value='';}
+}
+
 function openModal(id){
   document.getElementById('modal-backdrop').classList.remove('hidden');
-  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes'].forEach(k=>document.getElementById(k).value='');
+  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes','f-community','f-capital'].forEach(k=>document.getElementById(k).value='');
   document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
-  document.getElementById('f-status-field').value='Novo';document.getElementById('f-origin').value='';document.getElementById('f-value').value='';
+  document.getElementById('f-first-contact').value='';
+  document.getElementById('f-status-field').value='Novo';document.getElementById('f-origin').value='';
+  document.getElementById('f-value').value='';document.getElementById('f-priority').value='';
+  document.getElementById('f-level').value='';document.getElementById('f-loss-reason').value='';
+  document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
   if(id!==undefined){
     const l=leads.find(l=>l.id===id);if(!l)return;
@@ -1207,6 +1357,13 @@ function openModal(id){
     document.getElementById('f-responsible').value=l.responsible||'';document.getElementById('f-origin').value=l.origin||'';
     document.getElementById('f-product').value=l.product||'';document.getElementById('f-value').value=l.value||'';
     document.getElementById('f-tags').value=l.tags||'';document.getElementById('f-notes').value=l.notes||'';
+    document.getElementById('f-community').value=l.community||'';
+    document.getElementById('f-capital').value=l.capital||'';
+    document.getElementById('f-priority').value=l.priority||'';
+    document.getElementById('f-level').value=l.level||'';
+    document.getElementById('f-first-contact').value=l.first_contact||'';
+    document.getElementById('f-loss-reason').value=l.loss_reason||'';
+    toggleLossReason(l.status||'Novo');
   }
   setTimeout(()=>document.getElementById('f-name').focus(),60);
 }
@@ -1214,7 +1371,8 @@ function closeModal(){document.getElementById('modal-backdrop').classList.add('h
 
 async function saveLead(e){
   e.preventDefault();const idVal=document.getElementById('f-id').value;
-  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:document.getElementById('f-status-field').value,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim()};
+  const statusVal=document.getElementById('f-status-field').value;
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null};
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
   try{
     let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
@@ -1240,10 +1398,18 @@ async function openDrawer(id){
   document.getElementById('activity-drawer').classList.remove('hidden');
   document.getElementById('drawer-name').textContent=l.name;
   const sc=SC[l.status];
+  const prio=PRIORITY_CFG[l.priority]||null;
+  const lvl=LEVEL_CFG[l.level]||null;
   document.getElementById('drawer-meta').innerHTML=`
     <span class="badge ${sc.badge}"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
     ${l.responsible?`<span class="text-xs" style="color:var(--t3)">· ${esc(l.responsible)}</span>`:''}
     ${l.value?`<span class="text-xs font-semibold" style="color:#6ee7b7">· ${toCur(l.value)}</span>`:''}
+    ${l.capital?`<span class="text-xs font-semibold" style="color:#a78bfa">Cap: ${toCur(l.capital)}</span>`:''}
+    ${prio?`<span class="text-xs font-semibold" style="color:${prio.clr};">● ${esc(l.priority)}</span>`:''}
+    ${lvl?`<span class="text-xs font-semibold" style="color:${lvl.clr};">${esc(l.level)}</span>`:''}
+    ${l.community?`<span class="text-xs" style="color:var(--t3);" title="Comunidade">📌 ${esc(l.community)}</span>`:''}
+    ${l.first_contact?`<span class="text-xs" style="color:var(--t3);">1ºContato: ${toDateBR(l.first_contact)}</span>`:''}
+    ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;">Motivo: ${esc(l.loss_reason)}</span>`:''}
   `;
   const list=document.getElementById('activity-list');
   list.innerHTML=`<p class="text-xs text-center py-8" style="color:var(--t3)">Carregando…</p>`;
@@ -1270,9 +1436,9 @@ function exportXLS(){
   if(!window.XLSX){toast('SheetJS não carregado','error');return;}
   const data=filteredLeads.length>0?filteredLeads:leads;
   if(!data.length){toast('Nenhum lead para exportar','warn');return;}
-  const rows=data.map(l=>({'Nome':l.name,'Telefone':l.phone,'Entrada':toDateBR(l.entry),'Follow-up':toDateBR(l.followup),'Status':l.status,'Responsável':l.responsible||'','Origem':l.origin||'','Produto':l.product||'','Valor (R$)':l.value||0,'Tags':l.tags||'','Notas':l.notes||''}));
+  const rows=data.map(l=>({'Nome':l.name,'Telefone':l.phone,'Entrada':toDateBR(l.entry),'Follow-up':toDateBR(l.followup),'1º Contato':toDateBR(l.first_contact),'Status':l.status,'Motivo Perda':l.loss_reason||'','Responsável':l.responsible||'','Origem':l.origin||'','Comunidade':l.community||'','Produto':l.product||'','Valor (R$)':l.value||0,'Capital (R$)':l.capital||0,'Prioridade':l.priority||'','Nível':l.level||'','Tags':l.tags||'','Notas':l.notes||''}));
   const ws=XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:28},{wch:18},{wch:14},{wch:14},{wch:18},{wch:20},{wch:16},{wch:20},{wch:12},{wch:24},{wch:40}];
+  ws['!cols']=[{wch:28},{wch:18},{wch:14},{wch:14},{wch:14},{wch:18},{wch:20},{wch:20},{wch:16},{wch:20},{wch:20},{wch:12},{wch:14},{wch:12},{wch:16},{wch:24},{wch:40}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leads');
   XLSX.writeFile(wb,`leads_${today()}.xlsx`);toast('Exportado!');
 }
@@ -1299,11 +1465,17 @@ function autoMapCol(h){
   if(/^(telefone|fone|phone|celular|cel|whatsapp|tel|contato)$/.test(n)) return'phone';
   if(/^(entrada|data.?de.?entrada|data_entrada|entry|data)$/.test(n)) return'entry';
   if(/^(follow.?up|followup|retorno|proximo.?contato|acompanhamento)$/.test(n)) return'followup';
+  if(/^(1.?contato|primeiro.?contato|first.?contact|data.?contato|first_contact)$/.test(n)) return'first_contact';
   if(/^(status)$/.test(n)) return'status';
+  if(/^(motivo.?perda|loss.?reason|motivo|razao.?perda)$/.test(n)) return'loss_reason';
   if(/^(responsavel|responsible|consultor|atendente|vendedor|consulto)$/.test(n)) return'responsible';
   if(/^(origem|origin|source|canal)$/.test(n)) return'origin';
+  if(/^(comunidade|community|grupo|group)$/.test(n)) return'community';
   if(/^(produto|product|servico|service|plano)$/.test(n)) return'product';
   if(/^(valor|value|price|preco|receita|vlr)$/.test(n)) return'value';
+  if(/^(capital|capital.?disponivel|capital.?declarado)$/.test(n)) return'capital';
+  if(/^(prioridade|priority)$/.test(n)) return'priority';
+  if(/^(nivel|level|perfil)$/.test(n)) return'level';
   if(/^(tags|tag|etiqueta)$/.test(n)) return'tags';
   if(/^(notas|notes|observacoes|obs|anotacoes|comentarios|descricao)$/.test(n)) return'notes';
   return null;
@@ -1352,7 +1524,7 @@ function handleImportFile(input){
       document.getElementById('import-file-name').textContent=file.name;
       document.getElementById('import-row-count').textContent=`${rows.length} linha${rows.length>1?'s':''}`;
       const mapEl=document.getElementById('import-mapping');
-      const fieldLabels={name:'Nome',phone:'Telefone',entry:'Entrada',followup:'Follow-up',status:'Status',responsible:'Responsável',origin:'Origem',product:'Produto',value:'Valor',tags:'Tags',notes:'Notas'};
+      const fieldLabels={name:'Nome',phone:'Telefone',entry:'Entrada',followup:'Follow-up',first_contact:'1º Contato',status:'Status',loss_reason:'Motivo Perda',responsible:'Responsável',origin:'Origem',community:'Comunidade',product:'Produto',value:'Valor',capital:'Capital',priority:'Prioridade',level:'Nível',tags:'Tags',notes:'Notas'};
       mapEl.innerHTML=headers.map(h=>{
         const f=mapping[h];
         return`<div class="flex items-center justify-between py-1">
@@ -1379,8 +1551,8 @@ function handleImportFile(input){
         const lead={};
         Object.entries(mapping).forEach(([col,field])=>{
           let v=row[col]??'';
-          if(field==='entry'||field==='followup') v=normalizeDate(v);
-          if(field==='value') v=parseFloat(String(v).replace(',','.'))||0;
+          if(field==='entry'||field==='followup'||field==='first_contact') v=normalizeDate(v);
+          if(field==='value'||field==='capital') v=parseFloat(String(v).replace(',','.'))||0;
           if(field==='status'&&!STATUSES.includes(v)) v='Novo';
           lead[field]=v;
         });
@@ -1427,9 +1599,9 @@ async function confirmImport(){
 
 function downloadTemplate(){
   if(!window.XLSX){toast('SheetJS não carregado','error');return;}
-  const rows=[{'Nome':'João Silva','Telefone':'(11) 99999-0001','Entrada':'2024-01-15','Follow-up':'2024-01-20','Status':'Novo','Responsável':'Consultor A','Origem':'Instagram','Produto':'Plano Premium','Valor':1500,'Tags':'indicação','Notas':'Interessado no produto X'}];
+  const rows=[{'Nome':'João Silva','Telefone':'(11) 99999-0001','Entrada':'2024-01-15','Follow-up':'2024-01-20','1º Contato':'2024-01-16','Status':'Novo','Motivo Perda':'','Responsável':'Consultor A','Origem':'Instagram','Comunidade':'Grupo Seleto','Produto':'Plano Premium','Valor':1500,'Capital':50000,'Prioridade':'Alto','Nível':'Intermediário','Tags':'indicação','Notas':'Interessado no produto X'}];
   const ws=XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:24},{wch:18},{wch:14},{wch:14},{wch:18},{wch:20},{wch:16},{wch:20},{wch:10},{wch:18},{wch:30}];
+  ws['!cols']=[{wch:24},{wch:18},{wch:14},{wch:14},{wch:14},{wch:18},{wch:20},{wch:20},{wch:16},{wch:20},{wch:20},{wch:10},{wch:12},{wch:12},{wch:16},{wch:18},{wch:30}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leads');
   XLSX.writeFile(wb,'modelo_importacao.xlsx');
   toast('Modelo baixado!');
@@ -1706,7 +1878,7 @@ async function runDispatch() {
 function renderAll(){renderDashboard();renderFunnel();renderTable();}
 
 // ── EVENTS ───────────────────────────────────────────────────
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
 document.addEventListener('click',e=>{
   const menu=document.getElementById('status-menu');
   if(!menu.classList.contains('hidden')&&!menu.contains(e.target)) closeStatusMenu();
