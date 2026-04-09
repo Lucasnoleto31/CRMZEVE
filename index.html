@@ -1692,33 +1692,61 @@ const CW = {
         cw_body: opts.body ? JSON.parse(opts.body) : undefined
       })
     });
-    if (!res.ok) { const t = await res.text(); throw new Error(`${res.status}: ${t.slice(0,120)}`); }
+    if (!res.ok) {
+      const t = await res.text();
+      const err = new Error(`${res.status}: ${t.slice(0,300)}`);
+      console.error('[CW]', path, err.message);
+      throw err;
+    }
     return res.json();
   },
 
+  // Converte qualquer formato de telefone para E.164 brasileiro (+5511999999999)
+  _toE164(phone) {
+    const digits = String(phone||'').replace(/\D/g,'');
+    if (!digits) return null;
+    // Remove o código do país se já vier
+    const local = digits.startsWith('55') ? digits.slice(2) : digits;
+    // Se tiver 8 dígitos (sem DDD), não dá para completar — rejeita
+    if (local.length < 10) return null;
+    // Se tiver 10 dígitos (DDD + 8 sem o 9), insere o 9
+    const normalized = local.length === 10 ? local.slice(0,2) + '9' + local.slice(2) : local;
+    return '+55' + normalized;
+  },
+
   async searchContact(phone) {
-    const digits = phone.replace(/\D/g,'');
-    const d = await this._fetch(`/contacts/search?q=${encodeURIComponent(digits)}&include_contacts=true`);
-    const list = d.payload || [];
-    return list.find(c => {
-      const cp = (c.phone_number||'').replace(/\D/g,'');
-      return cp === digits || cp === '55'+digits || cp.endsWith(digits.slice(-8));
-    }) || null;
+    const digits = String(phone||'').replace(/\D/g,'');
+    if (!digits || digits.length < 8) return null;
+    try {
+      const d = await this._fetch(`/contacts/search?q=${encodeURIComponent(digits)}`);
+      const list = d.payload || [];
+      return list.find(c => {
+        const cp = (c.phone_number||'').replace(/\D/g,'');
+        return cp === digits || cp === '55'+digits || cp.endsWith(digits.slice(-8));
+      }) || null;
+    } catch(e) {
+      // Busca falhou — tenta criar o contato mesmo assim
+      console.warn('[CW] searchContact ignorado, tentando criar:', e.message);
+      return null;
+    }
   },
 
   async createContact(name, phone) {
-    let digits = phone.replace(/\D/g,'');
-    if (!digits.startsWith('55')) digits = '55' + digits;
+    const e164 = this._toE164(phone);
+    if (!e164) throw new Error(`Telefone inválido para Chatwoot: "${phone}"`);
     const d = await this._fetch('/contacts', {
       method: 'POST',
-      body: JSON.stringify({ name, phone_number: '+'+digits })
+      body: JSON.stringify({ name: name || 'Lead', phone_number: e164 })
     });
-    return d;
+    // Chatwoot pode retornar o contato direto ou aninhado em { contact: {...} }
+    return d.contact || d;
   },
 
   async getOrCreateConversation(contactId) {
+    if (!contactId) throw new Error('ID do contato inválido — verifique o formato de resposta do Chatwoot');
     const d = await this._fetch(`/contacts/${contactId}/conversations`);
-    const existing = (d.payload||[]).find(c => String(c.inbox_id) === String(this.inbox));
+    const list = d.payload || (Array.isArray(d) ? d : []);
+    const existing = list.find(c => String(c.inbox_id) === String(this.inbox));
     if (existing) return existing.id;
     const cr = await this._fetch('/conversations', {
       method: 'POST',
@@ -1850,7 +1878,8 @@ async function runDispatch() {
       _dispatchLog(lead.name, true, '');
     } catch(e) {
       fail++;
-      _dispatchLog(lead.name, false, e.message.slice(0,40));
+      console.error('[Dispatch]', lead.name, e.message);
+      _dispatchLog(lead.name, false, e.message.slice(0,90));
     }
 
     // delay entre disparos
