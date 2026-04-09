@@ -1734,15 +1734,29 @@ const CW = {
   async createContact(name, phone) {
     const e164 = this._toE164(phone);
     if (!e164) throw new Error(`Telefone inválido para Chatwoot: "${phone}"`);
-    const d = await this._fetch('/contacts', {
-      method: 'POST',
-      body: JSON.stringify({ name: name || 'Lead', phone_number: e164 })
-    });
-    console.log('[CW] createContact raw response:', JSON.stringify(d));
-    // Tenta todos os formatos conhecidos de resposta do Chatwoot
-    const contact = d.contact || d.payload?.contact || d.payload || d;
-    if (!contact?.id) throw new Error(`createContact: id não encontrado. Resposta: ${JSON.stringify(d).slice(0,200)}`);
-    return contact;
+    try {
+      const d = await this._fetch('/contacts', {
+        method: 'POST',
+        body: JSON.stringify({ name: name || 'Lead', phone_number: e164 })
+      });
+      const contact = d.contact || d.payload?.contact || d.payload || d;
+      if (!contact?.id) throw new Error(`createContact sem id. Resposta: ${JSON.stringify(d).slice(0,200)}`);
+      return contact;
+    } catch(e) {
+      // Telefone já existe — busca o contato pelo número
+      if (e.message.includes('already been taken') || e.message.includes('422')) {
+        const digits = e164.replace(/\D/g,'');
+        const d = await this._fetch(`/contacts/search?q=${encodeURIComponent(digits)}`);
+        const list = d.payload || [];
+        const found = list.find(c => (c.phone_number||'').replace(/\D/g,'').endsWith(digits.slice(-10)));
+        if (found) return found;
+        // Último recurso: busca pelos últimos 8 dígitos
+        const found2 = list.find(c => (c.phone_number||'').replace(/\D/g,'').endsWith(digits.slice(-8)));
+        if (found2) return found2;
+        throw new Error(`Contato existe mas não foi encontrado na busca (${e164})`);
+      }
+      throw e;
+    }
   },
 
   async getOrCreateConversation(contactId) {
