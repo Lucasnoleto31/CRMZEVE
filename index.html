@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM Zeve</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000;
+      --s1: #080808;
+      --s2: rgba(255,255,255,0.03);
+      --s3: rgba(255,255,255,0.06);
+      --b1: rgba(255,255,255,0.08);
+      --b2: rgba(255,255,255,0.13);
+      --t1: #fafafa;
+      --t2: rgba(255,255,255,0.55);
+      --t3: rgba(255,255,255,0.28);
+    }
+
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--t1); font-family: 'DM Sans',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; min-height:100vh; }
+
+    /* Noise overlay */
+    .noise { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.025;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+    /* Glass card */
+    .glass {
+      background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.55) 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(40px);
+      box-shadow: rgba(255,255,255,0.06) 0px 1px 0px 0px inset, rgba(0,0,0,0.5) 0px 20px 50px;
+      transition: border-color .2s;
+    }
+    .glass:hover { border-color: rgba(255,255,255,0.14); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius:4px; }
+
+    /* Inputs dark */
+    input, select, textarea {
+      background: rgba(255,255,255,0.04) !important;
+      border-color: rgba(255,255,255,0.08) !important;
+      color: var(--t1) !important;
+    }
+    input::placeholder, textarea::placeholder { color: var(--t3) !important; }
+    input:focus, select:focus, textarea:focus {
+      outline: none !important;
+      border-color: rgba(59,130,246,.5) !important;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important;
+    }
+    select option { background: #111; color: var(--t1); }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor:pointer; }
+    input[type="checkbox"] { accent-color: #3b82f6; width:14px; height:14px; cursor:pointer; }
+
+    /* Animations */
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideIn  { from { transform:translateX(100%); }            to { transform:translateX(0); } }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin     { to   { transform:rotate(360deg); } }
+    .anim-up   { animation: fadeUp  0.2s ease both; }
+    .anim-slide{ animation: slideIn 0.22s ease both; }
+    .anim-toast{ animation: toastIn 0.2s ease both; }
+    .spin      { animation: spin 1s linear infinite; }
+
+    /* Overdue / due-today */
+    .overdue   { color: #f87171; font-weight:600; }
+    .due-today { color: #fbbf24; font-weight:600; }
+
+    /* Sort arrow */
+    .sortable { cursor:pointer; user-select:none; transition:color .15s; }
+    .sortable:hover { color: #60a5fa; }
+
+    /* Table row */
+    tbody tr { transition: background .12s; }
+    tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
+
+    /* Buttons */
+    .btn-blue  { background:#2563eb; }
+    .btn-blue:hover  { background:#3b82f6; box-shadow:0 0 20px rgba(59,130,246,.3); }
+    .btn-green { background:#059669; }
+    .btn-green:hover { background:#10b981; box-shadow:0 0 20px rgba(16,185,129,.3); }
+    .btn-red   { background:#dc2626; }
+    .btn-red:hover   { background:#ef4444; box-shadow:0 0 20px rgba(239,68,68,.3); }
+
+    /* Card border glow */
+    .card-blue  { border-color:rgba(59,130,246,.35)  !important; }
+    .card-amber { border-color:rgba(245,158,11,.35)  !important; }
+    .card-purple{ border-color:rgba(168,85,247,.35)  !important; }
+    .card-green { border-color:rgba(34,197,94,.35)   !important; }
+    .card-red   { border-color:rgba(239,68,68,.35)   !important; }
+    .card-indigo{ border-color:rgba(99,102,241,.35)  !important; }
+    .card-teal  { border-color:rgba(20,184,166,.35)  !important; }
+
+    /* Funnel bars */
+    .funnel-bar {
+      border-radius: 8px 8px 0 0;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      transition: filter .2s;
+    }
+    .funnel-bar:hover { filter: brightness(1.2); }
+
+    /* Badge */
+    .badge {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:3px 10px; border-radius:20px; font-size:.7rem; font-weight:600;
+      border-width:1px; border-style:solid; cursor:pointer;
+      transition:opacity .15s; white-space:nowrap;
+    }
+    .badge:hover { opacity:.8; }
+    .badge-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+    /* Status badge colors */
+    .b-novo { background:rgba(59,130,246,.1);  color:#93c5fd; border-color:rgba(59,130,246,.2); }
+    .b-cont { background:rgba(245,158,11,.1);  color:#fcd34d; border-color:rgba(245,158,11,.2); }
+    .b-reun { background:rgba(168,85,247,.1);  color:#c4b5fd; border-color:rgba(168,85,247,.2); }
+    .b-aber { background:rgba(249,115,22,.1);  color:#fdba74; border-color:rgba(249,115,22,.2); }
+    .b-conv { background:rgba(34,197,94,.1);   color:#6ee7b7; border-color:rgba(34,197,94,.2);  }
+    .b-perd { background:rgba(239,68,68,.1);   color:#fca5a5; border-color:rgba(239,68,68,.2);  }
+
+    /* Modal backdrop */
+    .backdrop { background: rgba(0,0,0,.88); backdrop-filter:blur(12px); }
+
+    /* Line clamp */
+    .clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+    /* Connector line in drawer */
+    .act-line { width:1px; background:rgba(255,255,255,0.08); flex:1; min-height:12px; margin-top:2px; }
+  </style>
+</head>
+<body>
+
+<!-- NOISE OVERLAY -->
+<div class="noise" aria-hidden="true"></div>
+
+<!-- TOAST CONTAINER -->
+<div id="toasts" class="fixed bottom-6 right-6 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ HEADER ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<header style="background:rgba(0,0,0,0.75); border-bottom:1px solid rgba(255,255,255,0.07); backdrop-filter:blur(20px);" class="sticky top-0 z-30">
+  <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div style="background:linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius:10px;" class="w-9 h-9 flex items-center justify-center font-bold text-base text-white shadow-lg">Z</div>
+      <div>
+        <h1 class="text-base font-semibold leading-none" style="color:var(--t1)">CRM Zeve</h1>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Gestão de Leads</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Connection pill -->
+      <button onclick="openSettings()" id="conn-btn"
+        style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:99px;"
+        class="flex items-center gap-2 px-3 py-1.5 text-xs transition-all hover:border-white/20">
+        <span id="conn-dot" style="background:#52525b;" class="w-1.5 h-1.5 rounded-full"></span>
+        <span id="conn-label" style="color:var(--t3)">Local</span>
+      </button>
+
+      <!-- Settings -->
+      <button onclick="openSettings()"
+        style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px;"
+        class="w-8 h-8 flex items-center justify-center transition-all hover:border-white/20"
+        title="Configurações">
+        <svg class="w-3.5 h-3.5" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+
+      <button onclick="openModal()" class="btn-blue flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar Lead
+      </button>
+      <button onclick="exportXLS()" class="btn-green flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Exportar
+      </button>
+      <button onclick="triggerImport()" class="flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all" style="background:#7c3aed" onmouseover="this.style.background='#8b5cf6';this.style.boxShadow='0 0 20px rgba(139,92,246,.3)'" onmouseout="this.style.background='#7c3aed';this.style.boxShadow='none'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4 4m4-4v12"/></svg>
+        Importar
+      </button>
+      <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportFile(this)"/>
+    </div>
+  </div>
+</header>
+
+<!-- OVERDUE BANNER -->
+<div id="overdue-banner" class="hidden" style="background:rgba(239,68,68,.08); border-bottom:1px solid rgba(239,68,68,.2);">
+  <div class="max-w-screen-2xl mx-auto px-6 py-2.5 flex items-center gap-2">
+    <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:#f87171" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    <p id="overdue-text" class="text-xs font-medium" style="color:#fca5a5"></p>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ MAIN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-5">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3"></div>
+
+  <!-- FUNNEL -->
+  <div class="glass rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-xs font-semibold uppercase tracking-widest" style="color:var(--t3)">Funil de Conversão</h2>
+      <span class="text-xs" style="color:var(--t3)">% de avanço · ⌀ dias por etapa</span>
+    </div>
+    <div id="funnel-container" class="overflow-x-auto"></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="rounded-2xl p-4" style="background:linear-gradient(145deg,rgba(255,255,255,0.04) 0%,rgba(0,0,0,0.55) 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(255,255,255,0.06) 0px 1px 0px 0px inset,rgba(0,0,0,0.5) 0px 20px 50px;overflow:visible;position:relative;z-index:20;">
+    <div class="flex flex-wrap gap-3 items-end" style="overflow:visible;">
+      <div class="flex-1 min-w-[150px]">
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Buscar</label>
+        <input id="f-search" type="text" placeholder="Nome ou telefone…" oninput="renderTable()"
+          class="w-full border rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Status</label>
+        <select id="f-status" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="">Todos</option>
+          <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Responsável</label>
+        <select id="f-responsible" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Todos</option></select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Origem</label>
+        <select id="f-origin" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Todas</option></select>
+      </div>
+      <!-- TAG MULTI-SELECT -->
+      <div style="position:relative; z-index:100;">
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Tags</label>
+        <button type="button" id="tag-filter-btn" onclick="toggleTagDropdown(event)"
+          class="border rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-all"
+          style="min-width:140px; max-width:220px; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);">
+          <span id="tag-filter-label" class="flex-1 text-left truncate" style="color:var(--t3)">Todas as tags</span>
+          <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="tag-dropdown" class="hidden absolute left-0 mt-1 rounded-xl shadow-2xl"
+          style="min-width:210px; max-height:280px; overflow-y:auto; background:#18181b; border:1px solid rgba(255,255,255,0.12); z-index:9999; position:absolute;">
+          <div id="tag-dropdown-list" class="py-1"></div>
+        </div>
+      </div>
+
+      <!-- MULTI-DATE ENTRADA -->
+      <div>
+        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Data de entrada</label>
+        <div class="flex gap-1.5 items-center flex-wrap">
+          <div class="flex gap-1">
+            <input id="f-date-add" type="date"
+              class="border rounded-lg px-2 py-2 text-sm"
+              style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
+            <button type="button" onclick="addDateChip()"
+              class="btn-blue text-white rounded-lg px-2.5 py-2 text-sm font-semibold transition-all flex-shrink-0"
+              title="Adicionar data">+</button>
+          </div>
+          <div id="date-chips" class="flex flex-wrap gap-1"></div>
+        </div>
+        <div class="flex gap-1 items-center mt-1.5">
+          <span class="text-xs" style="color:var(--t3)">Período:</span>
+          <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs"
+            style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
+          <span class="text-xs" style="color:var(--t3)">até</span>
+          <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs"
+            style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
+        </div>
+      </div>
+      <button onclick="clearFilters()"
+        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2); border-radius:8px;"
+        class="px-3 py-2 text-sm transition-all hover:border-zinc-600">Limpar</button>
+      <span id="result-count" class="ml-auto text-xs self-end pb-0.5" style="color:var(--t3)"></span>
+    </div>
+  </div>
+
+  <!-- BULK BAR -->
+  <div id="bulk-bar" class="hidden rounded-xl px-5 py-3 flex items-center gap-3 flex-wrap"
+    style="background:rgba(37,99,235,.15); border:1px solid rgba(59,130,246,.3);">
+    <span id="bulk-count" class="text-sm font-semibold" style="color:#93c5fd"></span>
+    <select id="bulk-status-sel" class="border rounded-lg px-3 py-1.5 text-sm">
+      <option value="">Mudar status para…</option>
+      <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
+    </select>
+    <button onclick="bulkChangeStatus()" class="btn-blue text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Aplicar</button>
+    <button onclick="bulkDelete()" class="btn-red text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Excluir</button>
+    <button onclick="openDispatchModal('selected')"
+      class="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
+      style="background:#16a34a" onmouseover="this.style.background='#22c55e'" onmouseout="this.style.background='#16a34a'">
+      <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Disparar WhatsApp
+    </button>
+    <button onclick="clearSelection()" class="ml-auto text-xs transition-colors" style="color:var(--t3)">✕ Cancelar</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="glass rounded-2xl overflow-hidden">
+    <div id="loading-state" class="hidden py-20 text-center">
+      <svg class="spin w-7 h-7 mx-auto mb-3" style="color:#3b82f6" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      </svg>
+      <p class="text-sm" style="color:var(--t3)">Carregando…</p>
+    </div>
+    <div id="table-wrap" class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead style="background:rgba(255,255,255,0.04); border-bottom:1px solid rgba(255,255,255,0.08);">
+
+          <tr>
+            <th class="px-4 py-3 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('name')">Nome <span class="sort-icon text-blue-400" data-col="name"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Telefone</th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('entry')">Entrada <span class="sort-icon text-blue-400" data-col="entry"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('followup')">Follow-up <span class="sort-icon text-blue-400" data-col="followup"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('status')">Status <span class="sort-icon text-blue-400" data-col="status"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('origin')">Origem <span class="sort-icon text-blue-400" data-col="origin"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('value')">Valor <span class="sort-icon text-blue-400" data-col="value"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Tags</th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody" style="border-top:1px solid var(--b1);"></tbody>
+      </table>
+      <div id="empty-state" class="hidden py-20 text-center">
+        <div class="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center" style="background:var(--s2);">
+          <svg class="w-7 h-7" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <p class="font-semibold text-sm" style="color:var(--t2)">Nenhum lead encontrado</p>
+        <p class="text-xs mt-1" style="color:var(--t3)">Adicione um lead ou ajuste os filtros</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ MODAL ADD/EDIT ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="modal-backdrop" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl">
+    <div class="px-6 py-4 flex items-center justify-between sticky top-0 z-10" style="background:rgba(0,0,0,0.6); border-bottom:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(20px);">
+      <h2 id="modal-title" class="text-base font-semibold" style="color:var(--t1)">Adicionar Lead</h2>
+      <button onclick="closeModal()" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="color:var(--t3);" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="lead-form" onsubmit="saveLead(event)" class="px-6 py-5 space-y-4">
+      <input type="hidden" id="f-id"/>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Nome <span style="color:#f87171">*</span></label>
+          <input id="f-name" type="text" required placeholder="Nome completo" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Telefone <span style="color:#f87171">*</span></label>
+          <input id="f-phone" type="tel" required placeholder="(11) 99999-9999" maxlength="15" oninput="fmtPhone(this)" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Entrada <span style="color:#f87171">*</span></label>
+          <input id="f-entry" type="date" required class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Follow-up</label>
+          <input id="f-followup" type="date" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Status</label>
+          <select id="f-status-field" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+            <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Responsável</label>
+          <input id="f-responsible" type="text" placeholder="Consultor" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Origem</label>
+          <select id="f-origin" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+            <option value="">Selecionar…</option>
+            <option>Instagram</option><option>Facebook Ads</option><option>Google Ads</option>
+            <option>Indicação</option><option>Orgânico</option><option>WhatsApp</option>
+            <option>YouTube</option><option>TikTok</option><option>Email</option><option>Outro</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Produto / Serviço</label>
+          <input id="f-product" type="text" placeholder="Ex: Plano Premium" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Valor Estimado (R$)</label>
+          <input id="f-value" type="number" step="0.01" min="0" placeholder="0,00" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Tags</label>
+          <input id="f-tags" type="text" placeholder="indicação, urgente, premium — separar por vírgula" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Notas</label>
+          <textarea id="f-notes" rows="3" placeholder="Observações…" class="w-full border rounded-lg px-3 py-2.5 text-sm resize-none"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeModal()"
+          class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+          style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Cancelar</button>
+        <button type="submit" id="save-btn" class="btn-blue flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all">Salvar Lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ DELETE MODAL ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,.12);">
+        <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </div>
+      <div>
+        <h3 class="font-semibold" style="color:var(--t1)">Excluir Lead</h3>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Ação irreversível</p>
+      </div>
+    </div>
+    <p class="text-sm mb-5" style="color:var(--t2)">Excluir <strong id="delete-name" style="color:var(--t1)"></strong>?</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()"
+        class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Cancelar</button>
+      <button onclick="confirmDelete()" class="btn-red flex-1 text-white rounded-lg px-4 py-2 text-sm font-semibold transition-all">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ ACTIVITY DRAWER ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="activity-drawer" class="hidden fixed inset-0 z-50 flex justify-end">
+  <div class="flex-1 backdrop cursor-pointer" onclick="closeDrawer()"></div>
+  <div class="anim-slide w-full max-w-sm flex flex-col shadow-2xl" style="background:rgba(4,4,4,0.95); border-left:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(40px);">
+    <div class="px-5 py-4 flex items-start justify-between flex-shrink-0" style="border-bottom:1px solid var(--b1);">
+      <div>
+        <h2 id="drawer-name" class="font-semibold text-base" style="color:var(--t1)"></h2>
+        <div id="drawer-meta" class="flex flex-wrap items-center gap-2 mt-1.5"></div>
+      </div>
+      <button onclick="closeDrawer()" class="w-7 h-7 rounded-lg flex items-center justify-center ml-3 mt-0.5" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-5 py-4">
+      <div id="activity-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ SETTINGS MODAL ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+      <h2 class="text-base font-semibold" style="color:var(--t1)">Configurar Supabase</h2>
+      <button onclick="closeSettings()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div id="settings-status" class="rounded-xl px-4 py-3 text-sm font-medium"></div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Project URL</label>
+          <input id="s-url" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Anon Key</label>
+          <input id="s-key" type="password" placeholder="eyJh…" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="connectSupabase()" class="btn-blue flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all">Conectar</button>
+          <button onclick="disconnectSupabase()"
+            class="rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+            style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Desconectar</button>
+        </div>
+      </div>
+
+      <div id="migrate-box" class="hidden rounded-xl p-4" style="background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2);">
+        <p class="text-sm font-semibold mb-1" style="color:#fcd34d">Migrar dados locais?</p>
+        <p class="text-xs mb-3" style="color:#fbbf24">Você tem <strong id="migrate-count"></strong> leads neste navegador. Enviar para o Supabase?</p>
+        <button onclick="migrateToSupabase()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style="background:#b45309">Migrar agora</button>
+      </div>
+
+      <!-- CHATWOOT CONFIG -->
+      <div style="border-top:1px solid var(--b1);padding-top:16px;margin-top:4px;">
+        <p class="text-sm font-semibold mb-3" style="color:var(--t1)">Chatwoot — Disparo WhatsApp</p>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">URL do Chatwoot</label>
+            <input id="cw-url" type="url" placeholder="https://app.chatwoot.com" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Account ID</label>
+              <input id="cw-account" type="text" placeholder="123" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Inbox ID</label>
+              <input id="cw-inbox" type="text" placeholder="456" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">User Access Token</label>
+            <input id="cw-token" type="password" placeholder="Token de acesso do perfil" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Nome do Template aprovado</label>
+            <input id="cw-template" type="text" placeholder="ex: contato_grupo_seleto" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Corpo do Template (texto exato aprovado)</label>
+            <textarea id="cw-template-body" rows="4" placeholder="Cole aqui o texto exato do template aprovado no Meta…" class="w-full border rounded-lg px-3 py-2.5 text-sm resize-none"></textarea>
+          </div>
+          <button onclick="saveChatwootConfig()" class="btn-blue w-full text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all">Salvar configuração</button>
+        </div>
+      </div>
+
+      <details class="rounded-xl overflow-hidden" style="border:1px solid var(--b1);">
+        <summary class="px-4 py-3 text-sm font-medium cursor-pointer select-none" style="color:var(--t2); background:var(--s2)">
+          SQL — criar tabelas no Supabase
+        </summary>
+        <div class="p-4" style="background:var(--s2)">
+          <p class="text-xs mb-2" style="color:var(--t3)">Cole no <strong style="color:var(--t2)">SQL Editor</strong> do Supabase:</p>
+          <pre class="text-xs p-3 rounded-lg overflow-x-auto select-all leading-relaxed font-mono" style="background:#0d1117; color:#7ee787;" id="sql-block"></pre>
+          <button onclick="copySQL()" class="mt-2 text-xs font-medium" style="color:#60a5fa">Copiar SQL</button>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS DROPDOWN MENU -->
+<div id="status-menu" class="hidden fixed z-[150] rounded-2xl shadow-2xl overflow-hidden py-1" style="background:rgba(8,8,8,0.95);border:1px solid rgba(255,255,255,0.1);min-width:180px;backdrop-filter:blur(40px);box-shadow:rgba(255,255,255,0.05) 0px 1px 0px 0px inset,rgba(0,0,0,0.6) 0px 20px 50px;">
+  <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Alterar status</p>
+  <div id="status-menu-items"></div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+      <h2 class="text-base font-semibold" style="color:var(--t1)">Importar Leads</h2>
+      <button onclick="closeImportModal()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <!-- Drop zone -->
+      <div id="import-dropzone" onclick="triggerImport()"
+        class="rounded-xl border-2 border-dashed flex flex-col items-center justify-center py-10 cursor-pointer transition-all"
+        style="border-color:var(--b2);"
+        ondragover="event.preventDefault();this.style.borderColor='#7c3aed'" ondragleave="this.style.borderColor='var(--b2)'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--b2)';handleImportFile({files:event.dataTransfer.files})">
+        <svg class="w-10 h-10 mb-3" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        <p class="text-sm font-medium" style="color:var(--t2)">Clique ou arraste seu arquivo aqui</p>
+        <p class="text-xs mt-1" style="color:var(--t3)">Suporte: .xlsx · .xls · .csv</p>
+      </div>
+
+      <!-- Preview -->
+      <div id="import-preview" class="hidden space-y-3">
+        <div class="rounded-xl p-4" style="background:var(--s2);border:1px solid var(--b1);">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-sm font-semibold" style="color:var(--t1)" id="import-file-name"></p>
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(124,58,237,.15);color:#a78bfa;border:1px solid rgba(124,58,237,.3)" id="import-row-count"></span>
+          </div>
+          <div id="import-mapping" class="space-y-1.5"></div>
+        </div>
+        <div id="import-warning" class="hidden rounded-lg px-4 py-3 text-xs" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fcd34d;"></div>
+        <div class="flex gap-3 pt-1">
+          <button onclick="closeImportModal()" class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all" style="background:var(--s2);border:1px solid var(--b1);color:var(--t2);">Cancelar</button>
+          <button onclick="confirmImport()" id="import-confirm-btn" class="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all" style="background:#7c3aed" onmouseover="this.style.background='#8b5cf6'" onmouseout="this.style.background='#7c3aed'">Importar Leads</button>
+        </div>
+      </div>
+
+      <!-- Template download hint -->
+      <p class="text-xs text-center" style="color:var(--t3)">
+        Colunas reconhecidas: <span style="color:var(--t2)">Nome, Telefone, Entrada, Follow-up, Status, Responsável, Origem, Produto, Valor, Tags, Notas</span>
+        · <button onclick="downloadTemplate()" class="underline" style="color:#a78bfa">Baixar modelo</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━ DISPATCH MODAL ━━━━━━━━━━━━━━━━━━━━ -->
+<div id="dispatch-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
+  <div class="glass anim-up rounded-2xl w-full max-w-lg shadow-2xl" style="max-height:90vh;overflow-y:auto;">
+    <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(22,163,74,.15);">
+          <svg width="16" height="16" fill="#22c55e" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </div>
+        <h2 class="text-base font-semibold" style="color:var(--t1)">Disparar Template WhatsApp</h2>
+      </div>
+      <button onclick="closeDispatchModal()" id="dispatch-close-btn" class="w-7 h-7 rounded-lg flex items-center justify-center" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <!-- Summary -->
+      <div id="dispatch-summary" class="rounded-xl p-4 space-y-2" style="background:var(--s2);border:1px solid var(--b1);">
+        <div class="flex items-center justify-between">
+          <span class="text-xs" style="color:var(--t3)">Leads para disparar</span>
+          <span id="dispatch-count" class="text-sm font-bold" style="color:#6ee7b7"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs" style="color:var(--t3)">Template</span>
+          <span id="dispatch-tpl-name" class="text-xs font-mono px-2 py-0.5 rounded" style="background:rgba(59,130,246,.1);color:#93c5fd;"></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs" style="color:var(--t3)">Chatwoot</span>
+          <span id="dispatch-cw-url" class="text-xs" style="color:var(--t2);"></span>
+        </div>
+      </div>
+
+      <!-- Config warning -->
+      <div id="dispatch-config-warn" class="hidden rounded-xl px-4 py-3 text-sm" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#fca5a5;">
+        Configuração do Chatwoot incompleta. <button onclick="closeDispatchModal();openSettings()" class="underline font-semibold">Configurar agora</button>
+      </div>
+
+      <!-- Progress -->
+      <div id="dispatch-progress-wrap" class="hidden space-y-2">
+        <div class="flex items-center justify-between text-xs" style="color:var(--t3)">
+          <span id="dispatch-progress-label">Disparando…</span>
+          <span id="dispatch-progress-pct">0%</span>
+        </div>
+        <div class="w-full rounded-full overflow-hidden" style="height:6px;background:var(--s3);">
+          <div id="dispatch-progress-bar" style="height:100%;width:0%;background:linear-gradient(to right,#16a34a,#22c55e);border-radius:9999px;transition:width .3s ease;"></div>
+        </div>
+        <div id="dispatch-log" class="rounded-xl p-3 space-y-1 overflow-y-auto" style="max-height:200px;background:rgba(0,0,0,.3);border:1px solid var(--b1);"></div>
+      </div>
+
+      <!-- Result -->
+      <div id="dispatch-result" class="hidden rounded-xl p-4" style="background:var(--s2);border:1px solid var(--b1);">
+        <p id="dispatch-result-text" class="text-sm font-semibold" style="color:var(--t1)"></p>
+      </div>
+
+      <!-- Actions -->
+      <div id="dispatch-actions" class="flex gap-3">
+        <button onclick="closeDispatchModal()" class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all" style="background:var(--s2);border:1px solid var(--b1);color:var(--t2);">Cancelar</button>
+        <button id="dispatch-confirm-btn" onclick="runDispatch()"
+          class="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all"
+          style="background:#16a34a" onmouseover="this.style.background='#22c55e'" onmouseout="this.style.background='#16a34a'">
+          Confirmar Disparo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ SCRIPT ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<script>
+const STATUSES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido','Perdido'];
+const FUNNEL_STAGES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido'];
+
+// Colors per status
+const SC = {
+  'Novo':            { badge:'b-novo', dot:'#60a5fa', clr:'#3b82f6', grd:'#1e40af' },
+  'Contatado':       { badge:'b-cont', dot:'#fcd34d', clr:'#f59e0b', grd:'#92400e' },
+  'Reunião Marcada': { badge:'b-reun', dot:'#c4b5fd', clr:'#a855f7', grd:'#5b21b6' },
+  'Abertura/troca':  { badge:'b-aber', dot:'#fdba74', clr:'#f97316', grd:'#7c2d12' },
+  'Convertido':      { badge:'b-conv', dot:'#6ee7b7', clr:'#22c55e', grd:'#065f46' },
+  'Perdido':         { badge:'b-perd', dot:'#fca5a5', clr:'#ef4444', grd:'#7f1d1d' },
+};
+
+const SETUP_SQL = `create table if not exists crm_leads (
+  id bigserial primary key,
+  name text not null,
+  phone text not null,
+  entry text,
+  followup text,
+  status text not null default 'Novo',
+  responsible text,
+  origin text,
+  product text,
+  value numeric default 0,
+  tags text,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists crm_activity (
+  id bigserial primary key,
+  lead_id bigint references crm_leads(id) on delete cascade,
+  action text not null,
+  detail text,
+  responsible text,
+  created_at timestamptz default now()
+);
+
+alter table crm_leads enable row level security;
+alter table crm_activity enable row level security;
+create policy "allow_all" on crm_leads for all using (true) with check (true);
+create policy "allow_all" on crm_activity for all using (true) with check (true);`;
+
+// ── DB ADAPTER ──────────────────────────────────────────────
+const DB = {
+  client: null, ok: false,
+  async init() {
+    const url = localStorage.getItem('crm_sb_url');
+    const key = localStorage.getItem('crm_sb_key');
+    if(!url||!key){this.ok=false;return false;}
+    try {
+      this.client = window.supabase.createClient(url,key);
+      const {error} = await this.client.from('crm_leads').select('id').limit(1);
+      if(error) throw error;
+      this.ok=true; return true;
+    } catch(e){ console.warn('SB:',e.message); this.client=null; this.ok=false; return false; }
+  },
+  async loadLeads() {
+    if(this.ok){
+      const PAGE=1000;
+      let all=[],from=0,done=false;
+      while(!done){
+        const {data,error}=await this.client.from('crm_leads').select('*').order('created_at',{ascending:false}).range(from,from+PAGE-1);
+        if(error||!data) break;
+        all=all.concat(data);
+        done=data.length<PAGE;
+        from+=PAGE;
+      }
+      return all;
+    }
+    return JSON.parse(localStorage.getItem('crm_leads')||'[]');
+  },
+  async upsert(lead) {
+    const now=new Date().toISOString();
+    if(this.ok){
+      if(lead.id){
+        const {data,error}=await this.client.from('crm_leads').update({...lead,updated_at:now}).eq('id',lead.id).select().single();
+        if(!error) return data;
+      } else {
+        const {id:_,...rest}=lead;
+        const {data,error}=await this.client.from('crm_leads').insert({...rest,created_at:now,updated_at:now}).select().single();
+        if(!error) return data;
+      }
+    }
+    const arr=JSON.parse(localStorage.getItem('crm_leads')||'[]');
+    if(lead.id){ const i=arr.findIndex(l=>l.id===lead.id); if(i!==-1) arr[i]={...arr[i],...lead}; else arr.push(lead); }
+    else { const nid=parseInt(localStorage.getItem('crm_nid')||'1',10); lead={...lead,id:nid,created_at:now}; arr.unshift(lead); localStorage.setItem('crm_nid',String(nid+1)); }
+    localStorage.setItem('crm_leads',JSON.stringify(arr));
+    return lead;
+  },
+  async delete(id){ if(this.ok){await this.client.from('crm_leads').delete().eq('id',id);return;} const a=JSON.parse(localStorage.getItem('crm_leads')||'[]'); localStorage.setItem('crm_leads',JSON.stringify(a.filter(l=>l.id!==id))); },
+  async deleteMany(ids){ if(this.ok){await this.client.from('crm_leads').delete().in('id',ids);return;} const a=JSON.parse(localStorage.getItem('crm_leads')||'[]'); localStorage.setItem('crm_leads',JSON.stringify(a.filter(l=>!ids.includes(l.id)))); },
+  async getActivity(lid){
+    if(this.ok){const {data}=await this.client.from('crm_activity').select('*').eq('lead_id',lid).order('created_at',{ascending:false});return data||[];}
+    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');
+    return a.filter(x=>x.lead_id===lid).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+  },
+  async log(lid,action,detail,responsible){
+    const e={lead_id:lid,action,detail:detail||null,responsible:responsible||'—',created_at:new Date().toISOString()};
+    if(this.ok){await this.client.from('crm_activity').insert(e);return;}
+    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');
+    a.unshift({id:Date.now(),...e}); localStorage.setItem('crm_activity',JSON.stringify(a));
+  }
+};
+
+// ── STATE ────────────────────────────────────────────────────
+let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc';
+
+// ── HELPERS ──────────────────────────────────────────────────
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const today=()=>new Date().toISOString().slice(0,10);
+const toDateBR=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;};
+const toCur=v=>{if(!v&&v!==0)return'—';return'R$\u00a0'+parseFloat(v).toLocaleString('pt-BR',{maximumFractionDigits:0});};
+const diffDays=iso=>!iso?null:Math.max(0,Math.round((new Date(today())-new Date(iso))/86400000));
+
+function fmtPhone(i){let v=i.value.replace(/\D/g,'').slice(0,11);if(v.length>6)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);else if(v.length>0)v='('+v;i.value=v;}
+function toWA(p){let d=p.replace(/\D/g,'');if(!d.startsWith('55'))d='55'+d;return'https://wa.me/'+d;}
+function fuClass(f,s){if(!f||s==='Convertido'||s==='Perdido')return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
+
+function toast(msg,type='success'){
+  const map={success:'#059669',error:'#dc2626',warn:'#b45309'};
+  const el=document.createElement('div');
+  el.className='anim-toast pointer-events-auto text-white text-sm font-medium px-4 py-3 rounded-xl shadow-2xl';
+  el.style.cssText=`background:${map[type]||'#27272a'};border:1px solid rgba(255,255,255,.1);max-width:280px;`;
+  el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+function setLoading(v){
+  document.getElementById('loading-state').classList.toggle('hidden',!v);
+  document.getElementById('table-wrap').classList.toggle('hidden',v);
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────
+function renderDashboard(){
+  const c={Total:leads.length};STATUSES.forEach(s=>c[s]=0);
+  let pipeline=0,overdue=0;const t=today();
+  leads.forEach(l=>{
+    c[l.status]=(c[l.status]||0)+1;
+    if(l.status!=='Convertido'&&l.status!=='Perdido'&&l.value) pipeline+=parseFloat(l.value)||0;
+    if(l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido') overdue++;
+  });
+  const denom=c['Convertido']+c['Perdido'];
+  const convPct=denom>0?Math.round(c['Convertido']/denom*100):0;
+
+  const banner=document.getElementById('overdue-banner');
+  if(overdue>0){banner.classList.remove('hidden');document.getElementById('overdue-text').textContent=`⚠️ ${overdue} follow-up${overdue>1?'s':''} atrasado${overdue>1?'s':''} — verifique os leads`;}
+  else banner.classList.add('hidden');
+
+  const cards=[
+    {l:'Total',       v:c.Total,          vc:'#f4f4f5', lc:'#71717a', bc:'var(--b1)',     extra:''},
+    {l:'Novos',       v:c['Novo'],         vc:'#93c5fd', lc:'#60a5fa', bc:'rgba(59,130,246,.3)',  extra:'card-blue'},
+    {l:'Contatados',  v:c['Contatado'],    vc:'#fcd34d', lc:'#fbbf24', bc:'rgba(245,158,11,.3)', extra:'card-amber'},
+    {l:'Reunião',     v:c['Reunião Marcada'],vc:'#c4b5fd',lc:'#a78bfa',bc:'rgba(168,85,247,.3)', extra:'card-purple'},
+    {l:'Abertura/troca',v:c['Abertura/troca'],vc:'#fdba74',lc:'#fb923c',bc:'rgba(249,115,22,.3)',extra:'card-amber'},
+    {l:'Convertidos', v:c['Convertido'],   vc:'#6ee7b7', lc:'#34d399', bc:'rgba(34,197,94,.3)',  extra:'card-green'},
+    {l:'Perdidos',    v:c['Perdido'],      vc:'#fca5a5', lc:'#f87171', bc:'rgba(239,68,68,.3)',  extra:'card-red'},
+    {l:'Conversão',   v:convPct+'%',       vc:'#a5b4fc', lc:'#818cf8', bc:'rgba(99,102,241,.3)', extra:'card-indigo'},
+    {l:'Follow-ups Atrasados', v:overdue,  vc:overdue>0?'#fca5a5':'#71717a', lc:overdue>0?'#f87171':'#52525b', bc:overdue>0?'rgba(239,68,68,.3)':'var(--b1)', extra:overdue>0?'card-red':''},
+    {l:'Pipeline',    v:toCur(pipeline),   vc:'#5eead4', lc:'#2dd4bf', bc:'rgba(20,184,166,.3)', extra:'card-teal', sm:true},
+  ];
+
+  document.getElementById('dashboard').innerHTML=cards.map(c=>`
+    <div class="relative rounded-2xl p-4 overflow-hidden ${c.extra}" style="background:linear-gradient(145deg,rgba(255,255,255,0.04) 0%,rgba(0,0,0,0.55) 100%);border:1px solid ${c.bc};box-shadow:rgba(255,255,255,0.05) 0px 1px 0px 0px inset,rgba(0,0,0,0.5) 0px 12px 30px;transition:border-color .2s;" onmouseover="this.style.borderColor='${c.bc.replace('0.3','0.5').replace('0.35','0.55')}'" onmouseout="this.style.borderColor='${c.bc}'">
+      <div class="absolute inset-x-0 top-0 h-px opacity-70" style="background:linear-gradient(to right,transparent 10%,${c.bc},transparent 90%);"></div>
+      <p class="relative text-xs font-medium mb-3 uppercase tracking-wider leading-tight" style="color:${c.lc}">${c.l}</p>
+      <p class="relative font-bold leading-none ${c.sm?'text-lg':'text-2xl'} truncate" style="color:${c.vc}">${c.v}</p>
+    </div>`).join('');
+}
+
+// ── FUNNEL ───────────────────────────────────────────────────
+function renderFunnel(){
+  const cnt={};const daySum={};
+  STATUSES.forEach(s=>{cnt[s]=0;daySum[s]=0;});
+  leads.forEach(l=>{if(cnt[l.status]!==undefined){cnt[l.status]++;const d=diffDays(l.entry);if(d!==null)daySum[l.status]+=d;}});
+
+  const conv=FUNNEL_STAGES.map((s,i)=>{
+    if(i===FUNNEL_STAGES.length-1)return null;
+    const fromHere=FUNNEL_STAGES.slice(i).reduce((a,st)=>a+cnt[st],0);
+    const fromNext=FUNNEL_STAGES.slice(i+1).reduce((a,st)=>a+cnt[st],0);
+    return fromHere>0?Math.round(fromNext/fromHere*100):0;
+  });
+
+  const total=leads.length||1;
+
+  let html=`<div style="display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:2px;">`;
+
+  FUNNEL_STAGES.forEach((s,i)=>{
+    const n=cnt[s];
+    const pct=Math.round(n/total*100);
+    const avg=n>0?Math.round(daySum[s]/n):0;
+    const sc=SC[s];
+    const barW=Math.max(4,pct);
+
+    html+=`
+    <div style="flex:1;min-width:130px;display:flex;flex-direction:column;">
+      <div style="
+        flex:1;position:relative;overflow:hidden;
+        border:1px solid ${sc.clr}28;
+        border-top:2px solid ${sc.clr};
+        border-radius:14px;
+        padding:18px 16px 16px;
+        background:linear-gradient(160deg,${sc.clr}0d 0%,rgba(0,0,0,0.35) 100%);
+        transition:border-color .2s;
+      " onmouseover="this.style.borderTopColor='${sc.clr}';this.style.borderColor='${sc.clr}55'" onmouseout="this.style.borderTopColor='${sc.clr}';this.style.borderColor='${sc.clr}28'">
+        <!-- barra de progresso no fundo -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.04);">
+          <div style="height:100%;width:${barW}%;background:linear-gradient(to right,${sc.grd},${sc.clr});border-radius:2px;transition:width .6s ease;"></div>
+        </div>
+        <!-- label -->
+        <p style="font-size:.6rem;font-weight:700;color:${sc.clr};text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s}</p>
+        <!-- número grande -->
+        <p style="font-size:2.2rem;font-weight:700;color:#fff;line-height:1;margin-bottom:8px;">${n}</p>
+        <!-- métricas -->
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size:.65rem;color:rgba(255,255,255,0.35);">${pct}% do total</span>
+          <span style="font-size:.65rem;color:rgba(255,255,255,0.25);">⌀ ${avg} dias</span>
+        </div>
+      </div>
+    </div>`;
+
+    if(i<FUNNEL_STAGES.length-1){
+      const p=conv[i];
+      const ac=p>=50?'#34d399':p>=25?'#fbbf24':'#f87171';
+      html+=`
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;gap:5px;flex-shrink:0;min-width:44px;">
+        <span style="font-size:.65rem;font-weight:700;color:${ac};letter-spacing:.02em;">${p}%</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ac}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </div>`;
+    }
+  });
+
+  html+=`</div>`;
+
+  // Perdidos — linha separada compacta
+  const ln=cnt['Perdido'];
+  const lpct=leads.length>0?Math.round(ln/leads.length*100):0;
+  const lavg=ln>0?Math.round(daySum['Perdido']/ln):0;
+  const denom=cnt['Convertido']+cnt['Perdido'];
+  const taxaPerda=denom>0?Math.round(ln/denom*100):0;
+
+  html+=`
+  <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
+    <div style="flex:1;height:1px;background:rgba(239,68,68,.12);"></div>
+    <div style="display:inline-flex;align-items:center;gap:0;border:1px solid rgba(239,68,68,.18);border-radius:12px;background:rgba(239,68,68,.05);overflow:hidden;">
+      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
+        <p style="font-size:.55rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.09em;margin-bottom:3px;">Perdidos</p>
+        <p style="font-size:1.3rem;font-weight:700;color:#ef4444;line-height:1;">${ln}</p>
+      </div>
+      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
+        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">% total</p>
+        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">${lpct}%</p>
+      </div>
+      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
+        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">taxa perda</p>
+        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">${taxaPerda}%</p>
+      </div>
+      <div style="padding:10px 18px;">
+        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">média dias</p>
+        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">⌀ ${lavg}d</p>
+      </div>
+    </div>
+    <div style="flex:1;height:1px;background:rgba(239,68,68,.12);"></div>
+  </div>`;
+
+  document.getElementById('funnel-container').innerHTML=html;
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+const selectedTags=new Set();
+const selectedDates=new Set();
+
+function populateDropdowns(){
+  const resp=[...new Set(leads.map(l=>l.responsible).filter(Boolean))].sort();
+  const orig=[...new Set(leads.map(l=>l.origin).filter(Boolean))].sort();
+  const rSel=document.getElementById('f-responsible');const rCur=rSel.value;
+  rSel.innerHTML='<option value="">Todos</option>'+resp.map(r=>`<option${r===rCur?' selected':''}>${esc(r)}</option>`).join('');
+  const oSel=document.getElementById('f-origin');const oCur=oSel.value;
+  oSel.innerHTML='<option value="">Todas</option>'+orig.map(o=>`<option${o===oCur?' selected':''}>${esc(o)}</option>`).join('');
+  buildTagDropdown();
+}
+
+function buildTagDropdown(){
+  const allTags=[...new Set(leads.flatMap(l=>(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean)))].sort();
+  const list=document.getElementById('tag-dropdown-list');
+  if(!list)return;
+  if(!allTags.length){list.innerHTML='<p class="px-3 py-2 text-xs" style="color:var(--t3)">Nenhuma tag cadastrada</p>';return;}
+  list.innerHTML=allTags.map(t=>{
+    const sel=selectedTags.has(t);
+    return`<div class="flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors" style="font-size:13px;${sel?'background:rgba(59,130,246,0.15);color:#93c5fd':'color:var(--t2)'}" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='${sel?'rgba(59,130,246,0.15)':'transparent'}'" onclick="toggleTagFilter('${esc(t)}')">
+      <span style="width:14px;height:14px;border-radius:3px;border:1px solid ${sel?'#3b82f6':'rgba(255,255,255,0.2)'};background:${sel?'#3b82f6':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        ${sel?'<svg width="9" height="9" viewBox="0 0 10 10" fill="white"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+      </span>
+      ${esc(t)}
+    </div>`;
+  }).join('');
+}
+
+function toggleTagFilter(tag){
+  if(selectedTags.has(tag))selectedTags.delete(tag);else selectedTags.add(tag);
+  updateTagFilterLabel();
+  buildTagDropdown();
+  renderTable();
+}
+
+function updateTagFilterLabel(){
+  const lbl=document.getElementById('tag-filter-label');
+  if(!lbl)return;
+  if(selectedTags.size===0){lbl.textContent='Todas as tags';lbl.style.color='var(--t3)';}
+  else{lbl.textContent=[...selectedTags].join(', ');lbl.style.color='var(--t1)';}
+}
+
+let tagDropdownOpen=false;
+function toggleTagDropdown(e){
+  e&&e.stopPropagation();
+  const dd=document.getElementById('tag-dropdown');
+  tagDropdownOpen=!tagDropdownOpen;
+  dd.classList.toggle('hidden',!tagDropdownOpen);
+}
+document.addEventListener('click',function(e){
+  if(tagDropdownOpen&&!document.getElementById('tag-filter-btn').contains(e.target)&&!document.getElementById('tag-dropdown').contains(e.target)){
+    tagDropdownOpen=false;document.getElementById('tag-dropdown').classList.add('hidden');
+  }
+});
+
+// ── MULTI-DATE ────────────────────────────────────────────────
+function addDateChip(){
+  const inp=document.getElementById('f-date-add');
+  const val=inp.value;
+  if(!val||selectedDates.has(val))return;
+  selectedDates.add(val);
+  inp.value='';
+  renderDateChips();
+  renderTable();
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&document.activeElement===document.getElementById('f-date-add')){e.preventDefault();addDateChip();}
+});
+function removeDateChip(d){selectedDates.delete(d);renderDateChips();renderTable();}
+function renderDateChips(){
+  const wrap=document.getElementById('date-chips');
+  if(!wrap)return;
+  wrap.innerHTML=[...selectedDates].sort().map(d=>`
+    <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;">
+      ${toDateBR(d)}
+      <button type="button" onclick="removeDateChip('${d}')" style="color:#93c5fd;line-height:1;" title="Remover">×</button>
+    </span>`).join('');
+}
+
+function getFiltered(){
+  const q=document.getElementById('f-search').value.trim().toLowerCase();
+  const st=document.getElementById('f-status').value;
+  const re=document.getElementById('f-responsible').value;
+  const or=document.getElementById('f-origin').value;
+  const df=document.getElementById('f-date-from').value;
+  const dt=document.getElementById('f-date-to').value;
+  return leads.filter(l=>{
+    if(q&&!l.name.toLowerCase().includes(q)&&!l.phone.replace(/\D/g,'').includes(q.replace(/\D/g,'')))return false;
+    if(st&&l.status!==st)return false;if(re&&l.responsible!==re)return false;
+    if(or&&l.origin!==or)return false;
+    // data de entrada: datas específicas têm prioridade sobre range
+    if(selectedDates.size>0){if(!selectedDates.has(l.entry))return false;}
+    else{if(df&&l.entry&&l.entry<df)return false;if(dt&&l.entry&&l.entry>dt)return false;}
+    // tags multi-select
+    if(selectedTags.size>0){
+      const lt=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
+      if(![...selectedTags].every(st=>lt.some(t=>t.toLowerCase()===st.toLowerCase())))return false;
+    }
+    return true;
+  });
+}
+
+function getSorted(arr){
+  return[...arr].sort((a,b)=>{
+    let va=a[sortCol]??'',vb=b[sortCol]??'';
+    if(sortCol==='value'){va=parseFloat(va)||0;vb=parseFloat(vb)||0;}
+    const r=va<vb?-1:va>vb?1:0;return sortDir==='asc'?r:-r;
+  });
+}
+
+function sortBy(col){
+  sortDir=sortCol===col?(sortDir==='asc'?'desc':'asc'):'asc';sortCol=col;renderTable();
+}
+
+function clearFilters(){
+  ['f-search','f-date-from','f-date-to','f-date-add'].forEach(id=>document.getElementById(id).value='');
+  ['f-status','f-responsible','f-origin'].forEach(id=>document.getElementById(id).value='');
+  selectedTags.clear();selectedDates.clear();
+  updateTagFilterLabel();renderDateChips();buildTagDropdown();
+  renderTable();
+}
+
+// ── TABLE ────────────────────────────────────────────────────
+function renderTable(){
+  populateDropdowns();
+  filteredLeads=getSorted(getFiltered());
+  const cnt=filteredLeads.length;
+  document.getElementById('result-count').textContent=cnt===leads.length?`${cnt} leads`:`${cnt} de ${leads.length} leads`;
+  document.querySelectorAll('.sort-icon').forEach(el=>el.textContent=el.dataset.col===sortCol?(sortDir==='asc'?'↑':'↓'):'');
+
+  const tbody=document.getElementById('leads-tbody');
+  const empty=document.getElementById('empty-state');
+  if(!filteredLeads.length){tbody.innerHTML='';empty.classList.remove('hidden');return;}
+  empty.classList.add('hidden');
+
+  const allSel=filteredLeads.length>0&&filteredLeads.every(l=>selectedIds.has(l.id));
+  const someSel=filteredLeads.some(l=>selectedIds.has(l.id));
+  const cb=document.getElementById('sel-all');cb.checked=allSel;cb.indeterminate=!allSel&&someSel;
+
+  tbody.innerHTML=filteredLeads.map(l=>{
+    const sc=SC[l.status];
+    const fuc=fuClass(l.followup,l.status);
+    const tags=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
+    const tagsHTML=tags.map(t=>`<span class="text-xs px-2 py-0.5 rounded-full transition-all" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" onclick="toggleTagFilter(unescape('${escape(t)}'))" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
+    const isSel=selectedIds.has(l.id);
+    return`<tr style="${isSel?'background:rgba(37,99,235,.08);':''}" id="row-${l.id}">
+      <td class="px-4 py-3 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
+      <td class="px-4 py-3 max-w-[160px]">
+        <button onclick="openDrawer(${l.id})" class="text-left text-sm font-medium truncate block w-full transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+      </td>
+      <td class="px-4 py-3 whitespace-nowrap">
+        <div class="flex items-center gap-2">
+          <span class="text-xs" style="color:var(--t2)">${esc(l.phone)}</span>
+          <a href="${toWA(l.phone)}" target="_blank" title="Abrir WhatsApp"
+            style="background:#16a34a;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;"
+            onmouseover="this.style.background='#22c55e';this.style.boxShadow='0 0 10px rgba(34,197,94,.4)'" onmouseout="this.style.background='#16a34a';this.style.boxShadow='none'">
+            <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </a>
+        </div>
+      </td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t3)">${toDateBR(l.entry)}</td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs"><span class="${fuc}">${toDateBR(l.followup)}</span></td>
+      <td class="px-4 py-3">
+        <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}">
+          <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
+        </button>
+      </td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t2)">${esc(l.responsible||'—')}</td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs" style="color:var(--t2)">${esc(l.origin||'—')}</td>
+      <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold" style="color:${l.value?'#6ee7b7':'var(--t3)'}">${l.value?toCur(l.value):'—'}</td>
+      <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${tagsHTML||`<span style="color:var(--t3)" class="text-xs">—</span>`}</div></td>
+      <td class="px-4 py-3">
+        <div class="flex gap-1.5">
+          <button onclick="openModal(${l.id})" title="Editar"
+            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+            style="background:rgba(59,130,246,.1);color:#60a5fa;"
+            onmouseover="this.style.background='rgba(59,130,246,.2)'" onmouseout="this.style.background='rgba(59,130,246,.1)'">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button onclick="openDrawer(${l.id})" title="Histórico"
+            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+            style="background:var(--s2);color:var(--t3);"
+            onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </button>
+          <button onclick="openDeleteModal(${l.id})" title="Excluir"
+            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+            style="background:rgba(239,68,68,.1);color:#f87171;"
+            onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── SELECTION ────────────────────────────────────────────────
+function toggleRow(id,cb){cb.checked?selectedIds.add(id):selectedIds.delete(id);document.getElementById(`row-${id}`)?.style.setProperty('background',cb.checked?'rgba(37,99,235,.08)':'');updateBulkBar();}
+function toggleSelectAll(cb){filteredLeads.forEach(l=>cb.checked?selectedIds.add(l.id):selectedIds.delete(l.id));updateBulkBar();renderTable();}
+function clearSelection(){selectedIds.clear();updateBulkBar();renderTable();}
+function updateBulkBar(){const bar=document.getElementById('bulk-bar');if(selectedIds.size>0){bar.classList.remove('hidden');document.getElementById('bulk-count').textContent=`${selectedIds.size} lead${selectedIds.size>1?'s':''} selecionado${selectedIds.size>1?'s':''}`;}else bar.classList.add('hidden');}
+
+async function bulkChangeStatus(){
+  const ns=document.getElementById('bulk-status-sel').value;
+  if(!ns){toast('Selecione um status','warn');return;}
+  setLoading(true);
+  try{
+    for(const id of[...selectedIds]){const idx=leads.findIndex(l=>l.id===id);if(idx===-1)continue;const old=leads[idx].status;leads[idx].status=ns;const s=await DB.upsert(leads[idx]);leads[idx]=s;if(old!==ns)await DB.log(id,'Status alterado',`${old} → ${ns}`,leads[idx].responsible||'—');}
+    clearSelection();renderAll();toast('Status atualizado','success');
+  }catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
+}
+
+async function bulkDelete(){
+  const ids=[...selectedIds];
+  if(!confirm(`Excluir ${ids.length} lead${ids.length>1?'s':''}?`))return;
+  setLoading(true);
+  try{await DB.deleteMany(ids);leads=leads.filter(l=>!ids.includes(l.id));clearSelection();renderAll();toast(`${ids.length} lead${ids.length>1?'s':''} excluído${ids.length>1?'s':''}`);}
+  catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
+}
+
+// ── STATUS DROPDOWN MENU ──────────────────────────────────────
+let statusMenuId=null;
+
+function openStatusMenu(id,event){
+  event.stopPropagation();
+  closeStatusMenu();
+  statusMenuId=id;
+  const lead=leads.find(l=>l.id===id);
+  const menu=document.getElementById('status-menu');
+  const items=document.getElementById('status-menu-items');
+  items.innerHTML=STATUSES.map(s=>{
+    const sc=SC[s];const isCur=lead&&lead.status===s;
+    return`<button onclick="setLeadStatus('${s}')" class="w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
+      style="${isCur?'background:var(--s3);':''}color:${isCur?'var(--t1)':'var(--t2)'};"
+      onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='${isCur?'var(--s3)':'transparent'}'">
+      <span style="width:8px;height:8px;border-radius:50%;background:${sc.dot};flex-shrink:0;"></span>
+      ${s}${isCur?' <span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
+    </button>`;
+  }).join('');
+  const btn=event.currentTarget;
+  const rect=btn.getBoundingClientRect();
+  menu.style.top=(rect.bottom+window.scrollY+4)+'px';
+  menu.style.left=Math.min(rect.left,window.innerWidth-200)+'px';
+  menu.classList.remove('hidden');
+}
+
+function closeStatusMenu(){
+  document.getElementById('status-menu').classList.add('hidden');
+  statusMenuId=null;
+}
+
+async function setLeadStatus(newStatus){
+  const id=statusMenuId; closeStatusMenu();
+  const lead=leads.find(l=>l.id===id); if(!lead||lead.status===newStatus)return;
+  const old=lead.status; lead.status=newStatus;
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();}
+  catch(e){toast('Erro: '+e.message,'error');lead.status=old;}
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+function openModal(id){
+  document.getElementById('modal-backdrop').classList.remove('hidden');
+  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes'].forEach(k=>document.getElementById(k).value='');
+  document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
+  document.getElementById('f-status-field').value='Novo';document.getElementById('f-origin').value='';document.getElementById('f-value').value='';
+  document.getElementById('modal-title').textContent='Adicionar Lead';
+  if(id!==undefined){
+    const l=leads.find(l=>l.id===id);if(!l)return;
+    document.getElementById('modal-title').textContent='Editar Lead';
+    document.getElementById('f-id').value=l.id;document.getElementById('f-name').value=l.name||'';
+    document.getElementById('f-phone').value=l.phone||'';document.getElementById('f-entry').value=l.entry||'';
+    document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'Novo';
+    document.getElementById('f-responsible').value=l.responsible||'';document.getElementById('f-origin').value=l.origin||'';
+    document.getElementById('f-product').value=l.product||'';document.getElementById('f-value').value=l.value||'';
+    document.getElementById('f-tags').value=l.tags||'';document.getElementById('f-notes').value=l.notes||'';
+  }
+  setTimeout(()=>document.getElementById('f-name').focus(),60);
+}
+function closeModal(){document.getElementById('modal-backdrop').classList.add('hidden');}
+
+async function saveLead(e){
+  e.preventDefault();const idVal=document.getElementById('f-id').value;
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:document.getElementById('f-status-field').value,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim()};
+  const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
+  try{
+    let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
+    const phoneDigits=data.phone.replace(/\D/g,'');
+    const dup=leads.find(l=>l.phone.replace(/\D/g,'')===phoneDigits&&l.id!==data.id);
+    if(dup){toast(`Telefone já cadastrado para "${dup.name}"!`,'error');btn.disabled=false;btn.textContent='Salvar Lead';return;}
+    const saved=await DB.upsert(data);
+    if(idVal){const i=leads.findIndex(l=>l.id===saved.id);if(i!==-1)leads[i]=saved;if(oldStatus&&oldStatus!==saved.status)await DB.log(saved.id,'Status alterado',`${oldStatus} → ${saved.status}`,saved.responsible||'—');else await DB.log(saved.id,'Lead editado',null,saved.responsible||'—');toast('Lead atualizado');}
+    else{leads.unshift(saved);await DB.log(saved.id,'Lead criado',null,saved.responsible||'—');toast('Lead adicionado');}
+    closeModal();renderAll();
+  }catch(err){toast('Erro: '+err.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Salvar Lead';}
+}
+
+// ── DELETE ───────────────────────────────────────────────────
+function openDeleteModal(id){pendingDeleteId=id;document.getElementById('delete-name').textContent=leads.find(l=>l.id===id)?.name||'';document.getElementById('delete-modal').classList.remove('hidden');}
+function closeDeleteModal(){document.getElementById('delete-modal').classList.add('hidden');pendingDeleteId=null;}
+async function confirmDelete(){if(pendingDeleteId===null)return;try{await DB.delete(pendingDeleteId);leads=leads.filter(l=>l.id!==pendingDeleteId);closeDeleteModal();renderAll();toast('Lead excluído');}catch(e){toast('Erro: '+e.message,'error');}}
+
+// ── ACTIVITY DRAWER ──────────────────────────────────────────
+async function openDrawer(id){
+  const l=leads.find(l=>l.id===id);if(!l)return;
+  document.getElementById('activity-drawer').classList.remove('hidden');
+  document.getElementById('drawer-name').textContent=l.name;
+  const sc=SC[l.status];
+  document.getElementById('drawer-meta').innerHTML=`
+    <span class="badge ${sc.badge}"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
+    ${l.responsible?`<span class="text-xs" style="color:var(--t3)">· ${esc(l.responsible)}</span>`:''}
+    ${l.value?`<span class="text-xs font-semibold" style="color:#6ee7b7">· ${toCur(l.value)}</span>`:''}
+  `;
+  const list=document.getElementById('activity-list');
+  list.innerHTML=`<p class="text-xs text-center py-8" style="color:var(--t3)">Carregando…</p>`;
+  const acts=await DB.getActivity(id);
+  if(!acts.length){list.innerHTML=`<p class="text-xs text-center py-12" style="color:var(--t3)">Nenhuma atividade registrada</p>`;return;}
+  const ico={'Lead criado':'✨','Lead editado':'✏️','Status alterado':'🔄','Status alterado (bulk)':'🔄'};
+  list.innerHTML=acts.map((a,i)=>`
+    <div style="display:flex;gap:12px;">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+        <div style="width:30px;height:30px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:.85rem;">${ico[a.action]||'📌'}</div>
+        ${i<acts.length-1?'<div class="act-line"></div>':''}
+      </div>
+      <div style="flex:1;padding-bottom:${i<acts.length-1?'16px':'0'};">
+        <p class="text-sm font-semibold" style="color:var(--t1)">${esc(a.action)}</p>
+        ${a.detail?`<p class="text-xs mt-0.5" style="color:var(--t2)">${esc(a.detail)}</p>`:''}
+        <p class="text-xs mt-1" style="color:var(--t3)">${a.created_at?new Date(a.created_at).toLocaleString('pt-BR'):''} · ${esc(a.responsible||'—')}</p>
+      </div>
+    </div>`).join('');
+}
+function closeDrawer(){document.getElementById('activity-drawer').classList.add('hidden');}
+
+// ── EXPORT ───────────────────────────────────────────────────
+function exportXLS(){
+  if(!window.XLSX){toast('SheetJS não carregado','error');return;}
+  const data=filteredLeads.length>0?filteredLeads:leads;
+  if(!data.length){toast('Nenhum lead para exportar','warn');return;}
+  const rows=data.map(l=>({'Nome':l.name,'Telefone':l.phone,'Entrada':toDateBR(l.entry),'Follow-up':toDateBR(l.followup),'Status':l.status,'Responsável':l.responsible||'','Origem':l.origin||'','Produto':l.product||'','Valor (R$)':l.value||0,'Tags':l.tags||'','Notas':l.notes||''}));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:28},{wch:18},{wch:14},{wch:14},{wch:18},{wch:20},{wch:16},{wch:20},{wch:12},{wch:24},{wch:40}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leads');
+  XLSX.writeFile(wb,`leads_${today()}.xlsx`);toast('Exportado!');
+}
+
+// ── IMPORT ───────────────────────────────────────────────────
+let importRows=[];
+
+function triggerImport(){
+  document.getElementById('import-modal').classList.remove('hidden');
+  document.getElementById('import-preview').classList.add('hidden');
+  document.getElementById('import-dropzone').classList.remove('hidden');
+  document.getElementById('import-file-input').value='';
+  importRows=[];
+}
+
+function closeImportModal(){
+  document.getElementById('import-modal').classList.add('hidden');
+  importRows=[];
+}
+
+function autoMapCol(h){
+  const n=h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  if(/^(nome|name)$/.test(n)) return'name';
+  if(/^(telefone|fone|phone|celular|cel|whatsapp|tel|contato)$/.test(n)) return'phone';
+  if(/^(entrada|data.?de.?entrada|data_entrada|entry|data)$/.test(n)) return'entry';
+  if(/^(follow.?up|followup|retorno|proximo.?contato|acompanhamento)$/.test(n)) return'followup';
+  if(/^(status)$/.test(n)) return'status';
+  if(/^(responsavel|responsible|consultor|atendente|vendedor|consulto)$/.test(n)) return'responsible';
+  if(/^(origem|origin|source|canal)$/.test(n)) return'origin';
+  if(/^(produto|product|servico|service|plano)$/.test(n)) return'product';
+  if(/^(valor|value|price|preco|receita|vlr)$/.test(n)) return'value';
+  if(/^(tags|tag|etiqueta)$/.test(n)) return'tags';
+  if(/^(notas|notes|observacoes|obs|anotacoes|comentarios|descricao)$/.test(n)) return'notes';
+  return null;
+}
+
+function normalizeDate(v){
+  if(!v) return'';
+  if(typeof v==='number'){const d=new Date((v-25569)*86400000);return d.toISOString().slice(0,10);}
+  const s=String(v).trim();
+  // DD/MM/YYYY
+  const m1=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m1) return`${m1[3].length===2?'20'+m1[3]:m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // YYYY-MM-DD already
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return'';
+}
+
+function handleImportFile(input){
+  const file=(input.files||input)[0]||input.files?.[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      let rows=[];
+      if(file.name.endsWith('.csv')){
+        const text=e.target.result;
+        const lines=text.split(/\r?\n/).filter(l=>l.trim());
+        const sep=lines[0].includes(';')?';':',';
+        const headers=lines[0].split(sep).map(h=>h.replace(/^"|"$/g,'').trim());
+        for(let i=1;i<lines.length;i++){
+          const vals=lines[i].split(sep).map(v=>v.replace(/^"|"$/g,'').trim());
+          const obj={};headers.forEach((h,j)=>obj[h]=vals[j]||'');
+          rows.push(obj);
+        }
+      } else {
+        const wb=XLSX.read(e.target.result,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      }
+      if(!rows.length){toast('Arquivo vazio ou inválido','warn');return;}
+      const headers=Object.keys(rows[0]);
+      const mapping={};
+      headers.forEach(h=>{const f=autoMapCol(h);if(f)mapping[h]=f;});
+      // Show preview
+      document.getElementById('import-dropzone').classList.add('hidden');
+      document.getElementById('import-preview').classList.remove('hidden');
+      document.getElementById('import-file-name').textContent=file.name;
+      document.getElementById('import-row-count').textContent=`${rows.length} linha${rows.length>1?'s':''}`;
+      const mapEl=document.getElementById('import-mapping');
+      const fieldLabels={name:'Nome',phone:'Telefone',entry:'Entrada',followup:'Follow-up',status:'Status',responsible:'Responsável',origin:'Origem',product:'Produto',value:'Valor',tags:'Tags',notes:'Notas'};
+      mapEl.innerHTML=headers.map(h=>{
+        const f=mapping[h];
+        return`<div class="flex items-center justify-between py-1">
+          <span class="text-xs" style="color:var(--t2)">${h}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full" style="${f?'background:rgba(34,197,94,.1);color:#6ee7b7;border:1px solid rgba(34,197,94,.2)':'background:var(--s3);color:var(--t3);'}">
+            ${f?'→ '+fieldLabels[f]:'ignorado'}
+          </span>
+        </div>`;
+      }).join('');
+      const hasName=Object.values(mapping).includes('name');
+      const hasPhone=Object.values(mapping).includes('phone');
+      const warnEl=document.getElementById('import-warning');
+      if(!hasName||!hasPhone){
+        warnEl.classList.remove('hidden');
+        warnEl.textContent=`⚠️ Coluna obrigatória não encontrada: ${!hasName?'Nome ':''} ${!hasPhone?'Telefone':''}. Verifique os cabeçalhos.`;
+        document.getElementById('import-confirm-btn').disabled=true;
+        document.getElementById('import-confirm-btn').style.opacity='0.4';
+      } else {
+        warnEl.classList.add('hidden');
+        document.getElementById('import-confirm-btn').disabled=false;
+        document.getElementById('import-confirm-btn').style.opacity='1';
+      }
+      importRows=rows.map(row=>{
+        const lead={};
+        Object.entries(mapping).forEach(([col,field])=>{
+          let v=row[col]??'';
+          if(field==='entry'||field==='followup') v=normalizeDate(v);
+          if(field==='value') v=parseFloat(String(v).replace(',','.'))||0;
+          if(field==='status'&&!STATUSES.includes(v)) v='Novo';
+          lead[field]=v;
+        });
+        if(!lead.entry) lead.entry=today();
+        if(!lead.status) lead.status='Novo';
+        return lead;
+      }).filter(l=>l.name&&l.phone);
+      document.getElementById('import-row-count').textContent=`${importRows.length} lead${importRows.length>1?'s':''}`;
+    } catch(err){toast('Erro ao ler arquivo: '+err.message,'error');}
+  };
+  if(file.name.endsWith('.csv')) reader.readAsText(file,'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+async function confirmImport(){
+  if(!importRows.length){toast('Nenhum lead válido para importar','warn');return;}
+  const btn=document.getElementById('import-confirm-btn');
+  btn.disabled=true;btn.textContent=`Importando…`;
+  setLoading(true);
+  try{
+    // Coletar telefones já existentes para evitar duplicados
+    const existingPhones=new Set(leads.map(l=>String(l.phone||'').replace(/\D/g,'')).filter(Boolean));
+    const toImport=[];
+    let skipped=0;
+    for(const lead of importRows){
+      const phone=String(lead.phone||'').replace(/\D/g,'');
+      if(phone&&existingPhones.has(phone)){skipped++;continue;}
+      if(phone) existingPhones.add(phone);
+      toImport.push(lead);
+    }
+    let count=0;
+    for(const lead of toImport){
+      const saved=await DB.upsert(lead);
+      leads.unshift(saved);
+      await DB.log(saved.id,'Lead importado',null,saved.responsible||'—');
+      count++;
+    }
+    closeImportModal();renderAll();
+    const msg=skipped>0?`${count} importado${count>1?'s':''}, ${skipped} duplicado${skipped>1?'s':''} ignorado${skipped>1?'s':''}`:`${count} lead${count>1?'s':''} importado${count>1?'s':''}!`;
+    toast(msg,skipped>0?'warn':'');
+  } catch(e){toast('Erro: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Importar Leads';setLoading(false);}
+}
+
+function downloadTemplate(){
+  if(!window.XLSX){toast('SheetJS não carregado','error');return;}
+  const rows=[{'Nome':'João Silva','Telefone':'(11) 99999-0001','Entrada':'2024-01-15','Follow-up':'2024-01-20','Status':'Novo','Responsável':'Consultor A','Origem':'Instagram','Produto':'Plano Premium','Valor':1500,'Tags':'indicação','Notas':'Interessado no produto X'}];
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:24},{wch:18},{wch:14},{wch:14},{wch:18},{wch:20},{wch:16},{wch:20},{wch:10},{wch:18},{wch:30}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leads');
+  XLSX.writeFile(wb,'modelo_importacao.xlsx');
+  toast('Modelo baixado!');
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────
+function openSettings(){
+  document.getElementById('settings-modal').classList.remove('hidden');
+  document.getElementById('s-url').value=localStorage.getItem('crm_sb_url')||'';
+  document.getElementById('s-key').value=localStorage.getItem('crm_sb_key')||'';
+  document.getElementById('sql-block').textContent=SETUP_SQL;
+  document.getElementById('cw-url').value=localStorage.getItem('cw_url')||'';
+  document.getElementById('cw-account').value=localStorage.getItem('cw_account')||'';
+  document.getElementById('cw-inbox').value=localStorage.getItem('cw_inbox')||'';
+  document.getElementById('cw-token').value=localStorage.getItem('cw_token')||'';
+  document.getElementById('cw-template').value=localStorage.getItem('cw_template')||'';
+  document.getElementById('cw-template-body').value=localStorage.getItem('cw_template_body')||'';
+  refreshConnStatus();
+  const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');
+  const mb=document.getElementById('migrate-box');
+  if(!DB.ok&&loc.length>0){mb.classList.remove('hidden');document.getElementById('migrate-count').textContent=loc.length;}
+  else mb.classList.add('hidden');
+}
+function closeSettings(){document.getElementById('settings-modal').classList.add('hidden');}
+
+function refreshConnStatus(){
+  const el=document.getElementById('settings-status');
+  const dot=document.getElementById('conn-dot');const lbl=document.getElementById('conn-label');
+  if(DB.ok){
+    el.style.cssText='background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#6ee7b7;border-radius:10px;padding:12px 16px;';
+    el.textContent='🟢 Conectado ao Supabase — dados salvos na nuvem';
+    dot.style.background='#22c55e';lbl.style.color='#6ee7b7';lbl.textContent='Supabase';
+  }else{
+    el.style.cssText='background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fcd34d;border-radius:10px;padding:12px 16px;';
+    el.textContent='🟡 Modo local — dados apenas neste navegador';
+    dot.style.background='#52525b';lbl.style.color='var(--t3)';lbl.textContent='Local';
+  }
+}
+
+async function connectSupabase(){
+  const url=document.getElementById('s-url').value.trim();const key=document.getElementById('s-key').value.trim();
+  if(!url||!key){toast('Preencha URL e Key','warn');return;}
+  const el=document.getElementById('settings-status');
+  el.style.cssText='background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:#93c5fd;border-radius:10px;padding:12px 16px;';
+  el.textContent='Testando conexão…';
+  localStorage.setItem('crm_sb_url',url);localStorage.setItem('crm_sb_key',key);
+  const ok=await DB.init();
+  if(ok){refreshConnStatus();toast('Supabase conectado!');leads=await DB.loadLeads();renderAll();const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');if(loc.length>0){document.getElementById('migrate-box').classList.remove('hidden');document.getElementById('migrate-count').textContent=loc.length;}}
+  else{localStorage.removeItem('crm_sb_url');localStorage.removeItem('crm_sb_key');refreshConnStatus();toast('Falha. Verifique URL e Key.','error');}
+}
+
+function disconnectSupabase(){
+  localStorage.removeItem('crm_sb_url');localStorage.removeItem('crm_sb_key');
+  DB.client=null;DB.ok=false;leads=JSON.parse(localStorage.getItem('crm_leads')||'[]');
+  refreshConnStatus();renderAll();toast('Desconectado','warn');
+}
+
+async function migrateToSupabase(){
+  if(!DB.ok){toast('Conecte ao Supabase primeiro','warn');return;}
+  const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');if(!loc.length){toast('Nenhum dado local','warn');return;}
+  setLoading(true);
+  try{for(const l of loc){const{id:_,created_at:_c,...rest}=l;await DB.upsert(rest);}leads=await DB.loadLeads();renderAll();document.getElementById('migrate-box').classList.add('hidden');toast(`${loc.length} leads migrados!`);}
+  catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
+}
+
+function copySQL(){navigator.clipboard?.writeText(SETUP_SQL).then(()=>toast('SQL copiado!')).catch(()=>toast('Copie manualmente','warn'));}
+
+// ── CHATWOOT CONFIG ──────────────────────────────────────────
+const CW = {
+  get url()      { return (localStorage.getItem('cw_url')||'').replace(/\/$/,''); },
+  get account()  { return localStorage.getItem('cw_account')||''; },
+  get token()    { return localStorage.getItem('cw_token')||''; },
+  get inbox()    { return localStorage.getItem('cw_inbox')||''; },
+  get template()     { return localStorage.getItem('cw_template')||''; },
+  get templateBody() { return localStorage.getItem('cw_template_body')||''; },
+  get ok()       { return !!(this.url && this.account && this.token && this.inbox && this.template && this.templateBody); },
+
+  async _fetch(path, opts={}) {
+    const res = await fetch('/.netlify/functions/cw-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cw_url: this.url,
+        cw_account: this.account,
+        cw_token: this.token,
+        cw_path: path,
+        cw_method: opts.method || 'GET',
+        cw_body: opts.body ? JSON.parse(opts.body) : undefined
+      })
+    });
+    if (!res.ok) { const t = await res.text(); throw new Error(`${res.status}: ${t.slice(0,120)}`); }
+    return res.json();
+  },
+
+  async searchContact(phone) {
+    const digits = phone.replace(/\D/g,'');
+    const d = await this._fetch(`/contacts/search?q=${encodeURIComponent(digits)}&include_contacts=true`);
+    const list = d.payload || [];
+    return list.find(c => {
+      const cp = (c.phone_number||'').replace(/\D/g,'');
+      return cp === digits || cp === '55'+digits || cp.endsWith(digits.slice(-8));
+    }) || null;
+  },
+
+  async createContact(name, phone) {
+    let digits = phone.replace(/\D/g,'');
+    if (!digits.startsWith('55')) digits = '55' + digits;
+    const d = await this._fetch('/contacts', {
+      method: 'POST',
+      body: JSON.stringify({ name, phone_number: '+'+digits })
+    });
+    return d;
+  },
+
+  async getOrCreateConversation(contactId) {
+    const d = await this._fetch(`/contacts/${contactId}/conversations`);
+    const existing = (d.payload||[]).find(c => String(c.inbox_id) === String(this.inbox));
+    if (existing) return existing.id;
+    const cr = await this._fetch('/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ contact_id: contactId, inbox_id: parseInt(this.inbox) })
+    });
+    return cr.id;
+  },
+
+  async sendTemplate(convId, contactName) {
+    await this._fetch(`/conversations/${convId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message_type: 'outgoing',
+        content: this.templateBody,
+        private: false,
+        template_params: {
+          name: this.template,
+          category: 'MARKETING',
+          language: 'pt_BR',
+          processed_params: {}
+        }
+      })
+    });
+  }
+};
+
+function saveChatwootConfig() {
+  const url   = document.getElementById('cw-url').value.trim();
+  const acct  = document.getElementById('cw-account').value.trim();
+  const inbox = document.getElementById('cw-inbox').value.trim();
+  const token = document.getElementById('cw-token').value.trim();
+  const tpl   = document.getElementById('cw-template').value.trim();
+  if (!url||!acct||!inbox||!token||!tpl) { toast('Preencha todos os campos do Chatwoot','warn'); return; }
+  const body = document.getElementById('cw-template-body').value.trim();
+  if (!body) { toast('Preencha o corpo do template','warn'); return; }
+  localStorage.setItem('cw_url', url);
+  localStorage.setItem('cw_account', acct);
+  localStorage.setItem('cw_inbox', inbox);
+  localStorage.setItem('cw_token', token);
+  localStorage.setItem('cw_template', tpl);
+  localStorage.setItem('cw_template_body', body);
+  toast('Chatwoot configurado!');
+}
+
+// ── DISPATCH ─────────────────────────────────────────────────
+let dispatchLeads = [];
+
+function openDispatchModal(mode) {
+  const targets = mode === 'selected'
+    ? leads.filter(l => selectedIds.has(l.id))
+    : filteredLeads;
+
+  if (!targets.length) { toast('Nenhum lead para disparar','warn'); return; }
+  dispatchLeads = targets;
+
+  // reset UI
+  document.getElementById('dispatch-progress-wrap').classList.add('hidden');
+  document.getElementById('dispatch-result').classList.add('hidden');
+  document.getElementById('dispatch-actions').classList.remove('hidden');
+  document.getElementById('dispatch-config-warn').classList.add('hidden');
+  document.getElementById('dispatch-confirm-btn').disabled = false;
+  document.getElementById('dispatch-confirm-btn').textContent = 'Confirmar Disparo';
+  document.getElementById('dispatch-close-btn').disabled = false;
+  document.getElementById('dispatch-log').innerHTML = '';
+
+  document.getElementById('dispatch-count').textContent = `${targets.length} lead${targets.length>1?'s':''}`;
+  document.getElementById('dispatch-tpl-name').textContent = CW.template || '—';
+  document.getElementById('dispatch-cw-url').textContent = CW.url || '—';
+
+  if (!CW.ok) {
+    document.getElementById('dispatch-config-warn').classList.remove('hidden');
+    document.getElementById('dispatch-confirm-btn').disabled = true;
+    document.getElementById('dispatch-confirm-btn').style.opacity = '0.4';
+  } else {
+    document.getElementById('dispatch-confirm-btn').style.opacity = '1';
+  }
+
+  document.getElementById('dispatch-modal').classList.remove('hidden');
+}
+
+function closeDispatchModal() {
+  document.getElementById('dispatch-modal').classList.add('hidden');
+  dispatchLeads = [];
+}
+
+function _dispatchLog(name, ok, msg) {
+  const el = document.getElementById('dispatch-log');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:.7rem;';
+  row.innerHTML = `<span style="flex-shrink:0;color:${ok?'#6ee7b7':'#f87171'}">${ok?'✓':'✗'}</span><span style="color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span>${msg?`<span style="color:var(--t3);flex-shrink:0;">${esc(msg)}</span>`:''}`;
+  el.appendChild(row);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runDispatch() {
+  if (!CW.ok) { toast('Configure o Chatwoot primeiro','warn'); return; }
+  if (!dispatchLeads.length) return;
+
+  const btn = document.getElementById('dispatch-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Disparando…';
+  document.getElementById('dispatch-close-btn').disabled = true;
+  document.getElementById('dispatch-progress-wrap').classList.remove('hidden');
+  document.getElementById('dispatch-log').innerHTML = '';
+
+  const total = dispatchLeads.length;
+  let ok = 0, fail = 0;
+
+  for (let i = 0; i < total; i++) {
+    const lead = dispatchLeads[i];
+    const pct = Math.round(((i+1)/total)*100);
+    document.getElementById('dispatch-progress-bar').style.width = pct + '%';
+    document.getElementById('dispatch-progress-pct').textContent = pct + '%';
+    document.getElementById('dispatch-progress-label').textContent = `Disparando ${i+1}/${total}…`;
+
+    try {
+      // 1. Buscar ou criar contato
+      let contact = await CW.searchContact(lead.phone);
+      if (!contact) contact = await CW.createContact(lead.name, lead.phone);
+
+      // 2. Buscar ou criar conversa
+      const convId = await CW.getOrCreateConversation(contact.id);
+
+      // 3. Enviar template
+      await CW.sendTemplate(convId, lead.name);
+
+      await DB.log(lead.id, 'Template disparado', CW.template, '—');
+      ok++;
+      _dispatchLog(lead.name, true, '');
+    } catch(e) {
+      fail++;
+      _dispatchLog(lead.name, false, e.message.slice(0,40));
+    }
+
+    // delay entre disparos
+    if (i < total - 1) await new Promise(r => setTimeout(r, 700));
+  }
+
+  // Done
+  document.getElementById('dispatch-progress-label').textContent = 'Concluído!';
+  document.getElementById('dispatch-close-btn').disabled = false;
+  document.getElementById('dispatch-actions').classList.add('hidden');
+
+  const resultEl = document.getElementById('dispatch-result');
+  resultEl.classList.remove('hidden');
+  resultEl.style.cssText = `background:${fail===0?'rgba(34,197,94,.08)':'rgba(245,158,11,.08)'};border:1px solid ${fail===0?'rgba(34,197,94,.2)':'rgba(245,158,11,.2)'};border-radius:12px;padding:16px;`;
+  document.getElementById('dispatch-result-text').innerHTML =
+    `<span style="color:${fail===0?'#6ee7b7':'#fcd34d'}">` +
+    `${ok} enviado${ok!==1?'s':''}${fail>0?`, ${fail} falhou${fail!==1?'ram':''}`:''}</span>`;
+
+  if (ok > 0) toast(`${ok} mensagem${ok>1?'ns':''} enviada${ok>1?'s':''}!`, 'success');
+  if (fail > 0) toast(`${fail} falha${fail>1?'s':''}`, 'warn');
+  renderAll();
+}
+
+// ── RENDER ALL ───────────────────────────────────────────────
+function renderAll(){renderDashboard();renderFunnel();renderTable();}
+
+// ── EVENTS ───────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();}});
+document.addEventListener('click',e=>{
+  const menu=document.getElementById('status-menu');
+  if(!menu.classList.contains('hidden')&&!menu.contains(e.target)) closeStatusMenu();
+});
+document.getElementById('modal-backdrop').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('delete-modal').addEventListener('click',function(e){if(e.target===this)closeDeleteModal();});
+document.getElementById('settings-modal').addEventListener('click',function(e){if(e.target===this)closeSettings();});
+document.getElementById('import-modal').addEventListener('click',function(e){if(e.target===this)closeImportModal();});
+document.getElementById('dispatch-modal').addEventListener('click',function(e){if(e.target===this)closeDispatchModal();});
+
+// ── INIT ─────────────────────────────────────────────────────
+(async function(){
+  setLoading(true);
+  try{await DB.init();refreshConnStatus();leads=await DB.loadLeads();renderAll();}
+  catch(e){toast('Erro ao inicializar','error');renderAll();}
+  finally{setLoading(false);}
+})();
+</script>
+</body>
+</html>
