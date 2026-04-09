@@ -1680,7 +1680,7 @@ const CW = {
   get ok()       { return !!(this.url && this.account && this.token && this.inbox && this.template && this.templateBody); },
 
   async _fetch(path, opts={}) {
-    const res = await fetch('/.netlify/functions/cw-proxy', {
+    const res = await fetch('/api/cw-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
