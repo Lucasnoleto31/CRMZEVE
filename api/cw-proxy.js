@@ -35,6 +35,13 @@ module.exports = async (req, res) => {
     const upstream = await fetch(targetUrl, fetchOpts);
     const text = await upstream.text();
 
+    // Em erro, devolve o URL chamado para facilitar debug
+    if (!upstream.ok) {
+      let body;
+      try { body = JSON.parse(text); } catch { body = { raw: text }; }
+      return res.status(upstream.status).json({ ...body, _debug_url: targetUrl });
+    }
+
     return res.status(upstream.status).setHeader('Content-Type', 'application/json').send(text);
   } catch (err) {
     return res.status(502).json({ error: err.message });
