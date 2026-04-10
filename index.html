@@ -80,8 +80,29 @@
     .sortable:hover { color: #60a5fa; }
 
     /* Table row */
-    tbody tr { transition: background .12s; }
-    tbody tr:hover { background: rgba(255,255,255,0.03) !important; }
+    tbody tr { transition: background .12s; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.025) !important; }
+
+    /* Status pill filter */
+    .spill {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 14px; border-radius:99px; font-size:.75rem; font-weight:600;
+      border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);
+      color:rgba(255,255,255,0.45); cursor:pointer; transition:all .15s; white-space:nowrap;
+    }
+    .spill:hover { border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.75); }
+    .spill.active-pill { background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.4); color:#93c5fd; }
+
+    /* Hero KPI card */
+    .kpi-hero { padding:24px; }
+    .kpi-stage { padding:16px; }
+
+    /* Section label */
+    .section-label {
+      font-size:.65rem; font-weight:700; letter-spacing:.1em;
+      text-transform:uppercase; color:rgba(255,255,255,0.28);
+    }
 
     /* Buttons */
     .btn-blue  { background:#2563eb; }
@@ -201,43 +222,73 @@
 </div>
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ MAIN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
-<main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-5">
+<main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
 
   <!-- DASHBOARD -->
-  <div id="dashboard" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3"></div>
+  <div id="dashboard"></div>
 
-  <!-- FUNNEL -->
-  <div class="glass rounded-2xl p-6">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-xs font-semibold uppercase tracking-widest" style="color:var(--t3)">Funil de Conversão</h2>
-      <span class="text-xs" style="color:var(--t3)">% de avanço · ⌀ dias por etapa</span>
+  <!-- FUNNEL (colapsível) -->
+  <details class="glass rounded-2xl overflow-hidden" id="funnel-details">
+    <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+      <span class="section-label">Funil de Conversão</span>
+      <span class="text-xs" style="color:var(--t3)">% de avanço · ⌀ dias por etapa ▾</span>
+    </summary>
+    <div class="p-6">
+      <div id="funnel-container" class="overflow-x-auto"></div>
     </div>
-    <div id="funnel-container" class="overflow-x-auto"></div>
-  </div>
+  </details>
 
   <!-- FILTERS -->
-  <div class="rounded-2xl p-4" style="background:linear-gradient(145deg,rgba(255,255,255,0.04) 0%,rgba(0,0,0,0.55) 100%);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(255,255,255,0.06) 0px 1px 0px 0px inset,rgba(0,0,0,0.5) 0px 20px 50px;overflow:visible;position:relative;z-index:20;">
-    <div class="flex flex-wrap gap-3 items-end" style="overflow:visible;">
-      <div class="flex-1 min-w-[150px]">
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Buscar</label>
-        <input id="f-search" type="text" placeholder="Nome ou telefone…" oninput="renderTable()"
-          class="w-full border rounded-lg px-3 py-2 text-sm"/>
+  <div class="rounded-2xl" style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);overflow:visible;position:relative;z-index:20;">
+    <!-- Linha 1: busca + ações rápidas -->
+    <div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div class="relative flex-1">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="f-search" type="text" placeholder="Buscar por nome ou telefone…" oninput="renderTable()"
+          class="w-full border rounded-xl pl-9 pr-3 py-2.5 text-sm"/>
       </div>
-      <div>
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Status</label>
-        <select id="f-status" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm">
-          <option value="">Todos</option>
-          <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
-        </select>
+      <select id="f-responsible" onchange="renderTable()" class="border rounded-xl px-3 py-2.5 text-sm" style="min-width:140px;"><option value="">Responsável</option></select>
+      <select id="f-origin" onchange="renderTable()" class="border rounded-xl px-3 py-2.5 text-sm" style="min-width:120px;"><option value="">Origem</option></select>
+      <!-- TAG MULTI-SELECT -->
+      <div style="position:relative;z-index:100;">
+        <button type="button" id="tag-filter-btn" onclick="toggleTagDropdown(event)"
+          class="border rounded-xl px-3 py-2.5 text-sm flex items-center gap-2 transition-all"
+          style="min-width:110px;background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);">
+          <span id="tag-filter-label" class="flex-1 text-left truncate" style="color:var(--t3)">Tags</span>
+          <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="tag-dropdown" class="hidden absolute left-0 mt-1 rounded-xl shadow-2xl"
+          style="min-width:200px;max-height:260px;overflow-y:auto;background:#18181b;border:1px solid rgba(255,255,255,0.12);z-index:9999;position:absolute;">
+          <div id="tag-dropdown-list" class="py-1"></div>
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Responsável</label>
-        <select id="f-responsible" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Todos</option></select>
+      <button onclick="clearFilters()" class="px-3 py-2.5 text-sm rounded-xl flex-shrink-0 transition-all"
+        style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);"
+        onmouseover="this.style.borderColor='rgba(255,255,255,0.18)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">Limpar</button>
+      <span id="result-count" class="text-xs flex-shrink-0" style="color:var(--t3)"></span>
+    </div>
+    <!-- Linha 2: status pills + datas avançadas -->
+    <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="overflow:visible;">
+      <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden"></select>
+      <button class="spill active-pill" id="spill-" onclick="setStatusPill('')">Todos</button>
+      <button class="spill" id="spill-Novo" onclick="setStatusPill('Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;display:inline-block;"></span>Novo</button>
+      <button class="spill" id="spill-Contatado" onclick="setStatusPill('Contatado')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>Contatado</button>
+      <button class="spill" id="spill-Reunião Marcada" onclick="setStatusPill('Reunião Marcada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
+      <button class="spill" id="spill-Abertura/troca" onclick="setStatusPill('Abertura/troca')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
+      <button class="spill" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
+      <button class="spill" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
+      <div class="ml-auto flex items-center gap-2 flex-wrap">
+        <div class="flex gap-1 items-center">
+          <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
+          <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
+        </div>
+        <div id="date-chips" class="flex flex-wrap gap-1"></div>
+        <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
+        <span class="text-xs" style="color:var(--t3)">→</span>
+        <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
       </div>
-      <div>
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Origem</label>
-        <select id="f-origin" onchange="renderTable()" class="border rounded-lg px-3 py-2 text-sm"><option value="">Todas</option></select>
-      </div>
+    </div>
+  </div>
       <!-- TAG MULTI-SELECT -->
       <div style="position:relative; z-index:100;">
         <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Tags</label>
@@ -254,34 +305,6 @@
       </div>
 
       <!-- MULTI-DATE ENTRADA -->
-      <div>
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Data de entrada</label>
-        <div class="flex gap-1.5 items-center flex-wrap">
-          <div class="flex gap-1">
-            <input id="f-date-add" type="date"
-              class="border rounded-lg px-2 py-2 text-sm"
-              style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
-            <button type="button" onclick="addDateChip()"
-              class="btn-blue text-white rounded-lg px-2.5 py-2 text-sm font-semibold transition-all flex-shrink-0"
-              title="Adicionar data">+</button>
-          </div>
-          <div id="date-chips" class="flex flex-wrap gap-1"></div>
-        </div>
-        <div class="flex gap-1 items-center mt-1.5">
-          <span class="text-xs" style="color:var(--t3)">Período:</span>
-          <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs"
-            style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
-          <span class="text-xs" style="color:var(--t3)">até</span>
-          <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs"
-            style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);"/>
-        </div>
-      </div>
-      <button onclick="clearFilters()"
-        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2); border-radius:8px;"
-        class="px-3 py-2 text-sm transition-all hover:border-zinc-600">Limpar</button>
-      <span id="result-count" class="ml-auto text-xs self-end pb-0.5" style="color:var(--t3)"></span>
-    </div>
-  </div>
 
   <!-- BULK BAR -->
   <div id="bulk-bar" class="hidden rounded-xl px-5 py-3 flex items-center gap-3 flex-wrap"
@@ -317,19 +340,13 @@
 
           <tr>
             <th class="px-5 py-4 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('name')">Nome <span class="sort-icon text-blue-400" data-col="name"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Telefone</th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('entry')">Entrada <span class="sort-icon text-blue-400" data-col="entry"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('followup')">Follow-up <span class="sort-icon text-blue-400" data-col="followup"></span></th>
+            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('name')">Lead <span class="sort-icon text-blue-400" data-col="name"></span></th>
+            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Contato</th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('status')">Status <span class="sort-icon text-blue-400" data-col="status"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('origin')">Origem <span class="sort-icon text-blue-400" data-col="origin"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('value')">Valor <span class="sort-icon text-blue-400" data-col="value"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('capital')">Capital <span class="sort-icon text-blue-400" data-col="capital"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Tags</th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('_score')">Score <span class="sort-icon text-blue-400" data-col="_score"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('next_action_date')">Próx. Ação <span class="sort-icon text-blue-400" data-col="next_action_date"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
+            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('next_action_date')">Próxima Ação <span class="sort-icon text-blue-400" data-col="next_action_date"></span></th>
+            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
+            <th class="px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
           </tr>
         </thead>
         <tbody id="leads-tbody" style="border-top:1px solid var(--b1);"></tbody>
@@ -1001,25 +1018,38 @@ function renderDashboard(){
   if(overdue>0){banner.classList.remove('hidden');document.getElementById('overdue-text').textContent=`⚠️ ${overdue} follow-up${overdue>1?'s':''} atrasado${overdue>1?'s':''} — verifique os leads`;}
   else banner.classList.add('hidden');
 
-  const cards=[
-    {l:'Total',       v:c.Total,          vc:'#f4f4f5', lc:'#71717a', bc:'var(--b1)',     extra:''},
-    {l:'Novos',       v:c['Novo'],         vc:'#93c5fd', lc:'#60a5fa', bc:'rgba(59,130,246,.3)',  extra:'card-blue'},
-    {l:'Contatados',  v:c['Contatado'],    vc:'#fcd34d', lc:'#fbbf24', bc:'rgba(245,158,11,.3)', extra:'card-amber'},
-    {l:'Reunião',     v:c['Reunião Marcada'],vc:'#c4b5fd',lc:'#a78bfa',bc:'rgba(168,85,247,.3)', extra:'card-purple'},
-    {l:'Abertura/troca',v:c['Abertura/troca'],vc:'#fdba74',lc:'#fb923c',bc:'rgba(249,115,22,.3)',extra:'card-amber'},
-    {l:'Convertidos', v:c['Convertido'],   vc:'#6ee7b7', lc:'#34d399', bc:'rgba(34,197,94,.3)',  extra:'card-green'},
-    {l:'Perdidos',    v:c['Perdido'],      vc:'#fca5a5', lc:'#f87171', bc:'rgba(239,68,68,.3)',  extra:'card-red'},
-    {l:'Conversão',   v:convPct+'%',       vc:'#a5b4fc', lc:'#818cf8', bc:'rgba(99,102,241,.3)', extra:'card-indigo'},
-    {l:'Ações Vencidas', v:overdue,  vc:overdue>0?'#fca5a5':'#71717a', lc:overdue>0?'#f87171':'#52525b', bc:overdue>0?'rgba(239,68,68,.3)':'var(--b1)', extra:overdue>0?'card-red':''},
-    {l:'Pipeline',    v:toCur(pipeline),   vc:'#5eead4', lc:'#2dd4bf', bc:'rgba(20,184,166,.3)', extra:'card-teal', sm:true},
-  ];
+  const kpiCard=(label,value,valueColor,accentColor,sub='')=>`
+    <div class="relative rounded-2xl kpi-hero overflow-hidden" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;">
+      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${accentColor}60,transparent);"></div>
+      <p class="section-label mb-3">${label}</p>
+      <p class="text-3xl font-bold leading-none" style="color:${valueColor}">${value}</p>
+      ${sub?`<p class="text-xs mt-2" style="color:rgba(255,255,255,0.3)">${sub}</p>`:''}
+    </div>`;
 
-  document.getElementById('dashboard').innerHTML=cards.map(c=>`
-    <div class="relative rounded-2xl p-4 overflow-hidden ${c.extra}" style="background:linear-gradient(145deg,rgba(255,255,255,0.04) 0%,rgba(0,0,0,0.55) 100%);border:1px solid ${c.bc};box-shadow:rgba(255,255,255,0.05) 0px 1px 0px 0px inset,rgba(0,0,0,0.5) 0px 12px 30px;transition:border-color .2s;" onmouseover="this.style.borderColor='${c.bc.replace('0.3','0.5').replace('0.35','0.55')}'" onmouseout="this.style.borderColor='${c.bc}'">
-      <div class="absolute inset-x-0 top-0 h-px opacity-70" style="background:linear-gradient(to right,transparent 10%,${c.bc},transparent 90%);"></div>
-      <p class="relative text-xs font-medium mb-3 uppercase tracking-wider leading-tight" style="color:${c.lc}">${c.l}</p>
-      <p class="relative font-bold leading-none ${c.sm?'text-lg':'text-2xl'} truncate" style="color:${c.vc}">${c.v}</p>
-    </div>`).join('');
+  const stageCard=(label,value,valueColor,accentColor,pct,onclick='')=>`
+    <div class="relative rounded-xl kpi-stage overflow-hidden cursor-pointer transition-all" style="background:rgba(255,255,255,0.025);border:1px solid ${accentColor}30;" onclick="${onclick}" onmouseover="this.style.background='rgba(255,255,255,0.045)'" onmouseout="this.style.background='rgba(255,255,255,0.025)'">
+      <div class="absolute bottom-0 left-0 h-0.5 transition-all" style="width:${pct}%;background:${accentColor};border-radius:2px;"></div>
+      <p class="text-xs font-semibold mb-2 truncate" style="color:${accentColor};font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;">${label}</p>
+      <p class="text-2xl font-bold" style="color:#fff">${value}</p>
+      <p class="text-xs mt-1" style="color:rgba(255,255,255,0.25)">${pct}%</p>
+    </div>`;
+
+  const total=c.Total||1;
+  document.getElementById('dashboard').innerHTML=`
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      ${kpiCard('Total de Leads', c.Total, '#f4f4f5', '#71717a')}
+      ${kpiCard('Taxa de Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']} convertidos de ${denom} qualificados`)}
+      ${kpiCard('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'valor estimado em aberto')}
+      ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora'):''}
+    </div>
+    <div class="grid grid-cols-6 gap-3">
+      ${stageCard('Novo', c['Novo'], '#93c5fd', '#3b82f6', Math.round(c['Novo']/total*100), "setStatusPill('Novo')")}
+      ${stageCard('Contatado', c['Contatado'], '#fcd34d', '#f59e0b', Math.round(c['Contatado']/total*100), "setStatusPill('Contatado')")}
+      ${stageCard('Reunião', c['Reunião Marcada'], '#c4b5fd', '#a855f7', Math.round(c['Reunião Marcada']/total*100), "setStatusPill('Reunião Marcada')")}
+      ${stageCard('Abertura', c['Abertura/troca'], '#fdba74', '#f97316', Math.round(c['Abertura/troca']/total*100), "setStatusPill('Abertura/troca')")}
+      ${stageCard('Convertido', c['Convertido'], '#6ee7b7', '#22c55e', Math.round(c['Convertido']/total*100), "setStatusPill('Convertido')")}
+      ${stageCard('Perdido', c['Perdido'], '#fca5a5', '#ef4444', Math.round(c['Perdido']/total*100), "setStatusPill('Perdido')")}
+    </div>`;
 }
 
 // ── FUNNEL ───────────────────────────────────────────────────
@@ -1237,11 +1267,26 @@ function sortBy(col){
   sortDir=sortCol===col?(sortDir==='asc'?'desc':'asc'):'asc';sortCol=col;renderTable();
 }
 
+function setStatusPill(status){
+  document.getElementById('f-status').value=status;
+  syncStatusPills();
+  renderTable();
+}
+
+function syncStatusPills(){
+  const val=document.getElementById('f-status').value;
+  document.querySelectorAll('.spill').forEach(btn=>{
+    const id=btn.id.replace('spill-','');
+    btn.classList.toggle('active-pill',id===val);
+  });
+}
+
 function clearFilters(){
   ['f-search','f-date-from','f-date-to','f-date-add'].forEach(id=>document.getElementById(id).value='');
   ['f-status','f-responsible','f-origin'].forEach(id=>document.getElementById(id).value='');
   selectedTags.clear();selectedDates.clear();
   updateTagFilterLabel();renderDateChips();buildTagDropdown();
+  syncStatusPills();
   renderTable();
 }
 
@@ -1274,85 +1319,99 @@ function renderTable(){
     const sl=scoreLabel(score);
     const sla=getSlaStatus(l);
     const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
-    return`<tr style="${isSel?'background:rgba(37,99,235,.08);':''}" id="row-${l.id}">
+    return`<tr style="${isSel?'background:rgba(37,99,235,.07);':''}" id="row-${l.id}">
       <td class="px-5 py-4 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
-      <td class="px-5 py-4 max-w-[180px]">
-        <div class="flex items-center gap-2">
-          ${prio?`<span title="${esc(l.priority)}" style="width:8px;height:8px;border-radius:50%;background:${prio.clr};flex-shrink:0;box-shadow:0 0 6px ${prio.clr}88;"></span>`:''}
+
+      <!-- Lead -->
+      <td class="px-5 py-4" style="min-width:200px;max-width:240px;">
+        <div class="flex items-start gap-2.5">
+          ${prio?`<span title="${esc(l.priority)}" style="width:7px;height:7px;border-radius:50%;background:${prio.clr};flex-shrink:0;margin-top:5px;box-shadow:0 0 6px ${prio.clr}88;"></span>`:'<span style="width:7px;flex-shrink:0;"></span>'}
           <div class="min-w-0">
-            <button onclick="openDrawer(${l.id})" class="text-left text-sm font-medium truncate block w-full transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
-            ${lvl?`<span style="font-size:.6rem;font-weight:600;color:${lvl.clr};opacity:.8;">${esc(l.level)}</span>`:''}
+            <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+              ${lvl?`<span style="font-size:.6rem;font-weight:700;color:${lvl.clr};">${esc(l.level)}</span>`:''}
+              ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
+              ${l.community?`<span style="font-size:.6rem;color:rgba(255,255,255,0.22);" title="Comunidade">${esc(l.community)}</span>`:''}
+            </div>
           </div>
         </div>
       </td>
+
+      <!-- Contato -->
       <td class="px-5 py-4 whitespace-nowrap">
         <div class="flex items-center gap-2">
-          <span class="text-xs" style="color:var(--t2)">${esc(l.phone)}</span>
+          <span class="text-sm" style="color:var(--t2);font-variant-numeric:tabular-nums;">${esc(l.phone)}</span>
           <a href="${toWA(l.phone)}" target="_blank" title="Abrir WhatsApp"
-            style="background:#16a34a;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;"
+            style="background:#16a34a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;"
             onmouseover="this.style.background='#22c55e';this.style.boxShadow='0 0 10px rgba(34,197,94,.4)'" onmouseout="this.style.background='#16a34a';this.style.boxShadow='none'">
             <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           </a>
         </div>
       </td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs" style="color:var(--t3)">${toDateBR(l.entry)}</td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs"><span class="${fuc}">${toDateBR(l.followup)}</span></td>
-      <td class="px-5 py-4">
-        <div class="flex flex-col gap-1">
+
+      <!-- Status -->
+      <td class="px-5 py-4" style="min-width:160px;">
+        <div class="flex flex-col gap-1.5">
           <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}" style="width:fit-content;">
             <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
           </button>
-          ${sla&&sla.overdue?`<span class="text-xs font-semibold" style="color:#f87171;" title="${sla.days}d nesta etapa (SLA: ${sla.sla}d)">⚠️ ${sla.days}d parado</span>`:''}
-          ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;opacity:.7;" title="Motivo: ${esc(l.loss_reason)}">↳ ${esc(l.loss_reason)}</span>`:''}
+          ${sla&&sla.overdue?`<span class="text-xs font-semibold" style="color:#f87171;">⚠️ ${sla.days}d parado</span>`:''}
+          ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:rgba(248,113,113,0.6);">↳ ${esc(l.loss_reason)}</span>`:''}
         </div>
       </td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs" style="color:var(--t2)">${esc(l.responsible||'—')}</td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs">
-        <div class="flex flex-col gap-0.5">
-          <span style="color:var(--t2)">${esc(l.origin||'—')}</span>
-          ${l.community?`<span style="color:var(--t3);font-size:.6rem;" title="Comunidade">${esc(l.community)}</span>`:''}
-        </div>
-      </td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs font-semibold" style="color:${l.value?'#6ee7b7':'var(--t3)'}">${l.value?toCur(l.value):'—'}</td>
-      <td class="px-5 py-4 whitespace-nowrap text-xs font-semibold" style="color:${l.capital?'#a78bfa':'var(--t3)'}">${l.capital?toCur(l.capital):'—'}</td>
-      <td class="px-5 py-4"><div class="flex flex-wrap gap-1">${tagsHTML||`<span style="color:var(--t3)" class="text-xs">—</span>`}</div></td>
+
+      <!-- Score -->
       <td class="px-5 py-4 whitespace-nowrap">
-        ${l.status==='Convertido'?`<span class="text-xs font-bold" style="color:#6ee7b7;">✓ 100</span>`:
+        ${l.status==='Convertido'?`<span class="text-xs font-bold" style="color:#6ee7b7;">✓ Convertido</span>`:
           l.status==='Perdido'?`<span class="text-xs" style="color:var(--t3);">—</span>`:
-          `<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:${sl.bg};color:${sl.clr};border:1px solid ${sl.border};" title="${sl.label}">${score}</span>`}
+          `<div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold" style="color:${sl.clr};">${score}</span>
+            <span class="text-xs" style="color:${sl.clr};opacity:.7;">${sl.label}</span>
+          </div>`}
       </td>
-      <td class="px-5 py-4 max-w-[160px]">
+
+      <!-- Próxima Ação -->
+      <td class="px-5 py-4" style="min-width:180px;max-width:220px;">
         ${l.next_action?`
           <div class="flex flex-col gap-0.5">
-            <span class="text-xs clamp2" style="color:${naOverdue?'#f87171':'var(--t2)'};" title="${esc(l.next_action)}">${esc(l.next_action)}</span>
-            ${l.next_action_date?`<span class="text-xs font-medium" style="color:${naOverdue?'#f87171':'var(--t3)'};">${naOverdue?'⚠️ ':''}${toDateBR(l.next_action_date)}</span>`:''}
+            <span class="text-xs font-medium clamp2" style="color:${naOverdue?'#f87171':'var(--t1)'};" title="${esc(l.next_action)}">${esc(l.next_action)}</span>
+            ${l.next_action_date?`<span class="text-xs" style="color:${naOverdue?'#f87171':'rgba(255,255,255,0.3)'};">${naOverdue?'⚠️ venceu ':''}${toDateBR(l.next_action_date)}</span>`:''}
           </div>
-        `:`<span class="text-xs" style="color:var(--t3)">—</span>`}
+        `:`<button onclick="openModal(${l.id})" class="text-xs transition-colors" style="color:rgba(255,255,255,0.25);" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">+ Definir ação</button>`}
       </td>
+
+      <!-- Responsável -->
+      <td class="px-5 py-4 whitespace-nowrap">
+        ${l.responsible
+          ?`<span class="text-xs font-medium px-2.5 py-1 rounded-full" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);">${esc(l.responsible)}</span>`
+          :`<span class="text-xs" style="color:rgba(255,255,255,0.2)">—</span>`}
+      </td>
+
+      <!-- Ações -->
       <td class="px-5 py-4">
-        <div class="flex gap-1.5 flex-wrap">
+        <div class="flex gap-1.5 items-center">
           ${l.status==='Perdido'?`
-          <button onclick="reativarLead(${l.id})" title="Reativar lead"
-            class="flex items-center gap-1 text-white rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-            style="background:rgba(168,85,247,.2);color:#c4b5fd;border:1px solid rgba(168,85,247,.3);"
-            onmouseover="this.style.background='rgba(168,85,247,.35)'" onmouseout="this.style.background='rgba(168,85,247,.2)'">↺ Reativar</button>
+          <button onclick="reativarLead(${l.id})" title="Reativar"
+            class="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all"
+            style="background:rgba(168,85,247,.15);color:#c4b5fd;border:1px solid rgba(168,85,247,.25);"
+            onmouseover="this.style.background='rgba(168,85,247,.3)'" onmouseout="this.style.background='rgba(168,85,247,.15)'">↺</button>
           `:''}
           <button onclick="openModal(${l.id})" title="Editar"
-            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-            style="background:rgba(59,130,246,.1);color:#60a5fa;"
-            onmouseover="this.style.background='rgba(59,130,246,.2)'" onmouseout="this.style.background='rgba(59,130,246,.1)'">
+            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+            style="background:rgba(59,130,246,.08);color:#60a5fa;"
+            onmouseover="this.style.background='rgba(59,130,246,.2)'" onmouseout="this.style.background='rgba(59,130,246,.08)'">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button onclick="openDrawer(${l.id})" title="Histórico"
-            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-            style="background:var(--s2);color:var(--t3);"
-            onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='var(--s2)'">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <button onclick="openDrawer(${l.id})" title="Ver detalhes e cadência"
+            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+            style="background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.4);"
+            onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--t1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='rgba(255,255,255,0.4)'">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           </button>
           <button onclick="openDeleteModal(${l.id})" title="Excluir"
-            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-            style="background:rgba(239,68,68,.1);color:#f87171;"
-            onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.1)'">
+            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+            style="background:rgba(239,68,68,.08);color:#f87171;"
+            onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.08)'">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
         </div>
