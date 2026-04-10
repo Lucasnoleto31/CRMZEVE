@@ -1,0 +1,15 @@
+{
+  "name": "campanhas-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Bot de monitoramento de leads - comunidade QuantsRobos",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
+    "dotenv": "^16.4.5",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

@@ -327,6 +327,8 @@
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('value')">Valor <span class="sort-icon text-blue-400" data-col="value"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('capital')">Capital <span class="sort-icon text-blue-400" data-col="capital"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Tags</th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('_score')">Score <span class="sort-icon text-blue-400" data-col="_score"></span></th>
+            <th class="text-left px-4 py-3 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('next_action_date')">Próx. Ação <span class="sort-icon text-blue-400" data-col="next_action_date"></span></th>
             <th class="text-left px-4 py-3 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
           </tr>
         </thead>
@@ -442,6 +444,13 @@
           <input id="f-tags" type="text" placeholder="indicação, urgente, premium — separar por vírgula" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
         </div>
         <div class="col-span-2">
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Próxima Ação</label>
+          <div class="flex gap-2">
+            <input id="f-next-action" type="text" placeholder="Ex: Ligar para qualificar interesse…" class="flex-1 border rounded-lg px-3 py-2.5 text-sm"/>
+            <input id="f-next-action-date" type="date" class="border rounded-lg px-3 py-2.5 text-sm" style="width:160px;" title="Data da próxima ação"/>
+          </div>
+        </div>
+        <div class="col-span-2">
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Notas</label>
           <textarea id="f-notes" rows="3" placeholder="Observações…" class="w-full border rounded-lg px-3 py-2.5 text-sm resize-none"></textarea>
         </div>
@@ -491,8 +500,15 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="flex-1 overflow-y-auto px-5 py-4">
-      <div id="activity-list"></div>
+    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div id="drawer-score-section"></div>
+      <div id="drawer-next-action-section"></div>
+      <div id="drawer-cadencia-section"></div>
+      <div id="drawer-reactivate-section"></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--t3)">Histórico</p>
+        <div id="activity-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -750,6 +766,44 @@ const LEVEL_CFG = {
   'Profissional':  { clr:'#fbbf24' },
 };
 
+// Cadência padrão por etapa
+const CADENCIA_CFG = {
+  'Novo': [
+    { label: 'Enviar mensagem de boas-vindas', days: 0 },
+    { label: 'Follow-up: verificar interesse', days: 2 },
+    { label: 'Convidar para reunião de apresentação', days: 5 },
+    { label: 'Última tentativa — contato final', days: 10 },
+  ],
+  'Contatado': [
+    { label: 'Enviar material de apresentação', days: 1 },
+    { label: 'Agendar reunião de qualificação', days: 3 },
+    { label: 'Follow-up pós-material', days: 7 },
+  ],
+  'Reunião Marcada': [
+    { label: 'Confirmar presença na reunião', days: 0 },
+    { label: 'Realizar reunião', days: 1 },
+    { label: 'Follow-up pós-reunião — próximos passos', days: 2 },
+  ],
+  'Abertura/troca': [
+    { label: 'Enviar instruções de abertura de conta', days: 0 },
+    { label: 'Verificar andamento da abertura', days: 3 },
+    { label: 'Acompanhamento final — conta aberta?', days: 7 },
+  ],
+  'Perdido': [
+    { label: 'Reativação — 1ª tentativa', days: 30 },
+    { label: 'Reativação — 2ª tentativa', days: 60 },
+    { label: 'Reativação — última tentativa', days: 90 },
+  ],
+};
+
+// SLA por etapa (dias máximos sem avançar)
+const SLA_CFG = {
+  'Novo':            1,
+  'Contatado':       3,
+  'Reunião Marcada': 5,
+  'Abertura/troca':  7,
+};
+
 // Colors per status
 const SC = {
   'Novo':            { badge:'b-novo', dot:'#60a5fa', clr:'#3b82f6', grd:'#1e40af' },
@@ -779,9 +833,19 @@ const SETUP_SQL = `create table if not exists crm_leads (
   loss_reason text,
   tags text,
   notes text,
+  next_action text,
+  next_action_date text,
+  stage_entered_at text,
+  cadencia_step integer default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Migrate existing tables (run if table already exists)
+-- alter table crm_leads add column if not exists next_action text;
+-- alter table crm_leads add column if not exists next_action_date text;
+-- alter table crm_leads add column if not exists stage_entered_at text;
+-- alter table crm_leads add column if not exists cadencia_step integer default 0;
 
 create table if not exists crm_activity (
   id bigserial primary key,
@@ -873,6 +937,37 @@ function fmtPhone(i){let v=i.value.replace(/\D/g,'').slice(0,11);if(v.length>6)v
 function toWA(p){let d=p.replace(/\D/g,'');if(!d.startsWith('55'))d='55'+d;return'https://wa.me/'+d;}
 function fuClass(f,s){if(!f||s==='Convertido'||s==='Perdido')return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
 
+function addDays(dateStr,n){const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+
+function calcScore(lead){
+  if(lead.status==='Convertido')return 100;
+  if(lead.status==='Perdido')return 0;
+  let s=0;
+  const base={'Novo':5,'Contatado':20,'Reunião Marcada':40,'Abertura/troca':60};
+  s+=base[lead.status]||0;
+  if(lead.stage_entered_at){const d=diffDays(lead.stage_entered_at);const sla=SLA_CFG[lead.status]||5;s-=Math.min(Math.floor(d/sla)*10,35);}
+  if(lead.next_action)s+=8;
+  if(lead.next_action_date){s+=lead.next_action_date>=today()?5:-5;}
+  const pb={'Urgente':15,'Alto':8,'Médio':3,'Baixo':0};s+=pb[lead.priority]||0;
+  const cap=parseFloat(lead.capital)||0;
+  if(cap>=200000)s+=12;else if(cap>=100000)s+=8;else if(cap>=50000)s+=4;
+  if(lead.level==='Profissional'||lead.level==='Avançado')s+=5;
+  return Math.max(0,Math.min(99,s));
+}
+
+function scoreLabel(s){
+  if(s>=65)return{label:'🔥 Quente',clr:'#f87171',bg:'rgba(239,68,68,.1)',border:'rgba(239,68,68,.2)'};
+  if(s>=35)return{label:'⚡ Morno', clr:'#fbbf24',bg:'rgba(245,158,11,.1)',border:'rgba(245,158,11,.2)'};
+  return           {label:'❄️ Frio',  clr:'#93c5fd',bg:'rgba(59,130,246,.1)', border:'rgba(59,130,246,.2)'};
+}
+
+function getSlaStatus(lead){
+  if(!lead.stage_entered_at||lead.status==='Convertido'||lead.status==='Perdido')return null;
+  const sla=SLA_CFG[lead.status];if(!sla)return null;
+  const daysIn=diffDays(lead.stage_entered_at);
+  return{overdue:daysIn>=sla,days:daysIn,sla};
+}
+
 function toast(msg,type='success'){
   const map={success:'#059669',error:'#dc2626',warn:'#b45309'};
   const el=document.createElement('div');
@@ -895,7 +990,9 @@ function renderDashboard(){
   leads.forEach(l=>{
     c[l.status]=(c[l.status]||0)+1;
     if(l.status!=='Convertido'&&l.status!=='Perdido'&&l.value) pipeline+=parseFloat(l.value)||0;
-    if(l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido') overdue++;
+    const fOverdue=l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+    const aOverdue=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+    if(fOverdue||aOverdue) overdue++;
   });
   const denom=c['Convertido']+c['Perdido'];
   const convPct=denom>0?Math.round(c['Convertido']/denom*100):0;
@@ -913,7 +1010,7 @@ function renderDashboard(){
     {l:'Convertidos', v:c['Convertido'],   vc:'#6ee7b7', lc:'#34d399', bc:'rgba(34,197,94,.3)',  extra:'card-green'},
     {l:'Perdidos',    v:c['Perdido'],      vc:'#fca5a5', lc:'#f87171', bc:'rgba(239,68,68,.3)',  extra:'card-red'},
     {l:'Conversão',   v:convPct+'%',       vc:'#a5b4fc', lc:'#818cf8', bc:'rgba(99,102,241,.3)', extra:'card-indigo'},
-    {l:'Follow-ups Atrasados', v:overdue,  vc:overdue>0?'#fca5a5':'#71717a', lc:overdue>0?'#f87171':'#52525b', bc:overdue>0?'rgba(239,68,68,.3)':'var(--b1)', extra:overdue>0?'card-red':''},
+    {l:'Ações Vencidas', v:overdue,  vc:overdue>0?'#fca5a5':'#71717a', lc:overdue>0?'#f87171':'#52525b', bc:overdue>0?'rgba(239,68,68,.3)':'var(--b1)', extra:overdue>0?'card-red':''},
     {l:'Pipeline',    v:toCur(pipeline),   vc:'#5eead4', lc:'#2dd4bf', bc:'rgba(20,184,166,.3)', extra:'card-teal', sm:true},
   ];
 
@@ -1129,8 +1226,9 @@ function getFiltered(){
 
 function getSorted(arr){
   return[...arr].sort((a,b)=>{
+    if(sortCol==='_score'){const va=calcScore(a),vb=calcScore(b);return sortDir==='asc'?va-vb:vb-va;}
     let va=a[sortCol]??'',vb=b[sortCol]??'';
-    if(sortCol==='value'){va=parseFloat(va)||0;vb=parseFloat(vb)||0;}
+    if(sortCol==='value'||sortCol==='capital'){va=parseFloat(va)||0;vb=parseFloat(vb)||0;}
     const r=va<vb?-1:va>vb?1:0;return sortDir==='asc'?r:-r;
   });
 }
@@ -1172,6 +1270,10 @@ function renderTable(){
     const isSel=selectedIds.has(l.id);
     const prio=PRIORITY_CFG[l.priority]||null;
     const lvl=LEVEL_CFG[l.level]||null;
+    const score=calcScore(l);
+    const sl=scoreLabel(score);
+    const sla=getSlaStatus(l);
+    const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
     return`<tr style="${isSel?'background:rgba(37,99,235,.08);':''}" id="row-${l.id}">
       <td class="px-4 py-3 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
       <td class="px-4 py-3 max-w-[180px]">
@@ -1200,6 +1302,7 @@ function renderTable(){
           <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}" style="width:fit-content;">
             <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
           </button>
+          ${sla&&sla.overdue?`<span class="text-xs font-semibold" style="color:#f87171;" title="${sla.days}d nesta etapa (SLA: ${sla.sla}d)">⚠️ ${sla.days}d parado</span>`:''}
           ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;opacity:.7;" title="Motivo: ${esc(l.loss_reason)}">↳ ${esc(l.loss_reason)}</span>`:''}
         </div>
       </td>
@@ -1213,8 +1316,27 @@ function renderTable(){
       <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold" style="color:${l.value?'#6ee7b7':'var(--t3)'}">${l.value?toCur(l.value):'—'}</td>
       <td class="px-4 py-3 whitespace-nowrap text-xs font-semibold" style="color:${l.capital?'#a78bfa':'var(--t3)'}">${l.capital?toCur(l.capital):'—'}</td>
       <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${tagsHTML||`<span style="color:var(--t3)" class="text-xs">—</span>`}</div></td>
+      <td class="px-4 py-3 whitespace-nowrap">
+        ${l.status==='Convertido'?`<span class="text-xs font-bold" style="color:#6ee7b7;">✓ 100</span>`:
+          l.status==='Perdido'?`<span class="text-xs" style="color:var(--t3);">—</span>`:
+          `<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:${sl.bg};color:${sl.clr};border:1px solid ${sl.border};" title="${sl.label}">${score}</span>`}
+      </td>
+      <td class="px-4 py-3 max-w-[160px]">
+        ${l.next_action?`
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs clamp2" style="color:${naOverdue?'#f87171':'var(--t2)'};" title="${esc(l.next_action)}">${esc(l.next_action)}</span>
+            ${l.next_action_date?`<span class="text-xs font-medium" style="color:${naOverdue?'#f87171':'var(--t3)'};">${naOverdue?'⚠️ ':''}${toDateBR(l.next_action_date)}</span>`:''}
+          </div>
+        `:`<span class="text-xs" style="color:var(--t3)">—</span>`}
+      </td>
       <td class="px-4 py-3">
-        <div class="flex gap-1.5">
+        <div class="flex gap-1.5 flex-wrap">
+          ${l.status==='Perdido'?`
+          <button onclick="reativarLead(${l.id})" title="Reativar lead"
+            class="flex items-center gap-1 text-white rounded-lg px-2 py-1 text-xs font-semibold transition-all"
+            style="background:rgba(168,85,247,.2);color:#c4b5fd;border:1px solid rgba(168,85,247,.3);"
+            onmouseover="this.style.background='rgba(168,85,247,.35)'" onmouseout="this.style.background='rgba(168,85,247,.2)'">↺ Reativar</button>
+          `:''}
           <button onclick="openModal(${l.id})" title="Editar"
             class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
             style="background:rgba(59,130,246,.1);color:#60a5fa;"
@@ -1250,7 +1372,8 @@ async function bulkChangeStatus(){
   if(!ns){toast('Selecione um status','warn');return;}
   setLoading(true);
   try{
-    for(const id of[...selectedIds]){const idx=leads.findIndex(l=>l.id===id);if(idx===-1)continue;const old=leads[idx].status;leads[idx].status=ns;const s=await DB.upsert(leads[idx]);leads[idx]=s;if(old!==ns)await DB.log(id,'Status alterado',`${old} → ${ns}`,leads[idx].responsible||'—');}
+    const firstStep=CADENCIA_CFG[ns]?.[0];
+    for(const id of[...selectedIds]){const idx=leads.findIndex(l=>l.id===id);if(idx===-1)continue;const old=leads[idx].status;leads[idx].status=ns;if(old!==ns){leads[idx].stage_entered_at=today();leads[idx].cadencia_step=0;if(firstStep){leads[idx].next_action=firstStep.label;leads[idx].next_action_date=addDays(today(),firstStep.days);}}const s=await DB.upsert(leads[idx]);leads[idx]=s;if(old!==ns)await DB.log(id,'Status alterado (bulk)',`${old} → ${ns}`,leads[idx].responsible||'—');}
     clearSelection();renderAll();toast('Status atualizado','success');
   }catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
 }
@@ -1299,6 +1422,10 @@ async function setLeadStatus(newStatus){
   const lead=leads.find(l=>l.id===id); if(!lead||lead.status===newStatus)return;
   const old=lead.status; lead.status=newStatus;
   if(newStatus==='Perdido'){openLossModal(id,old);return;}
+  // Atualiza stage e cadência
+  lead.stage_entered_at=today();lead.cadencia_step=0;
+  const firstStep=CADENCIA_CFG[newStatus]?.[0];
+  if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
   try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();}
   catch(e){toast('Erro: '+e.message,'error');lead.status=old;}
 }
@@ -1322,6 +1449,9 @@ async function saveLossReason(confirm){
   if(!confirm){lead.status=oldStatus;renderAll();return;}
   const reason=document.getElementById('loss-reason-sel').value||null;
   lead.loss_reason=reason;
+  lead.stage_entered_at=today();lead.cadencia_step=0;
+  const lostStep=CADENCIA_CFG['Perdido']?.[0];
+  if(lostStep){lead.next_action=lostStep.label;lead.next_action_date=addDays(today(),lostStep.days);}
   try{
     const s=await DB.upsert(lead);
     leads[leads.findIndex(l=>l.id===id)]=s;
@@ -1340,14 +1470,17 @@ function toggleLossReason(status){
 
 function openModal(id){
   document.getElementById('modal-backdrop').classList.remove('hidden');
-  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes','f-community','f-capital'].forEach(k=>document.getElementById(k).value='');
+  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes','f-community','f-capital','f-next-action'].forEach(k=>document.getElementById(k).value='');
   document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
-  document.getElementById('f-first-contact').value='';
+  document.getElementById('f-first-contact').value='';document.getElementById('f-next-action-date').value='';
   document.getElementById('f-status-field').value='Novo';document.getElementById('f-origin').value='';
   document.getElementById('f-value').value='';document.getElementById('f-priority').value='';
   document.getElementById('f-level').value='';document.getElementById('f-loss-reason').value='';
   document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
+  // Sugerir primeiro passo da cadência para lead novo
+  const firstStep=CADENCIA_CFG['Novo']?.[0];
+  if(firstStep){document.getElementById('f-next-action').value=firstStep.label;document.getElementById('f-next-action-date').value=today();}
   if(id!==undefined){
     const l=leads.find(l=>l.id===id);if(!l)return;
     document.getElementById('modal-title').textContent='Editar Lead';
@@ -1363,6 +1496,8 @@ function openModal(id){
     document.getElementById('f-level').value=l.level||'';
     document.getElementById('f-first-contact').value=l.first_contact||'';
     document.getElementById('f-loss-reason').value=l.loss_reason||'';
+    document.getElementById('f-next-action').value=l.next_action||'';
+    document.getElementById('f-next-action-date').value=l.next_action_date||'';
     toggleLossReason(l.status||'Novo');
   }
   setTimeout(()=>document.getElementById('f-name').focus(),60);
@@ -1372,13 +1507,22 @@ function closeModal(){document.getElementById('modal-backdrop').classList.add('h
 async function saveLead(e){
   e.preventDefault();const idVal=document.getElementById('f-id').value;
   const statusVal=document.getElementById('f-status-field').value;
-  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null};
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null};
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
   try{
     let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
     const phoneDigits=data.phone.replace(/\D/g,'');
     const dup=leads.find(l=>l.phone.replace(/\D/g,'')===phoneDigits&&l.id!==data.id);
     if(dup){toast(`Telefone já cadastrado para "${dup.name}"!`,'error');btn.disabled=false;btn.textContent='Salvar Lead';return;}
+    // Se status mudou ou é lead novo, atualizar stage_entered_at e cadência
+    if(!idVal||oldStatus!==data.status){
+      data.stage_entered_at=today();data.cadencia_step=0;
+      if(!data.next_action){const s=CADENCIA_CFG[data.status]?.[0];if(s){data.next_action=s.label;data.next_action_date=addDays(today(),s.days);}}
+    } else {
+      const existing=leads.find(l=>l.id===data.id);
+      data.stage_entered_at=existing?.stage_entered_at||today();
+      data.cadencia_step=existing?.cadencia_step||0;
+    }
     const saved=await DB.upsert(data);
     if(idVal){const i=leads.findIndex(l=>l.id===saved.id);if(i!==-1)leads[i]=saved;if(oldStatus&&oldStatus!==saved.status)await DB.log(saved.id,'Status alterado',`${oldStatus} → ${saved.status}`,saved.responsible||'—');else await DB.log(saved.id,'Lead editado',null,saved.responsible||'—');toast('Lead atualizado');}
     else{leads.unshift(saved);await DB.log(saved.id,'Lead criado',null,saved.responsible||'—');toast('Lead adicionado');}
@@ -1411,11 +1555,101 @@ async function openDrawer(id){
     ${l.first_contact?`<span class="text-xs" style="color:var(--t3);">1ºContato: ${toDateBR(l.first_contact)}</span>`:''}
     ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;">Motivo: ${esc(l.loss_reason)}</span>`:''}
   `;
+
+  // ── Score + SLA ──
+  const score=calcScore(l);const sl=scoreLabel(score);const sla=getSlaStatus(l);
+  document.getElementById('drawer-score-section').innerHTML=`
+    <div class="flex items-center gap-3 rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
+      <div class="flex-1">
+        <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:var(--t3)">Score do Lead</p>
+        <div class="flex items-center gap-2">
+          <span class="text-lg font-bold" style="color:${sl.clr}">${l.status==='Convertido'?'✓ 100':l.status==='Perdido'?'—':score}</span>
+          ${l.status!=='Convertido'&&l.status!=='Perdido'?`<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:${sl.bg};color:${sl.clr};border:1px solid ${sl.border};">${sl.label}</span>`:''}
+        </div>
+      </div>
+      ${sla?`<div class="text-right">
+        <p class="text-xs" style="color:var(--t3)">Nesta etapa</p>
+        <p class="text-sm font-bold ${sla.overdue?'':'font-medium'}" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.days}d ${sla.overdue?'⚠️':''}</p>
+        <p class="text-xs" style="color:var(--t3)">SLA: ${sla.sla}d</p>
+      </div>`:''}
+    </div>`;
+
+  // ── Próxima Ação ──
+  const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
+  document.getElementById('drawer-next-action-section').innerHTML=`
+    <div class="rounded-xl p-3" style="background:${naOverdue?'rgba(239,68,68,.06)':'var(--s2)'};border:1px solid ${naOverdue?'rgba(239,68,68,.25)':'var(--b1)'};">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold uppercase tracking-wider" style="color:${naOverdue?'#f87171':'var(--t3)'}">Próxima Ação ${naOverdue?'⚠️':''}</p>
+        <button onclick="openModal(${l.id})" class="text-xs" style="color:#60a5fa;">Editar</button>
+      </div>
+      ${l.next_action?`
+        <p class="text-sm font-medium mb-1" style="color:var(--t1)">${esc(l.next_action)}</p>
+        ${l.next_action_date?`<p class="text-xs" style="color:${naOverdue?'#f87171':'var(--t3)'};">${naOverdue?'Venceu em ':'Para: '}${toDateBR(l.next_action_date)}</p>`:''}
+        <button onclick="markNextActionDone(${l.id})" class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all w-full text-center"
+          style="background:rgba(34,197,94,.1);color:#6ee7b7;border:1px solid rgba(34,197,94,.2);"
+          onmouseover="this.style.background='rgba(34,197,94,.2)'" onmouseout="this.style.background='rgba(34,197,94,.1)'">
+          ✓ Marcar como feito e avançar cadência
+        </button>
+      `:`<p class="text-xs italic" style="color:var(--t3)">Nenhuma ação definida — <button onclick="openModal(${l.id})" style="color:#60a5fa;">adicionar agora</button></p>`}
+    </div>`;
+
+  // ── Cadência ──
+  const steps=CADENCIA_CFG[l.status]||[];
+  const step=parseInt(l.cadencia_step||0,10);
+  if(steps.length){
+    document.getElementById('drawer-cadencia-section').innerHTML=`
+      <div class="rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Cadência — ${esc(l.status)}</p>
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2);">${Math.min(step,steps.length)}/${steps.length}</span>
+        </div>
+        <div class="space-y-2">
+          ${steps.map((s,i)=>{
+            const done=i<step;const current=i===step;
+            return`<div class="flex items-start gap-2.5">
+              <div class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style="background:${done?'rgba(34,197,94,.2)':current?'rgba(59,130,246,.2)':'var(--s3)'};border:1px solid ${done?'rgba(34,197,94,.4)':current?'rgba(59,130,246,.4)':'var(--b1)'};">
+                <span style="font-size:.6rem;color:${done?'#6ee7b7':current?'#93c5fd':'var(--t3)'};">${done?'✓':i+1}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs ${done?'line-through':'font-medium'}" style="color:${done?'var(--t3)':current?'var(--t1)':'var(--t2)'};">${esc(s.label)}</p>
+                <p class="text-xs" style="color:var(--t3);">${s.days===0?'Hoje':'+'+s.days+'d'}</p>
+              </div>
+              ${current?`<span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(59,130,246,.15);color:#93c5fd;flex-shrink:0;">agora</span>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+        ${step<steps.length?`
+        <button onclick="advanceCadencia(${l.id})" class="mt-3 w-full text-xs font-semibold px-3 py-2 rounded-lg transition-all text-center"
+          style="background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2);"
+          onmouseover="this.style.background='rgba(59,130,246,.2)'" onmouseout="this.style.background='rgba(59,130,246,.1)'">
+          Concluir passo ${step+1} e avançar
+        </button>`:`<p class="mt-2 text-xs text-center" style="color:#6ee7b7;">✓ Cadência concluída para esta etapa</p>`}
+      </div>`;
+  } else {
+    document.getElementById('drawer-cadencia-section').innerHTML='';
+  }
+
+  // ── Reativar (Perdido) ──
+  if(l.status==='Perdido'){
+    document.getElementById('drawer-reactivate-section').innerHTML=`
+      <div class="rounded-xl p-3" style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.2);">
+        <p class="text-xs font-semibold mb-2" style="color:#c4b5fd">Fluxo de Reativação</p>
+        <p class="text-xs mb-3" style="color:var(--t2)">Este lead foi marcado como perdido. Você pode reativá-lo e iniciar uma nova tentativa de conversão.</p>
+        <button onclick="reativarLead(${l.id})" class="w-full text-xs font-semibold px-3 py-2 rounded-lg transition-all text-center"
+          style="background:rgba(168,85,247,.15);color:#c4b5fd;border:1px solid rgba(168,85,247,.3);"
+          onmouseover="this.style.background='rgba(168,85,247,.3)'" onmouseout="this.style.background='rgba(168,85,247,.15)'">
+          ↺ Reativar Lead
+        </button>
+      </div>`;
+  } else {
+    document.getElementById('drawer-reactivate-section').innerHTML='';
+  }
+
   const list=document.getElementById('activity-list');
   list.innerHTML=`<p class="text-xs text-center py-8" style="color:var(--t3)">Carregando…</p>`;
   const acts=await DB.getActivity(id);
   if(!acts.length){list.innerHTML=`<p class="text-xs text-center py-12" style="color:var(--t3)">Nenhuma atividade registrada</p>`;return;}
-  const ico={'Lead criado':'✨','Lead editado':'✏️','Status alterado':'🔄','Status alterado (bulk)':'🔄'};
+  const ico={'Lead criado':'✨','Lead editado':'✏️','Status alterado':'🔄','Status alterado (bulk)':'🔄','Cadência avançada':'✅','Template disparado':'📨','Lead reativado':'↺','Ação concluída':'✓'};
   list.innerHTML=acts.map((a,i)=>`
     <div style="display:flex;gap:12px;">
       <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
@@ -1430,6 +1664,45 @@ async function openDrawer(id){
     </div>`).join('');
 }
 function closeDrawer(){document.getElementById('activity-drawer').classList.add('hidden');}
+
+// ── ROTA DO LEAD ─────────────────────────────────────────────
+
+async function markNextActionDone(id){
+  const l=leads.find(l=>l.id===id);if(!l||!l.next_action)return;
+  const done=l.next_action;
+  await DB.log(id,'Ação concluída',done,l.responsible||'—');
+  await advanceCadencia(id);
+}
+
+async function advanceCadencia(id){
+  const l=leads.find(l=>l.id===id);if(!l)return;
+  const steps=CADENCIA_CFG[l.status]||[];
+  const current=parseInt(l.cadencia_step||0,10);
+  const next=current+1;
+  const nextStep=steps[next]||null;
+  const update={...l,cadencia_step:next,next_action:nextStep?nextStep.label:null,next_action_date:nextStep?addDays(today(),nextStep.days):null};
+  try{
+    const saved=await DB.upsert(update);
+    const i=leads.findIndex(l=>l.id===id);if(i!==-1)leads[i]=saved;
+    const doneLabel=steps[current]?.label||`Passo ${current+1}`;
+    await DB.log(id,'Cadência avançada',`"${doneLabel}" concluído`,l.responsible||'—');
+    toast(nextStep?`Próximo: "${nextStep.label}"`:'Cadência concluída para esta etapa!');
+    renderAll();openDrawer(id);
+  }catch(e){toast('Erro: '+e.message,'error');}
+}
+
+async function reativarLead(id){
+  const l=leads.find(l=>l.id===id);if(!l)return;
+  const firstStep=CADENCIA_CFG['Novo']?.[0];
+  const update={...l,status:'Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Retomar contato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
+  try{
+    const saved=await DB.upsert(update);
+    const i=leads.findIndex(l=>l.id===id);if(i!==-1)leads[i]=saved;
+    await DB.log(id,'Lead reativado',`Retornando de "Perdido" para "Novo"`,l.responsible||'—');
+    toast(`${l.name} reativado!`);
+    renderAll();openDrawer(id);
+  }catch(e){toast('Erro: '+e.message,'error');}
+}
 
 // ── EXPORT ───────────────────────────────────────────────────
 function exportXLS(){
