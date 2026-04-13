@@ -1465,7 +1465,7 @@ function renderTable(){
   const cb=document.getElementById('sel-all');cb.checked=allSel;cb.indeterminate=!allSel&&someSel;
 
   tbody.innerHTML=filteredLeads.map(l=>{
-    const sc=SC[l.status];
+    const sc=SC[l.status]||SC['Lead Novo'];
     const fuc=fuClass(l.followup,l.status);
     const tags=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
     const tagsHTML=tags.map(t=>`<span class="text-xs px-2 py-0.5 rounded-full transition-all" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" onclick="toggleTagFilter(unescape('${escape(t)}'))" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
@@ -1752,14 +1752,14 @@ function openModal(id){
   document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
   // Sugerir primeiro passo da cadência para lead novo
-  const firstStep=CADENCIA_CFG['Novo']?.[0];
+  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
   if(firstStep){document.getElementById('f-next-action').value=firstStep.label;document.getElementById('f-next-action-date').value=today();}
   if(id!==undefined){
     const l=leads.find(l=>l.id===id);if(!l)return;
     document.getElementById('modal-title').textContent='Editar Lead';
     document.getElementById('f-id').value=l.id;document.getElementById('f-name').value=l.name||'';
     document.getElementById('f-phone').value=l.phone||'';document.getElementById('f-entry').value=l.entry||'';
-    document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'Novo';
+    document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'Lead Novo';
     document.getElementById('f-responsible').value=l.responsible||'';document.getElementById('f-origin').value=l.origin||'';
     document.getElementById('f-product').value=l.product||'';document.getElementById('f-value').value=l.value||'';
     document.getElementById('f-tags').value=l.tags||'';document.getElementById('f-notes').value=l.notes||'';
@@ -1817,7 +1817,7 @@ async function openDrawer(id){
   const l=leads.find(l=>l.id===id);if(!l)return;
   document.getElementById('activity-drawer').classList.remove('hidden');
   document.getElementById('drawer-name').textContent=l.name;
-  const sc=SC[l.status];
+  const sc=SC[l.status]||SC['Lead Novo'];
   const prio=PRIORITY_CFG[l.priority]||null;
   const lvl=LEVEL_CFG[l.level]||null;
   document.getElementById('drawer-meta').innerHTML=`
@@ -1969,8 +1969,8 @@ async function advanceCadencia(id){
 
 async function reativarLead(id){
   const l=leads.find(l=>l.id===id);if(!l)return;
-  const firstStep=CADENCIA_CFG['Novo']?.[0];
-  const update={...l,status:'Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Retomar contato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
+  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
+  const update={...l,status:'Lead Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Retomar contato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
   try{
     const saved=await DB.upsert(update);
     const i=leads.findIndex(l=>l.id===id);if(i!==-1)leads[i]=saved;
@@ -2106,7 +2106,7 @@ function handleImportFile(input){
           lead[field]=v;
         });
         if(!lead.entry) lead.entry=today();
-        if(!lead.status) lead.status='Novo';
+        if(!lead.status) lead.status='Lead Novo';
         return lead;
       }).filter(l=>l.name&&l.phone);
       document.getElementById('import-row-count').textContent=`${importRows.length} lead${importRows.length>1?'s':''}`;
