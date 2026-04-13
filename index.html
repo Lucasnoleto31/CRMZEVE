@@ -150,6 +150,12 @@
     .b-conv  { background:rgba(34,197,94,.1);   color:#6ee7b7; border-color:rgba(34,197,94,.2);  }
     .b-perd  { background:rgba(239,68,68,.1);   color:#fca5a5; border-color:rgba(239,68,68,.2);  }
 
+    /* Produto Alvo chips */
+    .prod-chip span { display:inline-block; padding:4px 12px; border-radius:999px; font-size:.75rem; font-weight:600; cursor:pointer;
+      background:rgba(255,255,255,.06); color:rgba(255,255,255,.4); border:1px solid rgba(255,255,255,.1); transition:all .15s; }
+    .prod-chip input:checked ~ span { background:rgba(6,182,212,.18); color:#67e8f9; border-color:rgba(6,182,212,.4); }
+    .prod-chip span:hover { background:rgba(6,182,212,.1); color:#67e8f9; }
+
     /* Modal backdrop */
     .backdrop { background: rgba(0,0,0,.88); backdrop-filter:blur(12px); }
 
@@ -476,10 +482,6 @@
           <input id="f-followup" type="date" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">1º Contato Real</label>
-          <input id="f-first-contact" type="date" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
-        </div>
-        <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Nível do Trader</label>
           <select id="f-level" class="w-full border rounded-lg px-3 py-2.5 text-sm">
             <option value="">Selecionar…</option>
@@ -506,14 +508,15 @@
             <option value="Começando">🥉 Começando — ciclo longo</option>
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Produto Alvo</label>
-          <select id="f-produto-alvo" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(6,182,212,.3)!important;">
-            <option value="">Não definido</option>
-            <option value="Assessoria Genial">Assessoria Genial</option>
-            <option value="Robô Artur">Robô Artur</option>
-            <option value="Ambos">Ambos</option>
-          </select>
+        <div class="col-span-2">
+          <label class="block text-xs font-medium mb-2" style="color:#67e8f9">Produto Alvo</label>
+          <div id="f-produto-alvo" class="flex flex-wrap gap-2">
+            <label class="prod-chip"><input type="checkbox" value="Assessoria" class="sr-only" onchange="toggleProdChip(this)"><span>Assessoria</span></label>
+            <label class="prod-chip"><input type="checkbox" value="Robô" class="sr-only" onchange="toggleProdChip(this)"><span>Robô</span></label>
+            <label class="prod-chip"><input type="checkbox" value="Sala Ao vivo" class="sr-only" onchange="toggleProdChip(this)"><span>Sala Ao vivo</span></label>
+            <label class="prod-chip"><input type="checkbox" value="Zeve Hub" class="sr-only" onchange="toggleProdChip(this)"><span>Zeve Hub</span></label>
+            <label class="prod-chip"><input type="checkbox" value="Treinamento" class="sr-only" onchange="toggleProdChip(this)"><span>Treinamento</span></label>
+          </div>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Status IA</label>
@@ -549,25 +552,6 @@
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Comunidade de Origem</label>
           <input id="f-community" type="text" placeholder="Ex: Grupo Seleto, Trade Pro…" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Produto / Serviço</label>
-          <input id="f-product" type="text" placeholder="Ex: Plano Premium" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Valor Estimado (R$)</label>
-          <input id="f-value" type="number" step="0.01" min="0" placeholder="0,00" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Capital Declarado (R$)</label>
-          <input id="f-capital" type="number" step="0.01" min="0" placeholder="Capital disponível para investir" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Prioridade</label>
-          <select id="f-priority" class="w-full border rounded-lg px-3 py-2.5 text-sm">
-            <option value="">Sem prioridade</option>
-            <option>Baixo</option><option>Médio</option><option>Alto</option><option>Urgente</option>
-          </select>
         </div>
         <div class="col-span-2">
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Tags</label>
@@ -1500,7 +1484,7 @@ function renderTable(){
             <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
             <div class="flex items-center gap-2 mt-0.5 flex-wrap">
               ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<button onclick="openCategoriaMenu(${l.id},event)" title="Alterar qualificação" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">${cat.medal} ${cat.label}</button>`:`<button onclick="openCategoriaMenu(${l.id},event)" title="Qualificar lead" style="font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='rgba(251,191,36,.12)';this.style.color='#fbbf24'" onmouseout="this.style.background='rgba(255,255,255,.05)';this.style.color='rgba(255,255,255,.3)'">+ qualificar</button>`;})()}
-              ${l.produto_alvo?`<span style="font-size:.6rem;color:rgba(255,255,255,0.35);">${esc(l.produto_alvo)}</span>`:''}
+              ${l.produto_alvo?(l.produto_alvo.split(',').map(p=>`<span style="font-size:.6rem;color:rgba(255,255,255,0.38);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:3px;">${esc(p.trim())}</span>`).join(''))  :''}
               ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
             </div>
           </div>
@@ -1807,18 +1791,28 @@ function toggleLossReason(status){
   else{wrap.classList.add('hidden');document.getElementById('f-loss-reason').value='';}
 }
 
+function resetProdChips(val){
+  document.querySelectorAll('#f-produto-alvo input').forEach(cb=>{
+    cb.checked=false; toggleProdChip(cb);
+  });
+  if(val){val.split(',').map(v=>v.trim()).forEach(v=>{
+    const cb=document.querySelector(`#f-produto-alvo input[value="${v}"]`);
+    if(cb){cb.checked=true;toggleProdChip(cb);}
+  });}
+}
+function toggleProdChip(cb){/* visual handled by CSS :checked */}
+
 function openModal(id){
   document.getElementById('modal-backdrop').classList.remove('hidden');
-  ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes','f-community','f-capital','f-next-action'].forEach(k=>document.getElementById(k).value='');
+  ['f-id','f-name','f-phone','f-responsible','f-tags','f-notes','f-community','f-next-action'].forEach(k=>document.getElementById(k).value='');
   document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
-  document.getElementById('f-first-contact').value='';document.getElementById('f-next-action-date').value='';
+  document.getElementById('f-next-action-date').value='';
   document.getElementById('f-status-field').value='Lead Novo';document.getElementById('f-origin').value='';
-  document.getElementById('f-value').value='';document.getElementById('f-priority').value='';
   document.getElementById('f-level').value='';document.getElementById('f-loss-reason').value='';
-  document.getElementById('f-categoria-ia').value='';document.getElementById('f-produto-alvo').value='';document.getElementById('f-status-ia').value='';
+  document.getElementById('f-categoria-ia').value='';document.getElementById('f-status-ia').value='';
+  resetProdChips('');
   document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
-  // Sugerir primeiro passo da cadência para lead novo
   const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
   if(firstStep){document.getElementById('f-next-action').value=firstStep.label;document.getElementById('f-next-action-date').value=today();}
   if(id!==undefined){
@@ -1828,19 +1822,15 @@ function openModal(id){
     document.getElementById('f-phone').value=l.phone||'';document.getElementById('f-entry').value=l.entry||'';
     document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'Lead Novo';
     document.getElementById('f-responsible').value=l.responsible||'';document.getElementById('f-origin').value=l.origin||'';
-    document.getElementById('f-product').value=l.product||'';document.getElementById('f-value').value=l.value||'';
     document.getElementById('f-tags').value=l.tags||'';document.getElementById('f-notes').value=l.notes||'';
     document.getElementById('f-community').value=l.community||'';
-    document.getElementById('f-capital').value=l.capital||'';
-    document.getElementById('f-priority').value=l.priority||'';
     document.getElementById('f-level').value=l.level||'';
-    document.getElementById('f-first-contact').value=l.first_contact||'';
     document.getElementById('f-loss-reason').value=l.loss_reason||'';
     document.getElementById('f-next-action').value=l.next_action||'';
     document.getElementById('f-next-action-date').value=l.next_action_date||'';
     document.getElementById('f-categoria-ia').value=l.categoria_ia||'';
-    document.getElementById('f-produto-alvo').value=l.produto_alvo||'';
     document.getElementById('f-status-ia').value=l.status_ia||'';
+    resetProdChips(l.produto_alvo||'');
     toggleLossReason(l.status||'Lead Novo');
   }
   setTimeout(()=>document.getElementById('f-name').focus(),60);
@@ -1850,7 +1840,8 @@ function closeModal(){document.getElementById('modal-backdrop').classList.add('h
 async function saveLead(e){
   e.preventDefault();const idVal=document.getElementById('f-id').value;
   const statusVal=document.getElementById('f-status-field').value;
-  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null,categoria_ia:document.getElementById('f-categoria-ia').value||null,produto_alvo:document.getElementById('f-produto-alvo').value||null,status_ia:document.getElementById('f-status-ia').value||null};
+  const prodAlvo=Array.from(document.querySelectorAll('#f-produto-alvo input:checked')).map(el=>el.value).join(',')||null;
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),level:document.getElementById('f-level').value,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null,categoria_ia:document.getElementById('f-categoria-ia').value||null,produto_alvo:prodAlvo,status_ia:document.getElementById('f-status-ia').value||null};
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
   try{
     let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
