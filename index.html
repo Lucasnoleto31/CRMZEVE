@@ -419,6 +419,33 @@
     <!-- KPI cards do mês -->
     <div id="evolucao-kpis" class="grid grid-cols-4 gap-4"></div>
 
+    <!-- Qualificação dos Leads -->
+    <div class="glass rounded-2xl overflow-hidden">
+      <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <p class="text-sm font-semibold" style="color:var(--t1)">Qualificação dos Leads</p>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Distribuição por perfil de trader</p>
+      </div>
+      <div id="ev-qualificacao" class="p-6 grid grid-cols-4 gap-4"></div>
+    </div>
+
+    <!-- Produto Alvo + Status IA -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Produto Alvo</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Interesse declarado por produto</p>
+        </div>
+        <div id="ev-produto" class="p-5 space-y-3"></div>
+      </div>
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Resposta à IA</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Status do disparo AIKON</p>
+        </div>
+        <div id="ev-statusia" class="p-5 space-y-3"></div>
+      </div>
+    </div>
+
     <!-- Gráfico principal -->
     <div class="glass rounded-2xl overflow-hidden">
       <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -2537,7 +2564,7 @@ function setMainTab(tab){
   tl.style.borderBottomColor=tab==='leads'?'#3b82f6':'transparent';
   te.style.color=tab==='evolucao'?'var(--t1)':'var(--t3)';
   te.style.borderBottomColor=tab==='evolucao'?'#3b82f6':'transparent';
-  if(tab==='evolucao'){renderEvolucaoKpis();renderChart();renderFunnelEv();}
+  if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderChart();renderFunnelEv();}
 }
 
 function renderEvolucaoKpis(){
@@ -2591,6 +2618,80 @@ function renderEvolucaoKpis(){
     card(`Convertidos — ${mesNome}`,convertidos,'#6ee7b7','#22c55e','fechamentos este mês',diff(convertidos,convertidosPrev))+
     card('Taxa de Conversão',taxa+'%','#a5b4fc','#818cf8','convertidos / (conv+perd)',diffPct(taxa,taxaPrev))+
     card('Pipeline Ativo',totalAtivos,'#fcd34d','#f59e0b','leads em aberto','');
+}
+
+function renderEvolucaoQualificacao(){
+  const active=leads.filter(l=>!l.archived);
+  const total=active.length||1;
+  const cats=[
+    {key:'Aumentar Lotes', ...CATEGORIA_CFG['Aumentar Lotes']},
+    {key:'Inconsistente',  ...CATEGORIA_CFG['Inconsistente']},
+    {key:'Começando',      ...CATEGORIA_CFG['Começando']},
+    {key:null, medal:'—', label:'Não qualificado', clr:'rgba(255,255,255,0.3)', bg:'rgba(255,255,255,0.04)', border:'rgba(255,255,255,0.1)'},
+  ];
+  document.getElementById('ev-qualificacao').innerHTML=cats.map(c=>{
+    const count=active.filter(l=>c.key===null?(l.categoria_ia==null||l.categoria_ia===''):(l.categoria_ia===c.key)).length;
+    const pct=Math.round(count/total*100);
+    return`<div class="relative rounded-2xl p-5 overflow-hidden" style="background:${c.bg};border:1px solid ${c.border};">
+      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${c.clr}55,transparent);"></div>
+      <p class="text-2xl mb-0.5" style="line-height:1">${c.medal}</p>
+      <p class="text-xs font-semibold uppercase tracking-wider mt-2 mb-3" style="color:${c.clr};opacity:.8">${c.label}</p>
+      <p class="text-3xl font-bold leading-none" style="color:${c.clr}">${count}</p>
+      <p class="text-xs mt-1" style="color:rgba(255,255,255,0.25)">${pct}% do total</p>
+      <div class="mt-3 h-1 rounded-full" style="background:rgba(255,255,255,0.07)">
+        <div class="h-1 rounded-full transition-all" style="width:${pct}%;background:${c.clr};opacity:.7;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEvolucaoProduto(){
+  const active=leads.filter(l=>!l.archived&&l.produto_alvo);
+  const counts={};
+  active.forEach(l=>l.produto_alvo.split(',').map(p=>p.trim()).filter(Boolean).forEach(p=>{counts[p]=(counts[p]||0)+1;}));
+  const order=['Assessoria','Robô','Sala Ao vivo','Zeve Hub','Treinamento'];
+  const max=Math.max(...Object.values(counts),1);
+  const colors=['#67e8f9','#93c5fd','#c4b5fd','#fdba74','#6ee7b7'];
+  document.getElementById('ev-produto').innerHTML=order.map((p,i)=>{
+    const n=counts[p]||0;
+    const pct=Math.round(n/max*100);
+    return`<div>
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-medium" style="color:var(--t2)">${p}</span>
+        <span class="text-xs font-bold" style="color:${colors[i]}">${n}</span>
+      </div>
+      <div class="h-2 rounded-full" style="background:rgba(255,255,255,0.07)">
+        <div class="h-2 rounded-full transition-all" style="width:${pct}%;background:${colors[i]};opacity:.75;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEvolucaoStatusIA(){
+  const active=leads.filter(l=>!l.archived);
+  const total=active.length||1;
+  const opts=[
+    {key:'Respondeu',           label:'Respondeu',              clr:'#6ee7b7', bg:'rgba(34,197,94,.12)',  icon:'✓'},
+    {key:'Aguardando Resposta', label:'Aguardando',             clr:'#fcd34d', bg:'rgba(245,158,11,.12)', icon:'⏳'},
+    {key:'Não Respondeu',       label:'Não Respondeu em 24h',   clr:'#f87171', bg:'rgba(239,68,68,.12)',  icon:'✗'},
+    {key:'',                    label:'Sem disparo',            clr:'rgba(255,255,255,0.3)', bg:'rgba(255,255,255,.05)', icon:'—'},
+  ];
+  document.getElementById('ev-statusia').innerHTML=opts.map(o=>{
+    const count=active.filter(l=>o.key===''?(l.status_ia==null||l.status_ia===''):(l.status_ia===o.key)).length;
+    const pct=Math.round(count/total*100);
+    return`<div class="flex items-center gap-3 px-4 py-3 rounded-xl" style="background:${o.bg}">
+      <span style="font-size:1rem;flex-shrink:0;">${o.icon}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold" style="color:${o.clr}">${o.label}</span>
+          <span class="text-sm font-bold" style="color:${o.clr}">${count}</span>
+        </div>
+        <div class="mt-1.5 h-1 rounded-full" style="background:rgba(255,255,255,0.07)">
+          <div class="h-1 rounded-full" style="width:${pct}%;background:${o.clr};opacity:.6;"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderFunnelEv(){
@@ -2731,7 +2832,7 @@ function renderChart(){
 
 function renderAll(){
   renderDashboard();renderFunnel();renderTable();
-  if(mainTab==='evolucao'){renderEvolucaoKpis();renderChart();renderFunnelEv();}
+  if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderChart();renderFunnelEv();}
 }
 
 // ── EVENTS ───────────────────────────────────────────────────
