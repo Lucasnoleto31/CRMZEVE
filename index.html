@@ -291,8 +291,8 @@
         onmouseover="this.style.borderColor='rgba(255,255,255,0.18)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">Limpar</button>
       <span id="result-count" class="text-xs flex-shrink-0" style="color:var(--t3)"></span>
     </div>
-    <!-- Linha 2: status pills + datas avançadas -->
-    <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="overflow:visible;">
+    <!-- Linha 2: status pills -->
+    <div class="flex items-center gap-1.5 px-4 py-2.5 overflow-x-auto" style="border-bottom:1px solid rgba(255,255,255,0.04);scrollbar-width:none;">
       <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
         <option value=""></option>
         <option value="Lead Novo">Lead Novo</option>
@@ -305,30 +305,31 @@
         <option value="Perdido">Perdido</option>
       </select>
       <!-- toggle ativos/arquivados -->
-      <div class="flex rounded-lg overflow-hidden mr-1" style="border:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
-        <button id="tab-ativos" onclick="setShowArchived(false)" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">Ativos</button>
-        <button id="tab-arquivados" onclick="setShowArchived(true)" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Arquivados</button>
+      <div class="flex rounded-lg overflow-hidden flex-shrink-0 mr-1" style="border:1px solid rgba(255,255,255,0.08);">
+        <button id="tab-ativos" onclick="setShowArchived(false)" class="px-3 py-1.5 text-xs font-semibold transition-all flex-shrink-0" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">Ativos</button>
+        <button id="tab-arquivados" onclick="setShowArchived(true)" class="px-3 py-1.5 text-xs font-semibold transition-all flex-shrink-0" style="background:transparent;color:rgba(255,255,255,0.28);">Arquivados</button>
       </div>
-      <button class="spill active-pill" id="spill-" onclick="setStatusPill('')">Todos</button>
-      <button class="spill" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#a1a1aa;flex-shrink:0;display:inline-block;"></span>Lead Novo</button>
-      <button class="spill" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span>IA Disparou</button>
-      <button class="spill" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span style="width:6px;height:6px;border-radius:50%;background:#93c5fd;flex-shrink:0;display:inline-block;"></span>Qualificado</button>
-      <button class="spill" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>AIKON</button>
-      <button class="spill" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
-      <button class="spill" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
-      <button class="spill" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
-      <button class="spill" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
-      <button class="spill" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
-      <div class="ml-auto flex items-center gap-2 flex-wrap">
-        <div class="flex gap-1 items-center">
-          <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
-          <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
-        </div>
-        <div id="date-chips" class="flex flex-wrap gap-1"></div>
-        <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
-        <span class="text-xs" style="color:var(--t3)">→</span>
-        <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
+      <button class="spill active-pill flex-shrink-0" id="spill-" onclick="setStatusPill('')">Todos</button>
+      <button class="spill flex-shrink-0" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#a1a1aa;flex-shrink:0;display:inline-block;"></span>Lead Novo</button>
+      <button class="spill flex-shrink-0" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span>IA Disparou</button>
+      <button class="spill flex-shrink-0" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span style="width:6px;height:6px;border-radius:50%;background:#93c5fd;flex-shrink:0;display:inline-block;"></span>Qualificado</button>
+      <button class="spill flex-shrink-0" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>AIKON</button>
+      <button class="spill flex-shrink-0" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
+      <button class="spill flex-shrink-0" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
+      <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
+      <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
+      <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
+    </div>
+    <!-- Linha 3: filtro de datas -->
+    <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+      <div class="flex gap-1 items-center">
+        <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
+        <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
       </div>
+      <div id="date-chips" class="flex flex-wrap gap-1"></div>
+      <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
+      <span class="text-xs" style="color:var(--t3)">→</span>
+      <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
     </div>
   </div>
       <!-- TAG MULTI-SELECT -->
