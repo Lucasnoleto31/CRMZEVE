@@ -277,6 +277,7 @@
       <button class="spill" id="spill-Abertura/troca" onclick="setStatusPill('Abertura/troca')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
       <button class="spill" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
       <button class="spill" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
+      <button class="spill" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
       <div class="ml-auto flex items-center gap-2 flex-wrap">
         <div class="flex gap-1 items-center">
           <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
@@ -941,7 +942,7 @@ const DB = {
 };
 
 // ── STATE ────────────────────────────────────────────────────
-let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc';
+let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false;
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1018,12 +1019,13 @@ function renderDashboard(){
   if(overdue>0){banner.classList.remove('hidden');document.getElementById('overdue-text').textContent=`⚠️ ${overdue} follow-up${overdue>1?'s':''} atrasado${overdue>1?'s':''} — verifique os leads`;}
   else banner.classList.add('hidden');
 
-  const kpiCard=(label,value,valueColor,accentColor,sub='')=>`
-    <div class="relative rounded-2xl kpi-hero overflow-hidden" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;">
+  const kpiCard=(label,value,valueColor,accentColor,sub='',onclick='')=>`
+    <div class="relative rounded-2xl kpi-hero overflow-hidden${onclick?' cursor-pointer transition-all':''}" style="background:rgba(255,255,255,0.03);border:1px solid ${onclick&&overdueFilter?accentColor+'80':'rgba(255,255,255,0.08)'};box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;${onclick?'user-select:none;':''}" ${onclick?`onclick="${onclick}" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"`:''}>
       <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${accentColor}60,transparent);"></div>
       <p class="section-label mb-3">${label}</p>
       <p class="text-3xl font-bold leading-none" style="color:${valueColor}">${value}</p>
       ${sub?`<p class="text-xs mt-2" style="color:rgba(255,255,255,0.3)">${sub}</p>`:''}
+      ${onclick?`<p class="text-xs mt-2 font-semibold" style="color:${overdueFilter?accentColor:'rgba(255,255,255,0.25)'};">${overdueFilter?'✕ Remover filtro':'→ Clique para filtrar'}</p>`:''}
     </div>`;
 
   const stageCard=(label,value,valueColor,accentColor,pct,onclick='')=>`
@@ -1040,7 +1042,7 @@ function renderDashboard(){
       ${kpiCard('Total de Leads', c.Total, '#f4f4f5', '#71717a')}
       ${kpiCard('Taxa de Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']} convertidos de ${denom} qualificados`)}
       ${kpiCard('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'valor estimado em aberto')}
-      ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora'):''}
+      ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora', 'setOverdueFilter()'):''}
     </div>
     <div class="grid grid-cols-6 gap-3">
       ${stageCard('Novo', c['Novo'], '#93c5fd', '#3b82f6', Math.round(c['Novo']/total*100), "setStatusPill('Novo')")}
@@ -1238,6 +1240,7 @@ function getFiltered(){
   const or=document.getElementById('f-origin').value;
   const df=document.getElementById('f-date-from').value;
   const dt=document.getElementById('f-date-to').value;
+  const t=today();
   return leads.filter(l=>{
     if(q&&!l.name.toLowerCase().includes(q)&&!l.phone.replace(/\D/g,'').includes(q.replace(/\D/g,'')))return false;
     if(st&&l.status!==st)return false;if(re&&l.responsible!==re)return false;
@@ -1249,6 +1252,13 @@ function getFiltered(){
     if(selectedTags.size>0){
       const lt=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
       if(![...selectedTags].every(st=>lt.some(t=>t.toLowerCase()===st.toLowerCase())))return false;
+    }
+    // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
+    if(overdueFilter){
+      const notClosed=l.status!=='Convertido'&&l.status!=='Perdido';
+      const fOverdue=l.followup&&l.followup<t&&notClosed;
+      const aOverdue=l.next_action_date&&l.next_action_date<t&&notClosed;
+      if(!fOverdue&&!aOverdue)return false;
     }
     return true;
   });
@@ -1273,6 +1283,24 @@ function setStatusPill(status){
   renderTable();
 }
 
+function setOverdueFilter(){
+  overdueFilter=!overdueFilter;
+  syncOverduePill();
+  renderDashboard();
+  renderTable();
+  if(overdueFilter){
+    const tableEl=document.getElementById('table-wrap');
+    if(tableEl) tableEl.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+function syncOverduePill(){
+  const pill=document.getElementById('spill-overdue');
+  if(!pill)return;
+  pill.style.display=overdueFilter?'':'none';
+  pill.classList.toggle('active-pill',overdueFilter);
+}
+
 function syncStatusPills(){
   const val=document.getElementById('f-status').value;
   document.querySelectorAll('.spill').forEach(btn=>{
@@ -1285,8 +1313,10 @@ function clearFilters(){
   ['f-search','f-date-from','f-date-to','f-date-add'].forEach(id=>document.getElementById(id).value='');
   ['f-status','f-responsible','f-origin'].forEach(id=>document.getElementById(id).value='');
   selectedTags.clear();selectedDates.clear();
+  overdueFilter=false;
   updateTagFilterLabel();renderDateChips();buildTagDropdown();
-  syncStatusPills();
+  syncStatusPills();syncOverduePill();
+  renderDashboard();
   renderTable();
 }
 
