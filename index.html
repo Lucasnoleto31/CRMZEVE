@@ -501,9 +501,9 @@
           <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Categoria IA</label>
           <select id="f-categoria-ia" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(6,182,212,.3)!important;">
             <option value="">Não definida</option>
-            <option value="Começando">1 — Começando</option>
-            <option value="Aumentar Lotes">2 — Aumentar Lotes</option>
-            <option value="Inconsistente">3 — Inconsistente</option>
+            <option value="Aumentar Lotes">🥇 Aumentar Lotes — maior LTV</option>
+            <option value="Inconsistente">🥈 Inconsistente — dor clara</option>
+            <option value="Começando">🥉 Começando — ciclo longo</option>
           </select>
         </div>
         <div>
@@ -951,6 +951,13 @@ const SC = {
   'Em Abertura':      { badge:'b-aber',  dot:'#fdba74', clr:'#f97316', grd:'#7c2d12' },
   'Convertido':       { badge:'b-conv',  dot:'#6ee7b7', clr:'#22c55e', grd:'#065f46' },
   'Perdido':          { badge:'b-perd',  dot:'#fca5a5', clr:'#ef4444', grd:'#7f1d1d' },
+};
+
+// Qualificação de categoria IA — ordem de prioridade comercial
+const CATEGORIA_CFG = {
+  'Aumentar Lotes': { medal:'🥇', label:'Aumentar Lotes', bg:'rgba(251,191,36,.15)', clr:'#fbbf24', border:'rgba(251,191,36,.35)' },
+  'Inconsistente':  { medal:'🥈', label:'Inconsistente',  bg:'rgba(148,163,184,.12)', clr:'#94a3b8', border:'rgba(148,163,184,.3)' },
+  'Começando':      { medal:'🥉', label:'Começando',      bg:'rgba(205,120,50,.13)',  clr:'#f97316', border:'rgba(249,115,22,.3)' },
 };
 
 const SETUP_SQL = `create table if not exists crm_leads (
@@ -1486,7 +1493,7 @@ function renderTable(){
           <div class="min-w-0">
             <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
             <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-              ${l.categoria_ia?`<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(6,182,212,.15);color:#67e8f9;border:1px solid rgba(6,182,212,.25);">${esc(l.categoria_ia)}</span>`:''}
+              ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<span title="Qualificação: ${cat.label}" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;">${cat.medal} ${cat.label}</span>`:'';})()}
               ${l.produto_alvo?`<span style="font-size:.6rem;color:rgba(255,255,255,0.35);">${esc(l.produto_alvo)}</span>`:''}
               ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
             </div>
