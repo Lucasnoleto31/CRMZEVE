@@ -1152,7 +1152,8 @@ function renderDashboard(){
   const c={Total:activeLeads.length};STATUSES.forEach(s=>c[s]=0);
   let pipeline=0,overdue=0;const t=today();
   activeLeads.forEach(l=>{
-    c[l.status]=(c[l.status]||0)+1;
+    const st=STATUSES.includes(l.status)?l.status:'Lead Novo';
+    c[st]=(c[st]||0)+1;
     if(l.status!=='Convertido'&&l.status!=='Perdido'&&l.value) pipeline+=parseFloat(l.value)||0;
     const fOverdue=l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido';
     const aOverdue=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
