@@ -731,6 +731,12 @@
   <div id="status-menu-items"></div>
 </div>
 
+<!-- CATEGORIA DROPDOWN MENU -->
+<div id="categoria-menu" class="hidden fixed z-[150] rounded-2xl shadow-2xl overflow-hidden py-1" style="background:rgba(8,8,8,0.95);border:1px solid rgba(255,255,255,0.1);min-width:200px;backdrop-filter:blur(40px);box-shadow:rgba(255,255,255,0.05) 0px 1px 0px 0px inset,rgba(0,0,0,0.6) 0px 20px 50px;">
+  <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Qualificação IA</p>
+  <div id="categoria-menu-items"></div>
+</div>
+
 <!-- IMPORT MODAL -->
 <div id="import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
   <div class="glass anim-up rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1493,7 +1499,7 @@ function renderTable(){
           <div class="min-w-0">
             <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
             <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-              ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<span title="Qualificação: ${cat.label}" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;">${cat.medal} ${cat.label}</span>`:'';})()}
+              ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<button onclick="openCategoriaMenu(${l.id},event)" title="Alterar qualificação" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">${cat.medal} ${cat.label}</button>`:`<button onclick="openCategoriaMenu(${l.id},event)" title="Qualificar lead" style="font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='rgba(251,191,36,.12)';this.style.color='#fbbf24'" onmouseout="this.style.background='rgba(255,255,255,.05)';this.style.color='rgba(255,255,255,.3)'">+ qualificar</button>`;})()}
               ${l.produto_alvo?`<span style="font-size:.6rem;color:rgba(255,255,255,0.35);">${esc(l.produto_alvo)}</span>`:''}
               ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
             </div>
@@ -1707,6 +1713,60 @@ async function setLeadStatus(newStatus){
   if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
   try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();}
   catch(e){toast('Erro: '+e.message,'error');lead.status=old;}
+}
+
+// ── CATEGORIA MENU ───────────────────────────────────────────
+let categoriaMenuId=null;
+
+function openCategoriaMenu(id,event){
+  event.stopPropagation();
+  closeCategoriaMenu();
+  categoriaMenuId=id;
+  const lead=leads.find(l=>l.id===id);
+  const menu=document.getElementById('categoria-menu');
+  const items=document.getElementById('categoria-menu-items');
+  const opts=[
+    {value:'Aumentar Lotes',...CATEGORIA_CFG['Aumentar Lotes']},
+    {value:'Inconsistente', ...CATEGORIA_CFG['Inconsistente']},
+    {value:'Começando',     ...CATEGORIA_CFG['Começando']},
+    {value:'',medal:'—',label:'Não definida',clr:'var(--t3)',bg:'transparent',border:'transparent'},
+  ];
+  items.innerHTML=opts.map(o=>{
+    const isCur=lead&&(lead.categoria_ia||'')===(o.value);
+    return`<button onclick="setLeadCategoria('${o.value}')" class="w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
+      style="${isCur?'background:var(--s3);':''}color:${isCur?'var(--t1)':o.clr};"
+      onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='${isCur?'var(--s3)':'transparent'}'">
+      <span style="font-size:.85rem;">${o.medal}</span>
+      <span>${o.label}</span>
+      ${isCur?'<span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
+    </button>`;
+  }).join('');
+  const btn=event.currentTarget;
+  const rect=btn.getBoundingClientRect();
+  menu.style.top=(rect.bottom+window.scrollY+4)+'px';
+  menu.style.left=Math.min(rect.left,window.innerWidth-210)+'px';
+  menu.classList.remove('hidden');
+}
+
+function closeCategoriaMenu(){
+  document.getElementById('categoria-menu').classList.add('hidden');
+  categoriaMenuId=null;
+}
+
+async function setLeadCategoria(newCat){
+  const id=categoriaMenuId; closeCategoriaMenu();
+  const lead=leads.find(l=>l.id===id); if(!lead)return;
+  if((lead.categoria_ia||'')===(newCat))return;
+  const old=lead.categoria_ia;
+  lead.categoria_ia=newCat||null;
+  try{
+    const s=await DB.upsert(lead);
+    leads[leads.findIndex(l=>l.id===id)]=s;
+    const catLabel=newCat?(CATEGORIA_CFG[newCat]?.medal+' '+newCat):'Não definida';
+    await DB.log(id,'Qualificação alterada',`${old||'—'} → ${catLabel}`,s.responsible||'—');
+    renderAll();
+    toast(`Qualificação: ${catLabel}`);
+  }catch(e){toast('Erro: '+e.message,'error');lead.categoria_ia=old;}
 }
 
 // ── LOSS REASON MODAL ────────────────────────────────────────
@@ -2686,10 +2746,12 @@ function renderAll(){
 }
 
 // ── EVENTS ───────────────────────────────────────────────────
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeCategoriaMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
 document.addEventListener('click',e=>{
   const menu=document.getElementById('status-menu');
   if(!menu.classList.contains('hidden')&&!menu.contains(e.target)) closeStatusMenu();
+  const cmenu=document.getElementById('categoria-menu');
+  if(!cmenu.classList.contains('hidden')&&!cmenu.contains(e.target)) closeCategoriaMenu();
 });
 document.getElementById('modal-backdrop').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('delete-modal').addEventListener('click',function(e){if(e.target===this)closeDeleteModal();});
