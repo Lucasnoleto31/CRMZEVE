@@ -141,12 +141,14 @@
     .badge-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 
     /* Status badge colors */
-    .b-novo { background:rgba(59,130,246,.1);  color:#93c5fd; border-color:rgba(59,130,246,.2); }
-    .b-cont { background:rgba(245,158,11,.1);  color:#fcd34d; border-color:rgba(245,158,11,.2); }
-    .b-reun { background:rgba(168,85,247,.1);  color:#c4b5fd; border-color:rgba(168,85,247,.2); }
-    .b-aber { background:rgba(249,115,22,.1);  color:#fdba74; border-color:rgba(249,115,22,.2); }
-    .b-conv { background:rgba(34,197,94,.1);   color:#6ee7b7; border-color:rgba(34,197,94,.2);  }
-    .b-perd { background:rgba(239,68,68,.1);   color:#fca5a5; border-color:rgba(239,68,68,.2);  }
+    .b-lnovo { background:rgba(113,113,122,.1); color:#a1a1aa; border-color:rgba(113,113,122,.2); }
+    .b-iadi  { background:rgba(6,182,212,.1);  color:#67e8f9; border-color:rgba(6,182,212,.2);  }
+    .b-qual  { background:rgba(59,130,246,.1);  color:#93c5fd; border-color:rgba(59,130,246,.2); }
+    .b-aiko  { background:rgba(245,158,11,.1);  color:#fcd34d; border-color:rgba(245,158,11,.2); }
+    .b-reun  { background:rgba(168,85,247,.1);  color:#c4b5fd; border-color:rgba(168,85,247,.2); }
+    .b-aber  { background:rgba(249,115,22,.1);  color:#fdba74; border-color:rgba(249,115,22,.2); }
+    .b-conv  { background:rgba(34,197,94,.1);   color:#6ee7b7; border-color:rgba(34,197,94,.2);  }
+    .b-perd  { background:rgba(239,68,68,.1);   color:#fca5a5; border-color:rgba(239,68,68,.2);  }
 
     /* Modal backdrop */
     .backdrop { background: rgba(0,0,0,.88); backdrop-filter:blur(12px); }
@@ -293,10 +295,12 @@
     <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="overflow:visible;">
       <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
         <option value=""></option>
-        <option value="Novo">Novo</option>
-        <option value="Contatado">Contatado</option>
-        <option value="Reunião Marcada">Reunião Marcada</option>
-        <option value="Abertura/troca">Abertura/troca</option>
+        <option value="Lead Novo">Lead Novo</option>
+        <option value="IA Disparou">IA Disparou</option>
+        <option value="Qualificado">Qualificado</option>
+        <option value="AIKON em Ação">AIKON em Ação</option>
+        <option value="Reunião Agendada">Reunião Agendada</option>
+        <option value="Em Abertura">Em Abertura</option>
         <option value="Convertido">Convertido</option>
         <option value="Perdido">Perdido</option>
       </select>
@@ -306,10 +310,12 @@
         <button id="tab-arquivados" onclick="setShowArchived(true)" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Arquivados</button>
       </div>
       <button class="spill active-pill" id="spill-" onclick="setStatusPill('')">Todos</button>
-      <button class="spill" id="spill-Novo" onclick="setStatusPill('Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;display:inline-block;"></span>Novo</button>
-      <button class="spill" id="spill-Contatado" onclick="setStatusPill('Contatado')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>Contatado</button>
-      <button class="spill" id="spill-Reunião Marcada" onclick="setStatusPill('Reunião Marcada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
-      <button class="spill" id="spill-Abertura/troca" onclick="setStatusPill('Abertura/troca')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
+      <button class="spill" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#a1a1aa;flex-shrink:0;display:inline-block;"></span>Lead Novo</button>
+      <button class="spill" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span>IA Disparou</button>
+      <button class="spill" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span style="width:6px;height:6px;border-radius:50%;background:#93c5fd;flex-shrink:0;display:inline-block;"></span>Qualificado</button>
+      <button class="spill" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>AIKON</button>
+      <button class="spill" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
+      <button class="spill" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
       <button class="spill" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
       <button class="spill" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
       <button class="spill" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
@@ -348,7 +354,7 @@
     <span id="bulk-count" class="text-sm font-semibold" style="color:#93c5fd"></span>
     <select id="bulk-status-sel" class="border rounded-lg px-3 py-1.5 text-sm">
       <option value="">Mudar status para…</option>
-      <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
+      <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
     </select>
     <button onclick="bulkChangeStatus()" class="btn-blue text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Aplicar</button>
     <button id="bulk-archive-btn" onclick="bulkArchive()" class="text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Arquivar</button>
@@ -482,12 +488,40 @@
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Status</label>
           <select id="f-status-field" onchange="toggleLossReason(this.value)" class="w-full border rounded-lg px-3 py-2.5 text-sm">
-            <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
+            <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
           </select>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Responsável</label>
-          <input id="f-responsible" type="text" placeholder="Consultor" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+          <input id="f-responsible" type="text" placeholder="AIKON / Artur" class="w-full border rounded-lg px-3 py-2.5 text-sm"/>
+        </div>
+        <!-- Campos Zeve -->
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Categoria IA</label>
+          <select id="f-categoria-ia" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(6,182,212,.3)!important;">
+            <option value="">Não definida</option>
+            <option value="Começando">1 — Começando</option>
+            <option value="Aumentar Lotes">2 — Aumentar Lotes</option>
+            <option value="Inconsistente">3 — Inconsistente</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Produto Alvo</label>
+          <select id="f-produto-alvo" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(6,182,212,.3)!important;">
+            <option value="">Não definido</option>
+            <option value="Assessoria Genial">Assessoria Genial</option>
+            <option value="Robô Artur">Robô Artur</option>
+            <option value="Ambos">Ambos</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1.5" style="color:#67e8f9">Status IA</label>
+          <select id="f-status-ia" class="w-full border rounded-lg px-3 py-2.5 text-sm" style="border-color:rgba(6,182,212,.3)!important;">
+            <option value="">—</option>
+            <option value="Aguardando Resposta">Aguardando Resposta</option>
+            <option value="Respondeu">Respondeu</option>
+            <option value="Não Respondeu">Não Respondeu em 24h</option>
+          </select>
         </div>
         <div id="f-loss-reason-wrap" class="col-span-2 hidden">
           <label class="block text-xs font-medium mb-1.5" style="color:#fca5a5">Motivo da Perda <span style="color:#f87171">*</span></label>
@@ -842,8 +876,8 @@
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ SCRIPT ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <script>
-const STATUSES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido','Perdido'];
-const FUNNEL_STAGES = ['Novo','Contatado','Reunião Marcada','Abertura/troca','Convertido'];
+const STATUSES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido','Perdido'];
+const FUNNEL_STAGES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido'];
 
 // Priority config
 const PRIORITY_CFG = {
@@ -863,26 +897,31 @@ const LEVEL_CFG = {
 
 // Cadência padrão por etapa
 const CADENCIA_CFG = {
-  'Novo': [
-    { label: 'Enviar mensagem de boas-vindas', days: 0 },
-    { label: 'Follow-up: verificar interesse', days: 2 },
-    { label: 'Convidar para reunião de apresentação', days: 5 },
-    { label: 'Última tentativa — contato final', days: 10 },
+  'Lead Novo': [
+    { label: 'Disparar mensagem IA de qualificação', days: 0 },
   ],
-  'Contatado': [
-    { label: 'Enviar material de apresentação', days: 1 },
-    { label: 'Agendar reunião de qualificação', days: 3 },
-    { label: 'Follow-up pós-material', days: 7 },
+  'IA Disparou': [
+    { label: 'Aguardar resposta do lead (24h)', days: 0 },
+    { label: 'Segundo disparo — sem resposta', days: 1 },
   ],
-  'Reunião Marcada': [
-    { label: 'Confirmar presença na reunião', days: 0 },
-    { label: 'Realizar reunião', days: 1 },
-    { label: 'Follow-up pós-reunião — próximos passos', days: 2 },
+  'Qualificado': [
+    { label: 'AIKON: abordar com script da categoria', days: 0 },
+    { label: 'AIKON: follow-up se sem resposta', days: 1 },
   ],
-  'Abertura/troca': [
-    { label: 'Enviar instruções de abertura de conta', days: 0 },
+  'AIKON em Ação': [
+    { label: 'Agendar apresentação do ecossistema Zeve', days: 0 },
+    { label: 'Follow-up — confirmar reunião', days: 1 },
+    { label: 'Última tentativa de agendamento', days: 3 },
+  ],
+  'Reunião Agendada': [
+    { label: 'Confirmar presença na apresentação', days: 0 },
+    { label: 'Realizar apresentação do ecossistema', days: 1 },
+    { label: 'Follow-up pós-reunião — proposta enviada?', days: 2 },
+  ],
+  'Em Abertura': [
+    { label: 'Enviar instruções de abertura Genial / setup robô', days: 0 },
     { label: 'Verificar andamento da abertura', days: 3 },
-    { label: 'Acompanhamento final — conta aberta?', days: 7 },
+    { label: 'Acompanhamento final — conta ativa?', days: 7 },
   ],
   'Perdido': [
     { label: 'Reativação — 1ª tentativa', days: 30 },
@@ -893,20 +932,24 @@ const CADENCIA_CFG = {
 
 // SLA por etapa (dias máximos sem avançar)
 const SLA_CFG = {
-  'Novo':            1,
-  'Contatado':       3,
-  'Reunião Marcada': 5,
-  'Abertura/troca':  7,
+  'Lead Novo':        1,
+  'IA Disparou':      1,
+  'Qualificado':      1,
+  'AIKON em Ação':    2,
+  'Reunião Agendada': 3,
+  'Em Abertura':      7,
 };
 
 // Colors per status
 const SC = {
-  'Novo':            { badge:'b-novo', dot:'#60a5fa', clr:'#3b82f6', grd:'#1e40af' },
-  'Contatado':       { badge:'b-cont', dot:'#fcd34d', clr:'#f59e0b', grd:'#92400e' },
-  'Reunião Marcada': { badge:'b-reun', dot:'#c4b5fd', clr:'#a855f7', grd:'#5b21b6' },
-  'Abertura/troca':  { badge:'b-aber', dot:'#fdba74', clr:'#f97316', grd:'#7c2d12' },
-  'Convertido':      { badge:'b-conv', dot:'#6ee7b7', clr:'#22c55e', grd:'#065f46' },
-  'Perdido':         { badge:'b-perd', dot:'#fca5a5', clr:'#ef4444', grd:'#7f1d1d' },
+  'Lead Novo':        { badge:'b-lnovo', dot:'#a1a1aa', clr:'#71717a', grd:'#27272a' },
+  'IA Disparou':      { badge:'b-iadi',  dot:'#67e8f9', clr:'#06b6d4', grd:'#164e63' },
+  'Qualificado':      { badge:'b-qual',  dot:'#93c5fd', clr:'#3b82f6', grd:'#1e40af' },
+  'AIKON em Ação':    { badge:'b-aiko',  dot:'#fcd34d', clr:'#f59e0b', grd:'#92400e' },
+  'Reunião Agendada': { badge:'b-reun',  dot:'#c4b5fd', clr:'#a855f7', grd:'#5b21b6' },
+  'Em Abertura':      { badge:'b-aber',  dot:'#fdba74', clr:'#f97316', grd:'#7c2d12' },
+  'Convertido':       { badge:'b-conv',  dot:'#6ee7b7', clr:'#22c55e', grd:'#065f46' },
+  'Perdido':          { badge:'b-perd',  dot:'#fca5a5', clr:'#ef4444', grd:'#7f1d1d' },
 };
 
 const SETUP_SQL = `create table if not exists crm_leads (
@@ -1038,7 +1081,7 @@ function calcScore(lead){
   if(lead.status==='Convertido')return 100;
   if(lead.status==='Perdido')return 0;
   let s=0;
-  const base={'Novo':5,'Contatado':20,'Reunião Marcada':40,'Abertura/troca':60};
+  const base={'Lead Novo':5,'IA Disparou':10,'Qualificado':20,'AIKON em Ação':35,'Reunião Agendada':50,'Em Abertura':70};
   s+=base[lead.status]||0;
   if(lead.stage_entered_at){const d=diffDays(lead.stage_entered_at);const sla=SLA_CFG[lead.status]||5;s-=Math.min(Math.floor(d/sla)*10,35);}
   if(lead.next_action)s+=8;
@@ -1122,13 +1165,15 @@ function renderDashboard(){
       ${kpiCard('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'valor estimado em aberto')}
       ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora', 'setOverdueFilter()'):''}
     </div>
-    <div class="grid grid-cols-6 gap-3">
-      ${stageCard('Novo', c['Novo'], '#93c5fd', '#3b82f6', Math.round(c['Novo']/total*100), "setStatusPill('Novo')")}
-      ${stageCard('Contatado', c['Contatado'], '#fcd34d', '#f59e0b', Math.round(c['Contatado']/total*100), "setStatusPill('Contatado')")}
-      ${stageCard('Reunião', c['Reunião Marcada'], '#c4b5fd', '#a855f7', Math.round(c['Reunião Marcada']/total*100), "setStatusPill('Reunião Marcada')")}
-      ${stageCard('Abertura', c['Abertura/troca'], '#fdba74', '#f97316', Math.round(c['Abertura/troca']/total*100), "setStatusPill('Abertura/troca')")}
-      ${stageCard('Convertido', c['Convertido'], '#6ee7b7', '#22c55e', Math.round(c['Convertido']/total*100), "setStatusPill('Convertido')")}
-      ${stageCard('Perdido', c['Perdido'], '#fca5a5', '#ef4444', Math.round(c['Perdido']/total*100), "setStatusPill('Perdido')")}
+    <div class="grid gap-3" style="grid-template-columns:repeat(8,minmax(0,1fr))">
+      ${stageCard('Lead Novo',    c['Lead Novo'],        '#a1a1aa','#71717a', Math.round(c['Lead Novo']/total*100),        "setStatusPill('Lead Novo')")}
+      ${stageCard('IA Disparou',  c['IA Disparou'],      '#67e8f9','#06b6d4', Math.round(c['IA Disparou']/total*100),      "setStatusPill('IA Disparou')")}
+      ${stageCard('Qualificado',  c['Qualificado'],      '#93c5fd','#3b82f6', Math.round(c['Qualificado']/total*100),      "setStatusPill('Qualificado')")}
+      ${stageCard('AIKON',        c['AIKON em Ação'],    '#fcd34d','#f59e0b', Math.round(c['AIKON em Ação']/total*100),    "setStatusPill('AIKON em Ação')")}
+      ${stageCard('Reunião',      c['Reunião Agendada'], '#c4b5fd','#a855f7', Math.round(c['Reunião Agendada']/total*100), "setStatusPill('Reunião Agendada')")}
+      ${stageCard('Abertura',     c['Em Abertura'],      '#fdba74','#f97316', Math.round(c['Em Abertura']/total*100),      "setStatusPill('Em Abertura')")}
+      ${stageCard('Convertido',   c['Convertido'],       '#6ee7b7','#22c55e', Math.round(c['Convertido']/total*100),       "setStatusPill('Convertido')")}
+      ${stageCard('Perdido',      c['Perdido'],          '#fca5a5','#ef4444', Math.round(c['Perdido']/total*100),           "setStatusPill('Perdido')")}
     </div>`;
 }
 
@@ -1440,9 +1485,9 @@ function renderTable(){
           <div class="min-w-0">
             <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
             <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-              ${lvl?`<span style="font-size:.6rem;font-weight:700;color:${lvl.clr};">${esc(l.level)}</span>`:''}
+              ${l.categoria_ia?`<span style="font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(6,182,212,.15);color:#67e8f9;border:1px solid rgba(6,182,212,.25);">${esc(l.categoria_ia)}</span>`:''}
+              ${l.produto_alvo?`<span style="font-size:.6rem;color:rgba(255,255,255,0.35);">${esc(l.produto_alvo)}</span>`:''}
               ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
-              ${l.community?`<span style="font-size:.6rem;color:rgba(255,255,255,0.22);" title="Comunidade">${esc(l.community)}</span>`:''}
             </div>
           </div>
         </div>
@@ -1699,9 +1744,10 @@ function openModal(id){
   ['f-id','f-name','f-phone','f-responsible','f-product','f-tags','f-notes','f-community','f-capital','f-next-action'].forEach(k=>document.getElementById(k).value='');
   document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
   document.getElementById('f-first-contact').value='';document.getElementById('f-next-action-date').value='';
-  document.getElementById('f-status-field').value='Novo';document.getElementById('f-origin').value='';
+  document.getElementById('f-status-field').value='Lead Novo';document.getElementById('f-origin').value='';
   document.getElementById('f-value').value='';document.getElementById('f-priority').value='';
   document.getElementById('f-level').value='';document.getElementById('f-loss-reason').value='';
+  document.getElementById('f-categoria-ia').value='';document.getElementById('f-produto-alvo').value='';document.getElementById('f-status-ia').value='';
   document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
   // Sugerir primeiro passo da cadência para lead novo
@@ -1724,7 +1770,10 @@ function openModal(id){
     document.getElementById('f-loss-reason').value=l.loss_reason||'';
     document.getElementById('f-next-action').value=l.next_action||'';
     document.getElementById('f-next-action-date').value=l.next_action_date||'';
-    toggleLossReason(l.status||'Novo');
+    document.getElementById('f-categoria-ia').value=l.categoria_ia||'';
+    document.getElementById('f-produto-alvo').value=l.produto_alvo||'';
+    document.getElementById('f-status-ia').value=l.status_ia||'';
+    toggleLossReason(l.status||'Lead Novo');
   }
   setTimeout(()=>document.getElementById('f-name').focus(),60);
 }
@@ -1733,7 +1782,7 @@ function closeModal(){document.getElementById('modal-backdrop').classList.add('h
 async function saveLead(e){
   e.preventDefault();const idVal=document.getElementById('f-id').value;
   const statusVal=document.getElementById('f-status-field').value;
-  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null};
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,product:document.getElementById('f-product').value.trim(),value:parseFloat(document.getElementById('f-value').value)||0,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),capital:parseFloat(document.getElementById('f-capital').value)||0,priority:document.getElementById('f-priority').value,level:document.getElementById('f-level').value,first_contact:document.getElementById('f-first-contact').value||null,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null,categoria_ia:document.getElementById('f-categoria-ia').value||null,produto_alvo:document.getElementById('f-produto-alvo').value||null,status_ia:document.getElementById('f-status-ia').value||null};
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
   try{
     let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
@@ -2052,7 +2101,7 @@ function handleImportFile(input){
           let v=row[col]??'';
           if(field==='entry'||field==='followup'||field==='first_contact') v=normalizeDate(v);
           if(field==='value'||field==='capital') v=parseFloat(String(v).replace(',','.'))||0;
-          if(field==='status'&&!STATUSES.includes(v)) v='Novo';
+          if(field==='status'&&!STATUSES.includes(v)) v='Lead Novo';
           lead[field]=v;
         });
         if(!lead.entry) lead.entry=today();
