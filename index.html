@@ -296,6 +296,11 @@
         <option value="Convertido">Convertido</option>
         <option value="Perdido">Perdido</option>
       </select>
+      <!-- toggle ativos/arquivados -->
+      <div class="flex rounded-lg overflow-hidden mr-1" style="border:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
+        <button id="tab-ativos" onclick="setShowArchived(false)" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">Ativos</button>
+        <button id="tab-arquivados" onclick="setShowArchived(true)" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Arquivados</button>
+      </div>
       <button class="spill active-pill" id="spill-" onclick="setStatusPill('')">Todos</button>
       <button class="spill" id="spill-Novo" onclick="setStatusPill('Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;display:inline-block;"></span>Novo</button>
       <button class="spill" id="spill-Contatado" onclick="setStatusPill('Contatado')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>Contatado</button>
@@ -342,6 +347,7 @@
       <option>Novo</option><option>Contatado</option><option>Reunião Marcada</option><option>Abertura/troca</option><option>Convertido</option><option>Perdido</option>
     </select>
     <button onclick="bulkChangeStatus()" class="btn-blue text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Aplicar</button>
+    <button id="bulk-archive-btn" onclick="bulkArchive()" class="text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Arquivar</button>
     <button onclick="bulkDelete()" class="btn-red text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Excluir</button>
     <button onclick="openDispatchModal('selected')"
       class="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
@@ -968,7 +974,7 @@ const DB = {
 };
 
 // ── STATE ────────────────────────────────────────────────────
-let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null;
+let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null,showArchived=false;
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1029,9 +1035,10 @@ function setLoading(v){
 
 // ── DASHBOARD ────────────────────────────────────────────────
 function renderDashboard(){
-  const c={Total:leads.length};STATUSES.forEach(s=>c[s]=0);
+  const activeLeads=leads.filter(l=>!l.archived);
+  const c={Total:activeLeads.length};STATUSES.forEach(s=>c[s]=0);
   let pipeline=0,overdue=0;const t=today();
-  leads.forEach(l=>{
+  activeLeads.forEach(l=>{
     c[l.status]=(c[l.status]||0)+1;
     if(l.status!=='Convertido'&&l.status!=='Perdido'&&l.value) pipeline+=parseFloat(l.value)||0;
     const fOverdue=l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido';
@@ -1082,9 +1089,10 @@ function renderDashboard(){
 
 // ── FUNNEL ───────────────────────────────────────────────────
 function renderFunnel(){
+  const activeLeads=leads.filter(l=>!l.archived);
   const cnt={};const daySum={};
   STATUSES.forEach(s=>{cnt[s]=0;daySum[s]=0;});
-  leads.forEach(l=>{if(cnt[l.status]!==undefined){cnt[l.status]++;const d=diffDays(l.entry);if(d!==null)daySum[l.status]+=d;}});
+  activeLeads.forEach(l=>{if(cnt[l.status]!==undefined){cnt[l.status]++;const d=diffDays(l.entry);if(d!==null)daySum[l.status]+=d;}});
 
   const conv=FUNNEL_STAGES.map((s,i)=>{
     if(i===FUNNEL_STAGES.length-1)return null;
@@ -1093,7 +1101,7 @@ function renderFunnel(){
     return fromHere>0?Math.round(fromNext/fromHere*100):0;
   });
 
-  const total=leads.length||1;
+  const total=activeLeads.length||1;
 
   let html=`<div style="display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:2px;">`;
 
@@ -1279,6 +1287,8 @@ function getFiltered(){
       const lt=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
       if(![...selectedTags].every(st=>lt.some(t=>t.toLowerCase()===st.toLowerCase())))return false;
     }
+    // aba ativos vs arquivados
+    if(showArchived){if(!l.archived)return false;}else{if(l.archived)return false;}
     // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
     if(overdueFilter){
       const notClosed=l.status!=='Convertido'&&l.status!=='Perdido';
@@ -1464,6 +1474,19 @@ function renderTable(){
             onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--t1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='rgba(255,255,255,0.4)'">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           </button>
+          ${showArchived
+            ? `<button onclick="unarchiveLead(${l.id})" title="Desarquivar"
+                class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                style="background:rgba(34,197,94,.08);color:#6ee7b7;"
+                onmouseover="this.style.background='rgba(34,197,94,.2)'" onmouseout="this.style.background='rgba(34,197,94,.08)'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v4m4-4v4"/></svg>
+              </button>`
+            : `<button onclick="archiveLead(${l.id})" title="Arquivar"
+                class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                style="background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.3);"
+                onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='rgba(255,255,255,0.3)'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/></svg>
+              </button>`}
           <button onclick="openDeleteModal(${l.id})" title="Excluir"
             class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
             style="background:rgba(239,68,68,.08);color:#f87171;"
@@ -1499,6 +1522,49 @@ async function bulkDelete(){
   setLoading(true);
   try{await DB.deleteMany(ids);leads=leads.filter(l=>!ids.includes(l.id));clearSelection();renderAll();toast(`${ids.length} lead${ids.length>1?'s':''} excluído${ids.length>1?'s':''}`);}
   catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
+}
+
+// ── ARQUIVAMENTO ─────────────────────────────────────────────
+function setShowArchived(val){
+  showArchived=val;
+  const tabA=document.getElementById('tab-ativos');
+  const tabB=document.getElementById('tab-arquivados');
+  if(tabA){tabA.style.background=val?'transparent':'rgba(59,130,246,0.2)';tabA.style.color=val?'rgba(255,255,255,0.28)':'#93c5fd';}
+  if(tabB){tabB.style.background=val?'rgba(59,130,246,0.2)':'transparent';tabB.style.color=val?'#93c5fd':'rgba(255,255,255,0.28)';}
+  // na aba arquivados, limpa filtro de status e overdue
+  if(val){overdueFilter=false;syncOverduePill();document.getElementById('f-status').value='';syncStatusPills();}
+  const bulkBtn=document.getElementById('bulk-archive-btn');
+  if(bulkBtn) bulkBtn.textContent=val?'Desarquivar':'Arquivar';
+  clearSelection();
+  renderTable();
+}
+
+async function archiveLead(id){
+  const lead=leads.find(l=>l.id===id);if(!lead)return;
+  lead.archived=true;
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Arquivado','Lead movido para arquivo',s.responsible||'—');renderAll();toast('Lead arquivado');}
+  catch(e){toast('Erro: '+e.message,'error');lead.archived=false;}
+}
+
+async function unarchiveLead(id){
+  const lead=leads.find(l=>l.id===id);if(!lead)return;
+  lead.archived=false;
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Desarquivado','Lead restaurado',s.responsible||'—');renderAll();toast('Lead restaurado');}
+  catch(e){toast('Erro: '+e.message,'error');lead.archived=true;}
+}
+
+async function bulkArchive(){
+  const ids=[...selectedIds];if(!ids.length)return;
+  setLoading(true);
+  try{
+    for(const id of ids){
+      const idx=leads.findIndex(l=>l.id===id);if(idx===-1)continue;
+      leads[idx].archived=!showArchived;
+      const s=await DB.upsert(leads[idx]);leads[idx]=s;
+    }
+    clearSelection();renderAll();
+    toast(showArchived?`${ids.length} lead${ids.length>1?'s':''} restaurado${ids.length>1?'s':''}`:`${ids.length} lead${ids.length>1?'s':''} arquivado${ids.length>1?'s':''}`);
+  }catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
 }
 
 // ── STATUS DROPDOWN MENU ──────────────────────────────────────
@@ -2322,12 +2388,13 @@ function setChartPeriod(p){
 }
 
 function renderChart(){
-  if(!leads.length){if(evolutionChart){evolutionChart.destroy();evolutionChart=null;}return;}
+  const activeLeads=leads.filter(l=>!l.archived);
+  if(!activeLeads.length){if(evolutionChart){evolutionChart.destroy();evolutionChart=null;}return;}
 
   // agrupa por período
   const buckets={};
   const conv={};
-  leads.forEach(l=>{
+  activeLeads.forEach(l=>{
     if(!l.entry)return;
     let key;
     if(chartPeriod==='week'){
