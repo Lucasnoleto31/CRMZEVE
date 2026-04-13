@@ -269,7 +269,15 @@
     </div>
     <!-- Linha 2: status pills + datas avançadas -->
     <div class="flex items-center gap-2 px-4 py-3 flex-wrap" style="overflow:visible;">
-      <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden"></select>
+      <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
+        <option value=""></option>
+        <option value="Novo">Novo</option>
+        <option value="Contatado">Contatado</option>
+        <option value="Reunião Marcada">Reunião Marcada</option>
+        <option value="Abertura/troca">Abertura/troca</option>
+        <option value="Convertido">Convertido</option>
+        <option value="Perdido">Perdido</option>
+      </select>
       <button class="spill active-pill" id="spill-" onclick="setStatusPill('')">Todos</button>
       <button class="spill" id="spill-Novo" onclick="setStatusPill('Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;display:inline-block;"></span>Novo</button>
       <button class="spill" id="spill-Contatado" onclick="setStatusPill('Contatado')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>Contatado</button>
