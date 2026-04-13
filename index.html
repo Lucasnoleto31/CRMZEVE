@@ -1393,7 +1393,8 @@ function getFiltered(){
   const t=today();
   return leads.filter(l=>{
     if(q&&!l.name.toLowerCase().includes(q)&&!l.phone.replace(/\D/g,'').includes(q.replace(/\D/g,'')))return false;
-    if(st&&l.status!==st)return false;if(re&&l.responsible!==re)return false;
+    const nst=STATUSES.includes(l.status)?l.status:'Lead Novo';
+    if(st&&nst!==st)return false;if(re&&l.responsible!==re)return false;
     if(or&&l.origin!==or)return false;
     // data de entrada: datas específicas têm prioridade sobre range
     if(selectedDates.size>0){if(!selectedDates.has(l.entry))return false;}
