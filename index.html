@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
@@ -235,6 +236,23 @@
     </summary>
     <div class="p-6">
       <div id="funnel-container" class="overflow-x-auto"></div>
+    </div>
+  </details>
+
+  <!-- EVOLUÇÃO DE LEADS -->
+  <details class="glass rounded-2xl overflow-hidden" id="chart-details" open>
+    <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+      <span class="section-label">Evolução de Leads</span>
+      <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+        <button id="chart-btn-week" onclick="setChartPeriod('week')" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;">Semana</button>
+        <button id="chart-btn-month" onclick="setChartPeriod('month')" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);">Mês</button>
+        <span class="text-xs ml-1" style="color:var(--t3)">captados · convertidos ▾</span>
+      </div>
+    </summary>
+    <div class="p-6">
+      <div style="position:relative;height:220px;">
+        <canvas id="evolution-chart"></canvas>
+      </div>
     </div>
   </details>
 
@@ -950,7 +968,7 @@ const DB = {
 };
 
 // ── STATE ────────────────────────────────────────────────────
-let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false;
+let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null;
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2291,7 +2309,135 @@ async function runDispatch() {
 }
 
 // ── RENDER ALL ───────────────────────────────────────────────
-function renderAll(){renderDashboard();renderFunnel();renderTable();}
+// ── GRÁFICO EVOLUÇÃO ─────────────────────────────────────────
+function setChartPeriod(p){
+  chartPeriod=p;
+  document.getElementById('chart-btn-week').style.background=p==='week'?'rgba(59,130,246,0.2)':'rgba(255,255,255,0.04)';
+  document.getElementById('chart-btn-week').style.borderColor=p==='week'?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.08)';
+  document.getElementById('chart-btn-week').style.color=p==='week'?'#93c5fd':'rgba(255,255,255,0.28)';
+  document.getElementById('chart-btn-month').style.background=p==='month'?'rgba(59,130,246,0.2)':'rgba(255,255,255,0.04)';
+  document.getElementById('chart-btn-month').style.borderColor=p==='month'?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.08)';
+  document.getElementById('chart-btn-month').style.color=p==='month'?'#93c5fd':'rgba(255,255,255,0.28)';
+  renderChart();
+}
+
+function renderChart(){
+  if(!leads.length){if(evolutionChart){evolutionChart.destroy();evolutionChart=null;}return;}
+
+  // agrupa por período
+  const buckets={};
+  const conv={};
+  leads.forEach(l=>{
+    if(!l.entry)return;
+    let key;
+    if(chartPeriod==='week'){
+      const d=new Date(l.entry+'T00:00:00');
+      const day=d.getDay();
+      const mon=new Date(d);mon.setDate(d.getDate()-day+(day===0?-6:1));
+      key=mon.toISOString().slice(0,10);
+    } else {
+      key=l.entry.slice(0,7);
+    }
+    buckets[key]=(buckets[key]||0)+1;
+    if(l.status==='Convertido') conv[key]=(conv[key]||0)+1;
+  });
+
+  const keys=Object.keys(buckets).sort();
+  if(!keys.length)return;
+
+  // preenche gaps para semanas/meses sem leads
+  const filled=[];
+  if(chartPeriod==='week'){
+    const start=new Date(keys[0]+'T00:00:00');
+    const end=new Date(keys[keys.length-1]+'T00:00:00');
+    for(let d=new Date(start);d<=end;d.setDate(d.getDate()+7)){
+      filled.push(d.toISOString().slice(0,10));
+    }
+  } else {
+    const[sy,sm]=keys[0].split('-').map(Number);
+    const[ey,em]=keys[keys.length-1].split('-').map(Number);
+    for(let y=sy,m=sm;;){
+      filled.push(`${y}-${String(m).padStart(2,'0')}`);
+      m++;if(m>12){m=1;y++;}
+      if(y>ey||(y===ey&&m>em))break;
+    }
+  }
+
+  const labels=filled.map(k=>{
+    if(chartPeriod==='week'){const[,m,d]=k.split('-');return`${d}/${m}`;}
+    const[y,m]=k.split('-');return`${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(m)-1]}/${y.slice(2)}`;
+  });
+  const dataCapt=filled.map(k=>buckets[k]||0);
+  const dataConv=filled.map(k=>conv[k]||0);
+
+  const ctx=document.getElementById('evolution-chart');
+  if(!ctx)return;
+
+  if(evolutionChart){evolutionChart.destroy();}
+
+  Chart.defaults.color='rgba(255,255,255,0.28)';
+  Chart.defaults.borderColor='rgba(255,255,255,0.06)';
+
+  evolutionChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Captados',
+          data:dataCapt,
+          borderColor:'#3b82f6',
+          backgroundColor:'rgba(59,130,246,0.08)',
+          borderWidth:2,
+          pointRadius:3,
+          pointBackgroundColor:'#3b82f6',
+          tension:0.4,
+          fill:true,
+        },
+        {
+          label:'Convertidos',
+          data:dataConv,
+          borderColor:'#22c55e',
+          backgroundColor:'rgba(34,197,94,0.06)',
+          borderWidth:2,
+          pointRadius:3,
+          pointBackgroundColor:'#22c55e',
+          tension:0.4,
+          fill:true,
+        },
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          position:'top',
+          align:'end',
+          labels:{boxWidth:10,boxHeight:10,borderRadius:3,usePointStyle:true,pointStyle:'circle',color:'rgba(255,255,255,0.4)',font:{size:11}},
+        },
+        tooltip:{
+          backgroundColor:'rgba(0,0,0,0.85)',
+          borderColor:'rgba(255,255,255,0.12)',
+          borderWidth:1,
+          titleColor:'#fff',
+          bodyColor:'rgba(255,255,255,0.6)',
+          padding:10,
+          callbacks:{
+            title:items=>chartPeriod==='week'?`Semana de ${items[0].label}`:`${items[0].label}`,
+          }
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},maxRotation:45}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},precision:0},beginAtZero:true},
+      }
+    }
+  });
+}
+
+function renderAll(){renderDashboard();renderFunnel();renderChart();renderTable();}
 
 // ── EVENTS ───────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
