@@ -222,8 +222,29 @@
   </div>
 </div>
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ TAB NAV ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<nav style="background:rgba(0,0,0,0.5);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(20px);">
+  <div class="max-w-screen-2xl mx-auto px-6 flex items-center gap-1">
+    <button id="maintab-leads" onclick="setMainTab('leads')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t1);border-bottom:2px solid #3b82f6;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Leads
+    </button>
+    <button id="maintab-evolucao" onclick="setMainTab('evolucao')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t3);border-bottom:2px solid transparent;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      Evolução
+    </button>
+  </div>
+</nav>
+
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ MAIN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+
+  <!-- ══ TAB: LEADS ══ -->
+  <div id="tabpanel-leads">
 
   <!-- DASHBOARD -->
   <div id="dashboard"></div>
@@ -236,23 +257,6 @@
     </summary>
     <div class="p-6">
       <div id="funnel-container" class="overflow-x-auto"></div>
-    </div>
-  </details>
-
-  <!-- EVOLUÇÃO DE LEADS -->
-  <details class="glass rounded-2xl overflow-hidden" id="chart-details" open>
-    <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-      <span class="section-label">Evolução de Leads</span>
-      <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-        <button id="chart-btn-week" onclick="setChartPeriod('week')" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;">Semana</button>
-        <button id="chart-btn-month" onclick="setChartPeriod('month')" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);">Mês</button>
-        <span class="text-xs ml-1" style="color:var(--t3)">captados · convertidos ▾</span>
-      </div>
-    </summary>
-    <div class="p-6">
-      <div style="position:relative;height:220px;">
-        <canvas id="evolution-chart"></canvas>
-      </div>
     </div>
   </details>
 
@@ -393,6 +397,47 @@
       </div>
     </div>
   </div>
+
+  </div><!-- /tabpanel-leads -->
+
+  <!-- ══ TAB: EVOLUÇÃO ══ -->
+  <div id="tabpanel-evolucao" class="hidden space-y-6">
+
+    <!-- KPI cards do mês -->
+    <div id="evolucao-kpis" class="grid grid-cols-4 gap-4"></div>
+
+    <!-- Gráfico principal -->
+    <div class="glass rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div>
+          <p class="text-sm font-semibold" style="color:var(--t1)">Captados &amp; Convertidos</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Volume de leads ao longo do tempo</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="chart-btn-week" onclick="setChartPeriod('week')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;">Semana</button>
+          <button id="chart-btn-month" onclick="setChartPeriod('month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);">Mês</button>
+        </div>
+      </div>
+      <div class="p-6">
+        <div style="position:relative;height:380px;">
+          <canvas id="evolution-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Funil na aba evolução também -->
+    <details class="glass rounded-2xl overflow-hidden" id="funnel-details-ev">
+      <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span class="section-label">Funil de Conversão</span>
+        <span class="text-xs" style="color:var(--t3)">% de avanço · ⌀ dias por etapa ▾</span>
+      </summary>
+      <div class="p-6">
+        <div id="funnel-container-ev" class="overflow-x-auto"></div>
+      </div>
+    </details>
+
+  </div><!-- /tabpanel-evolucao -->
+
 </main>
 
 <!-- ━━━━━━━━━━━━━━━━━━━━ MODAL ADD/EDIT ━━━━━━━━━━━━━━━━━━━━ -->
@@ -974,7 +1019,7 @@ const DB = {
 };
 
 // ── STATE ────────────────────────────────────────────────────
-let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null,showArchived=false;
+let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null,showArchived=false,mainTab='leads';
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2375,6 +2420,80 @@ async function runDispatch() {
 }
 
 // ── RENDER ALL ───────────────────────────────────────────────
+// ── TABS PRINCIPAIS ──────────────────────────────────────────
+function setMainTab(tab){
+  mainTab=tab;
+  document.getElementById('tabpanel-leads').classList.toggle('hidden',tab!=='leads');
+  document.getElementById('tabpanel-evolucao').classList.toggle('hidden',tab!=='evolucao');
+  const tl=document.getElementById('maintab-leads');
+  const te=document.getElementById('maintab-evolucao');
+  tl.style.color=tab==='leads'?'var(--t1)':'var(--t3)';
+  tl.style.borderBottomColor=tab==='leads'?'#3b82f6':'transparent';
+  te.style.color=tab==='evolucao'?'var(--t1)':'var(--t3)';
+  te.style.borderBottomColor=tab==='evolucao'?'#3b82f6':'transparent';
+  if(tab==='evolucao'){renderEvolucaoKpis();renderChart();renderFunnelEv();}
+}
+
+function renderEvolucaoKpis(){
+  const activeLeads=leads.filter(l=>!l.archived);
+  const now=new Date();
+  const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const ym_prev=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+
+  const thisMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym));
+  const prevMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym_prev));
+  const captados=thisMes.length;
+  const convertidos=thisMes.filter(l=>l.status==='Convertido').length;
+  const captadosPrev=prevMes.length;
+  const convertidosPrev=prevMes.filter(l=>l.status==='Convertido').length;
+  const denom=convertidos+(thisMes.filter(l=>l.status==='Perdido').length);
+  const taxa=denom>0?Math.round(convertidos/denom*100):0;
+  const taxaPrev=((convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length))>0)?Math.round(convertidosPrev/((convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length)))*100):0;
+
+  const diff=(cur,prev)=>{
+    if(!prev&&!cur)return'';
+    const d=cur-prev;
+    const clr=d>0?'#6ee7b7':d<0?'#f87171':'rgba(255,255,255,0.3)';
+    const sign=d>0?'↑':d<0?'↓':'';
+    return`<span style="font-size:.7rem;color:${clr};">${sign}${Math.abs(d)} vs mês ant.</span>`;
+  };
+  const diffPct=(cur,prev)=>{
+    if(prev===undefined)return'';
+    const d=cur-prev;
+    const clr=d>0?'#6ee7b7':d<0?'#f87171':'rgba(255,255,255,0.3)';
+    const sign=d>0?'↑':d<0?'↓':'';
+    return`<span style="font-size:.7rem;color:${clr};">${sign}${Math.abs(d)}pp vs mês ant.</span>`;
+  };
+
+  const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mesNome=months[now.getMonth()];
+
+  const card=(label,val,valColor,accentColor,sub,delta)=>`
+    <div class="relative rounded-2xl overflow-hidden p-5" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;">
+      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${accentColor}60,transparent);"></div>
+      <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--t3)">${label}</p>
+      <p class="text-3xl font-bold leading-none mb-1" style="color:${valColor}">${val}</p>
+      ${sub?`<p class="text-xs" style="color:rgba(255,255,255,0.25)">${sub}</p>`:''}
+      <div class="mt-2">${delta}</div>
+    </div>`;
+
+  const totalAtivos=activeLeads.filter(l=>l.status!=='Convertido'&&l.status!=='Perdido').length;
+
+  document.getElementById('evolucao-kpis').innerHTML=
+    card(`Captados — ${mesNome}`,captados,'#93c5fd','#3b82f6','leads este mês',diff(captados,captadosPrev))+
+    card(`Convertidos — ${mesNome}`,convertidos,'#6ee7b7','#22c55e','fechamentos este mês',diff(convertidos,convertidosPrev))+
+    card('Taxa de Conversão',taxa+'%','#a5b4fc','#818cf8','convertidos / (conv+perd)',diffPct(taxa,taxaPrev))+
+    card('Pipeline Ativo',totalAtivos,'#fcd34d','#f59e0b','leads em aberto','');
+}
+
+function renderFunnelEv(){
+  // reutiliza lógica do funil principal mas renderiza em funnel-container-ev
+  const c=document.getElementById('funnel-container-ev');
+  const s=document.getElementById('funnel-container');
+  if(c&&s) c.innerHTML=s.innerHTML;
+}
+
 // ── GRÁFICO EVOLUÇÃO ─────────────────────────────────────────
 function setChartPeriod(p){
   chartPeriod=p;
@@ -2504,7 +2623,10 @@ function renderChart(){
   });
 }
 
-function renderAll(){renderDashboard();renderFunnel();renderChart();renderTable();}
+function renderAll(){
+  renderDashboard();renderFunnel();renderTable();
+  if(mainTab==='evolucao'){renderEvolucaoKpis();renderChart();renderFunnelEv();}
+}
 
 // ── EVENTS ───────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
