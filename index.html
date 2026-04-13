@@ -1725,7 +1725,7 @@ function openCategoriaMenu(id,event){
       ${isCur?'<span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
     </button>`;
   }).join('');
-  const btn=event.currentTarget;
+  const btn=event.target.closest('button')||event.target;
   const rect=btn.getBoundingClientRect();
   menu.style.top=(rect.bottom+window.scrollY+4)+'px';
   menu.style.left=Math.min(rect.left,window.innerWidth-210)+'px';
