@@ -112,33 +112,36 @@ async function buscarLeadPorTelefone(phone) {
   // Remove código do país (55) se presente
   const semPais = digits.startsWith('55') ? digits.slice(2) : digits;
 
-  // Tentativa 1: número completo (com ou sem 9)
+  // Remove o 9 extra do celular brasileiro se for número de 11 dígitos
+  // Ex: 62984555387 → 6284555387
+  let searchDigits = semPais;
+  if (semPais.length === 11 && semPais[2] === '9') {
+    searchDigits = semPais.slice(0, 2) + semPais.slice(3);
+  }
+
+  // Usa últimos 8 dígitos para tolerar diferentes formatações
+  const tail = searchDigits.slice(-8);
+
+  console.log(`BUSCA: phone="${phone}" → semPais="${semPais}" → searchDigits="${searchDigits}" → tail="${tail}"`);
+
+  // Usa RPC que remove formatação do número antes de comparar
+  // Requer função SQL: CREATE OR REPLACE FUNCTION find_lead_by_digits(search_digits text)
+  // RETURNS SETOF crm_leads AS $$ SELECT * FROM crm_leads
+  // WHERE regexp_replace(phone,'[^0-9]','','g') LIKE '%'||search_digits||'%' LIMIT 1; $$ LANGUAGE sql;
+  try {
+    const { data: rpc } = await supabase.rpc('find_lead_by_digits', { search_digits: tail });
+    if (rpc?.length) return rpc[0];
+  } catch (e) {
+    console.log('RPC find_lead_by_digits indisponível, usando fallback ilike');
+  }
+
+  // Fallback: ilike (funciona se o número não tiver formatação)
   const { data: d1 } = await supabase
     .from('crm_leads')
     .select('id, name, categoria_ia, status, status_ia')
-    .ilike('phone', `%${semPais.slice(-10)}%`)
+    .ilike('phone', `%${tail}%`)
     .limit(1);
-  if (d1?.length) return d1[0];
-
-  // Tentativa 2: remove o 9 do celular (11 dígitos → 10)
-  // Ex: 62984555387 → 6284555387
-  if (semPais.length === 11 && semPais[2] === '9') {
-    const sem9 = semPais.slice(0, 2) + semPais.slice(3);
-    const { data: d2 } = await supabase
-      .from('crm_leads')
-      .select('id, name, categoria_ia, status, status_ia')
-      .ilike('phone', `%${sem9}%`)
-      .limit(1);
-    if (d2?.length) return d2[0];
-  }
-
-  // Tentativa 3: últimos 8 dígitos (fallback para números antigos)
-  const { data: d3 } = await supabase
-    .from('crm_leads')
-    .select('id, name, categoria_ia, status, status_ia')
-    .ilike('phone', `%${semPais.slice(-8)}%`)
-    .limit(1);
-  return d3?.[0] || null;
+  return d1?.[0] || null;
 }
 
 // ── Handler principal ─────────────────────────────────────────
