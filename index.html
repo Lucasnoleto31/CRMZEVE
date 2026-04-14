@@ -405,7 +405,6 @@
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('name')">Lead <span class="sort-icon text-blue-400" data-col="name"></span></th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Contato</th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('status')">Status <span class="sort-icon text-blue-400" data-col="status"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('_score')">Score <span class="sort-icon text-blue-400" data-col="_score"></span></th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('next_action_date')">Próxima Ação <span class="sort-icon text-blue-400" data-col="next_action_date"></span></th>
             <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
             <th class="px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
@@ -1544,8 +1543,6 @@ function renderTable(){
     const isSel=selectedIds.has(l.id);
     const prio=PRIORITY_CFG[l.priority]||null;
     const lvl=LEVEL_CFG[l.level]||null;
-    const score=calcScore(l);
-    const sl=scoreLabel(score);
     const sla=getSlaStatus(l);
     const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
     return`<tr style="${isSel?'background:rgba(37,99,235,.07);':''}" id="row-${l.id}">
@@ -1587,16 +1584,6 @@ function renderTable(){
           ${sla&&sla.overdue?`<span class="text-xs font-semibold" style="color:#f87171;">⚠️ ${sla.days}d parado</span>`:''}
           ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:rgba(248,113,113,0.6);">↳ ${esc(l.loss_reason)}</span>`:''}
         </div>
-      </td>
-
-      <!-- Score -->
-      <td class="px-5 py-4 whitespace-nowrap">
-        ${l.status==='Convertido'?`<span class="text-xs font-bold" style="color:#6ee7b7;">✓ Convertido</span>`:
-          l.status==='Perdido'?`<span class="text-xs" style="color:var(--t3);">—</span>`:
-          `<div class="flex flex-col gap-0.5">
-            <span class="text-xs font-bold" style="color:${sl.clr};">${score}</span>
-            <span class="text-xs" style="color:${sl.clr};opacity:.7;">${sl.label}</span>
-          </div>`}
       </td>
 
       <!-- Próxima Ação -->
@@ -1966,23 +1953,16 @@ async function openDrawer(id){
     ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;">Motivo: ${esc(l.loss_reason)}</span>`:''}
   `;
 
-  // ── Score + SLA ──
-  const score=calcScore(l);const sl=scoreLabel(score);const sla=getSlaStatus(l);
-  document.getElementById('drawer-score-section').innerHTML=`
-    <div class="flex items-center gap-3 rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
-      <div class="flex-1">
-        <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color:var(--t3)">Score do Lead</p>
-        <div class="flex items-center gap-2">
-          <span class="text-lg font-bold" style="color:${sl.clr}">${l.status==='Convertido'?'✓ 100':l.status==='Perdido'?'—':score}</span>
-          ${l.status!=='Convertido'&&l.status!=='Perdido'?`<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:${sl.bg};color:${sl.clr};border:1px solid ${sl.border};">${sl.label}</span>`:''}
-        </div>
-      </div>
-      ${sla?`<div class="text-right">
-        <p class="text-xs" style="color:var(--t3)">Nesta etapa</p>
-        <p class="text-sm font-bold ${sla.overdue?'':'font-medium'}" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.days}d ${sla.overdue?'⚠️':''}</p>
+  // ── SLA ──
+  const sla=getSlaStatus(l);
+  document.getElementById('drawer-score-section').innerHTML=sla?`
+    <div class="flex items-center justify-between rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
+      <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Tempo nesta etapa</p>
+      <div class="text-right">
+        <p class="text-sm font-bold" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.days}d ${sla.overdue?'⚠️':''}</p>
         <p class="text-xs" style="color:var(--t3)">SLA: ${sla.sla}d</p>
-      </div>`:''}
-    </div>`;
+      </div>
+    </div>`:'';
 
   // ── Próxima Ação ──
   const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
