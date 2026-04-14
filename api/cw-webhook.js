@@ -108,14 +108,37 @@ async function classificar(texto) {
 }
 
 async function buscarLeadPorTelefone(phone) {
-  // Normaliza: pega últimos 10 dígitos
-  const digits = phone.replace(/\D/g, '').slice(-10);
-  const { data } = await supabase
+  const digits = phone.replace(/\D/g, '');
+  // Remove código do país (55) se presente
+  const semPais = digits.startsWith('55') ? digits.slice(2) : digits;
+
+  // Tentativa 1: número completo (com ou sem 9)
+  const { data: d1 } = await supabase
     .from('crm_leads')
     .select('id, name, categoria_ia, status, status_ia')
-    .ilike('phone', `%${digits}%`)
+    .ilike('phone', `%${semPais.slice(-10)}%`)
     .limit(1);
-  return data?.[0] || null;
+  if (d1?.length) return d1[0];
+
+  // Tentativa 2: remove o 9 do celular (11 dígitos → 10)
+  // Ex: 62984555387 → 6284555387
+  if (semPais.length === 11 && semPais[2] === '9') {
+    const sem9 = semPais.slice(0, 2) + semPais.slice(3);
+    const { data: d2 } = await supabase
+      .from('crm_leads')
+      .select('id, name, categoria_ia, status, status_ia')
+      .ilike('phone', `%${sem9}%`)
+      .limit(1);
+    if (d2?.length) return d2[0];
+  }
+
+  // Tentativa 3: últimos 8 dígitos (fallback para números antigos)
+  const { data: d3 } = await supabase
+    .from('crm_leads')
+    .select('id, name, categoria_ia, status, status_ia')
+    .ilike('phone', `%${semPais.slice(-8)}%`)
+    .limit(1);
+  return d3?.[0] || null;
 }
 
 // ── Handler principal ─────────────────────────────────────────
