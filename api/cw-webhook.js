@@ -128,18 +128,30 @@ module.exports = async (req, res) => {
   try {
     const payload = req.body || {};
 
+    // Log completo para diagnóstico
+    console.log('WEBHOOK RECEBIDO:', JSON.stringify({
+      event:        payload.event,
+      message_type: payload.message_type,
+      content:      payload.content,
+      sender_phone: payload.sender?.phone_number,
+      conv_sender:  payload.conversation?.meta?.sender?.phone_number,
+    }));
+
     // Ignora mensagens de saída (enviadas pelo bot/agente)
-    if (payload.message_type === 'outgoing' || payload.event !== 'message_created') {
-      return res.status(200).json({ ok: true, skip: 'outgoing or irrelevant event' });
+    if (payload.message_type === 'outgoing') {
+      return res.status(200).json({ ok: true, skip: 'outgoing message' });
     }
 
-    const content   = payload.content || payload.message?.content || '';
-    const phone     = payload.conversation?.meta?.sender?.phone_number
-                   || payload.sender?.phone_number
-                   || '';
+    const content = payload.content || payload.message?.content || '';
+    const phone   = payload.conversation?.meta?.sender?.phone_number
+                 || payload.sender?.phone_number
+                 || payload.contact?.phone_number
+                 || '';
+
+    console.log(`CONTENT: "${content}" | PHONE: "${phone}"`);
 
     if (!content || !phone) {
-      return res.status(200).json({ ok: true, skip: 'no content or phone' });
+      return res.status(200).json({ ok: true, skip: 'no content or phone', payload_keys: Object.keys(payload) });
     }
 
     console.log(`📩 Webhook: "${content}" | telefone: ${phone}`);
