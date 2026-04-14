@@ -257,6 +257,18 @@
   <!-- DASHBOARD -->
   <div id="dashboard"></div>
 
+  <!-- BANNER REATIVAÇÃO (visível só em Arquivados) -->
+  <div id="reativacao-banner" class="hidden rounded-2xl px-5 py-4 flex items-center justify-between gap-4" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);">
+    <div class="flex items-center gap-3">
+      <span style="font-size:1.2rem;">🔄</span>
+      <div>
+        <p id="reativacao-text" class="text-sm font-semibold" style="color:#fcd34d;"></p>
+        <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.4)">Leads arquivados com data de recontato vencida</p>
+      </div>
+    </div>
+    <button onclick="bulkReativarVencidos()" class="text-xs font-semibold px-4 py-2 rounded-lg flex-shrink-0 transition-all" style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fcd34d;" onmouseover="this.style.background='rgba(245,158,11,.35)'" onmouseout="this.style.background='rgba(245,158,11,.2)'">Reativar todos</button>
+  </div>
+
   <!-- FUNNEL (colapsível) -->
   <details class="glass rounded-2xl overflow-hidden" id="funnel-details">
     <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -463,6 +475,36 @@
           <canvas id="evolution-chart"></canvas>
         </div>
       </div>
+    </div>
+
+    <!-- Motivos de Perda + Velocidade por Etapa -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Motivos de Perda</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Por que os leads não converteram</p>
+        </div>
+        <div id="ev-motivos" class="p-5 space-y-2.5"></div>
+      </div>
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Velocidade por Etapa</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Tempo médio × SLA — onde o funil trava</p>
+        </div>
+        <div id="ev-velocidade" class="p-5 space-y-2.5"></div>
+      </div>
+    </div>
+
+    <!-- Log de Atividade Recente -->
+    <div class="glass rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div>
+          <p class="text-sm font-semibold" style="color:var(--t1)">Log de Atividade</p>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Últimas ações da equipe em todos os leads</p>
+        </div>
+        <button onclick="renderLogAtividade()" class="text-xs px-3 py-1.5 rounded-lg transition-all" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--t3);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">↻ Atualizar</button>
+      </div>
+      <div id="ev-log" class="divide-y" style="border-color:rgba(255,255,255,0.05);max-height:360px;overflow-y:auto;"></div>
     </div>
 
     <!-- Funil na aba evolução também -->
@@ -1078,6 +1120,10 @@ const DB = {
     const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');
     return a.filter(x=>x.lead_id===lid).sort((a,b)=>b.created_at.localeCompare(a.created_at));
   },
+  async getRecentActivity(limit=40){
+    if(this.ok){const {data}=await this.client.from('crm_activity').select('*').order('created_at',{ascending:false}).limit(limit);return data||[];}
+    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');return a.slice(0,limit);
+  },
   async log(lid,action,detail,responsible){
     const e={lead_id:lid,action,detail:detail||null,responsible:responsible||'—',created_at:new Date().toISOString()};
     if(this.ok){await this.client.from('crm_activity').insert(e);return;}
@@ -1659,7 +1705,10 @@ function setShowArchived(val){
 async function archiveLead(id){
   const lead=leads.find(l=>l.id===id);if(!lead)return;
   lead.archived=true;
-  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Arquivado','Lead movido para arquivo',s.responsible||'—');renderAll();toast('Lead arquivado');}
+  // Agenda reativação automática em 30 dias
+  if(!lead.next_action_date||lead.next_action_date<today()) lead.next_action_date=addDays(today(),30);
+  lead.next_action=lead.next_action||'Recontato pós-arquivo';
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Arquivado',`Reativação agendada para ${s.next_action_date}`,s.responsible||'—');renderAll();toast('Lead arquivado — reativação em 30 dias');}
   catch(e){toast('Erro: '+e.message,'error');lead.archived=false;}
 }
 
@@ -2566,7 +2615,7 @@ function setMainTab(tab){
   tl.style.borderBottomColor=tab==='leads'?'#3b82f6':'transparent';
   te.style.color=tab==='evolucao'?'var(--t1)':'var(--t3)';
   te.style.borderBottomColor=tab==='evolucao'?'#3b82f6':'transparent';
-  if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderChart();renderFunnelEv();}
+  if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
 }
 
 function renderEvolucaoKpis(){
@@ -2694,6 +2743,136 @@ function renderEvolucaoStatusIA(){
       </div>
     </div>`;
   }).join('');
+}
+
+// ── MOTIVOS DE PERDA ─────────────────────────────────────────
+function renderMotivosPerda(){
+  const perdidos=leads.filter(l=>l.status==='Perdido');
+  const total=perdidos.length||1;
+  const counts={};
+  perdidos.forEach(l=>{const r=l.loss_reason||'Não informado';counts[r]=(counts[r]||0)+1;});
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const max=sorted[0]?.[1]||1;
+  const colors=['#f87171','#fdba74','#fcd34d','#6ee7b7','#93c5fd','#c4b5fd','#f9a8d4'];
+  const el=document.getElementById('ev-motivos');
+  if(!el)return;
+  if(!sorted.length){el.innerHTML=`<p class="text-xs text-center py-4" style="color:var(--t3)">Nenhum lead perdido ainda</p>`;return;}
+  el.innerHTML=sorted.map(([r,n],i)=>{
+    const pct=Math.round(n/total*100);
+    const barW=Math.round(n/max*100);
+    const clr=colors[i%colors.length];
+    return`<div>
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-medium truncate" style="color:var(--t2);max-width:70%">${r}</span>
+        <span class="text-xs font-bold ml-2 flex-shrink-0" style="color:${clr}">${n} <span style="color:var(--t3);font-weight:400">(${pct}%)</span></span>
+      </div>
+      <div class="h-1.5 rounded-full" style="background:rgba(255,255,255,0.06)">
+        <div class="h-1.5 rounded-full transition-all" style="width:${barW}%;background:${clr};opacity:.75;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── VELOCIDADE POR ETAPA ──────────────────────────────────────
+function renderVelocidadeEtapa(){
+  const active=leads.filter(l=>!l.archived&&l.stage_entered_at&&l.status!=='Convertido'&&l.status!=='Perdido');
+  const el=document.getElementById('ev-velocidade');if(!el)return;
+  const stages=FUNNEL_STAGES.filter(s=>s!=='Convertido');
+  const rows=stages.map(s=>{
+    const group=active.filter(l=>(STATUSES.includes(l.status)?l.status:'Lead Novo')===s);
+    if(!group.length)return null;
+    const avg=Math.round(group.reduce((acc,l)=>acc+diffDays(l.stage_entered_at),0)/group.length);
+    const sla=SLA_CFG[s]||5;
+    const ratio=avg/sla;
+    const clr=ratio<=1?'#6ee7b7':ratio<=2?'#fcd34d':'#f87171';
+    const label=ratio<=1?'dentro do SLA':ratio<=2?'atenção':'crítico';
+    const barW=Math.min(Math.round(ratio*50),100);
+    return{s,avg,sla,clr,label,barW,count:group.length};
+  }).filter(Boolean);
+  if(!rows.length){el.innerHTML=`<p class="text-xs text-center py-4" style="color:var(--t3)">Sem dados suficientes</p>`;return;}
+  el.innerHTML=rows.map(r=>`
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-medium" style="color:var(--t2)">${r.s} <span style="color:var(--t3)">(${r.count})</span></span>
+        <span class="text-xs font-bold flex-shrink-0 ml-2" style="color:${r.clr}">⌀ ${r.avg}d <span style="font-weight:400;color:var(--t3)">/ SLA ${r.sla}d — ${r.label}</span></span>
+      </div>
+      <div class="h-1.5 rounded-full" style="background:rgba(255,255,255,0.06)">
+        <div class="h-1.5 rounded-full transition-all" style="width:${r.barW}%;background:${r.clr};opacity:.75;"></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── LOG DE ATIVIDADE CONSOLIDADO ──────────────────────────────
+async function renderLogAtividade(){
+  const el=document.getElementById('ev-log');if(!el)return;
+  el.innerHTML=`<div class="px-6 py-4 text-xs" style="color:var(--t3)">Carregando…</div>`;
+  try{
+    const activities=await DB.getRecentActivity(40);
+    if(!activities.length){el.innerHTML=`<div class="px-6 py-8 text-center text-xs" style="color:var(--t3)">Nenhuma atividade registrada</div>`;return;}
+    el.innerHTML=activities.map(a=>{
+      const lead=leads.find(l=>l.id===a.lead_id);
+      const name=lead?lead.name:`Lead #${a.lead_id}`;
+      const dt=a.created_at?new Date(a.created_at):null;
+      const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`:'';
+      const actionClr=a.action.includes('criado')?'#6ee7b7':a.action.includes('Status')?'#93c5fd':a.action.includes('Arquiv')?'#fcd34d':a.action.includes('Perdi')?'#f87171':'var(--t2)';
+      return`<div class="px-6 py-3 flex items-start gap-3 hover:bg-white/[0.02] transition-all">
+        <span class="text-xs mt-0.5 flex-shrink-0" style="color:var(--t3);min-width:70px">${dtStr}</span>
+        <div class="flex-1 min-w-0">
+          <span class="text-xs font-semibold" style="color:${actionClr}">${a.action}</span>
+          ${a.detail?`<span class="text-xs ml-1.5" style="color:var(--t3)">${a.detail}</span>`:''}
+          <button onclick="openDrawer(${a.lead_id})" class="text-xs ml-2 transition-colors" style="color:rgba(255,255,255,0.25);" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">${name} ↗</button>
+        </div>
+        ${a.responsible&&a.responsible!=='—'?`<span class="text-xs flex-shrink-0" style="color:var(--t3)">${a.responsible}</span>`:''}
+      </div>`;
+    }).join('');
+  }catch(e){el.innerHTML=`<div class="px-6 py-4 text-xs" style="color:#f87171">Erro ao carregar: ${e.message}</div>`;}
+}
+
+// ── REATIVAÇÃO BANNER ─────────────────────────────────────────
+function renderReativacaoBanner(){
+  const banner=document.getElementById('reativacao-banner');
+  const txt=document.getElementById('reativacao-text');
+  if(!banner||!txt)return;
+  if(!showArchived){banner.classList.add('hidden');return;}
+  const vencidos=leads.filter(l=>l.archived&&l.next_action_date&&l.next_action_date<=today());
+  if(vencidos.length){
+    banner.classList.remove('hidden');
+    txt.textContent=`${vencidos.length} lead${vencidos.length>1?'s':''} pronto${vencidos.length>1?'s':''} para reativação`;
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+async function bulkReativarVencidos(){
+  const vencidos=leads.filter(l=>l.archived&&l.next_action_date&&l.next_action_date<=today());
+  if(!vencidos.length)return;
+  setLoading(true);
+  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
+  try{
+    for(const l of vencidos){
+      const update={...l,archived:false,status:'Lead Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Recontato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
+      const s=await DB.upsert(update);leads[leads.findIndex(x=>x.id===l.id)]=s;
+      await DB.log(l.id,'Reativado automaticamente','Ciclo de reativação acionado','Sistema');
+    }
+    toast(`${vencidos.length} lead${vencidos.length>1?'s':''} reativado${vencidos.length>1?'s':''}`);
+    renderAll();
+  }catch(e){toast('Erro: '+e.message,'error');}
+  finally{setLoading(false);}
+}
+
+// ── NOTIFICAÇÃO SLA ───────────────────────────────────────────
+function checkSlaNotifications(){
+  const breached=leads.filter(l=>!l.archived&&getSlaStatus(l)?.overdue);
+  if(!breached.length)return;
+  if('Notification' in window){
+    if(Notification.permission==='granted'){
+      new Notification(`⚠️ ${breached.length} lead${breached.length>1?'s':''} com SLA vencido`,{body:'Abra o CRM Zeve para verificar.',icon:'/favicon.ico'});
+    } else if(Notification.permission!=='denied'){
+      Notification.requestPermission().then(p=>{
+        if(p==='granted') new Notification(`⚠️ ${breached.length} lead${breached.length>1?'s':''} com SLA vencido`,{body:'Abra o CRM Zeve para verificar.'});
+      });
+    }
+  }
 }
 
 function renderFunnelEv(){
@@ -2834,7 +3013,8 @@ function renderChart(){
 
 function renderAll(){
   renderDashboard();renderFunnel();renderTable();
-  if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderChart();renderFunnelEv();}
+  if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderChart();renderFunnelEv();}
+  renderReativacaoBanner();
 }
 
 // ── EVENTS ───────────────────────────────────────────────────
@@ -2854,7 +3034,7 @@ document.getElementById('dispatch-modal').addEventListener('click',function(e){i
 // ── INIT ─────────────────────────────────────────────────────
 (async function(){
   setLoading(true);
-  try{await DB.init();refreshConnStatus();leads=await DB.loadLeads();renderAll();}
+  try{await DB.init();refreshConnStatus();leads=await DB.loadLeads();renderAll();setTimeout(checkSlaNotifications,2000);}
   catch(e){toast('Erro ao inicializar','error');renderAll();}
   finally{setLoading(false);}
 })();
