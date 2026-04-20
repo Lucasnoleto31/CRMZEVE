@@ -182,6 +182,10 @@
     /* Linha da tabela com um sutil tom azul quando a IA já conversou */
     tr.has-ia { box-shadow: inset 3px 0 0 0 rgba(103,232,249,0.35); }
 
+    /* Gira a setinha do <details> de filtros avançados quando aberto */
+    .filters-advanced[open] > summary > svg { transform: rotate(180deg); }
+    .filters-advanced > summary::-webkit-details-marker { display:none; }
+
     /* ── KANBAN ── */
     .kanban-board { display:grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
     @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(8, 250px); } }
@@ -411,24 +415,30 @@
       <!-- Filtro IA: alterna Todos → Só IA → Sem IA → Todos -->
       <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span><span id="spill-ia-label">Todos os contatos</span></button>
     </div>
-    <!-- Linha 3: filtro de datas -->
-    <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap">
-      <div class="flex gap-1 items-center">
-        <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
-        <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
+    <!-- Linhas 3 e 4 (datas + presets) colapsadas atrás de "Filtros avançados" -->
+    <details class="filters-advanced">
+      <summary class="flex items-center gap-2 px-4 py-2 cursor-pointer select-none list-none text-xs"
+        style="color:var(--t3);border-top:1px solid rgba(255,255,255,0.04);">
+        <span>Filtros avançados</span>
+        <svg class="w-3 h-3 transition-transform" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <button onclick="event.preventDefault();event.stopPropagation();clearFilters();" class="ml-auto transition-colors" style="color:var(--t3)" title="Limpar todos os filtros">✕ Limpar filtros</button>
+      </summary>
+      <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+        <div class="flex gap-1 items-center">
+          <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
+          <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
+        </div>
+        <div id="date-chips" class="flex flex-wrap gap-1"></div>
+        <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
+        <span class="text-xs" style="color:var(--t3)">→</span>
+        <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
       </div>
-      <div id="date-chips" class="flex flex-wrap gap-1"></div>
-      <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
-      <span class="text-xs" style="color:var(--t3)">→</span>
-      <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
-    </div>
-    <!-- Linha 4: presets de filtro salvos -->
-    <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap" style="border-top:1px solid rgba(255,255,255,0.04);">
-      <span class="text-xs font-semibold" style="color:var(--t3)">Filtros salvos:</span>
-      <div id="filter-presets" class="flex items-center gap-1 flex-wrap"></div>
-      <button onclick="saveCurrentFilter()" class="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#93c5fd;" title="Salvar filtros atuais como preset">+ Salvar atual</button>
-      <button onclick="clearFilters()" class="text-xs transition-colors ml-auto" style="color:var(--t3)" title="Limpar todos os filtros">✕ Limpar filtros</button>
-    </div>
+      <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap" style="border-top:1px solid rgba(255,255,255,0.04);">
+        <span class="text-xs font-semibold" style="color:var(--t3)">Filtros salvos:</span>
+        <div id="filter-presets" class="flex items-center gap-1 flex-wrap"></div>
+        <button onclick="saveCurrentFilter()" class="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#93c5fd;" title="Salvar filtros atuais como preset">+ Salvar atual</button>
+      </div>
+    </details>
   </div>
       <!-- TAG MULTI-SELECT -->
       <div style="position:relative; z-index:100;">
@@ -1348,25 +1358,26 @@ function renderDashboard(){
   if(overdue>0){banner.classList.remove('hidden');document.getElementById('overdue-text').textContent=`⚠️ ${overdue} follow-up${overdue>1?'s':''} atrasado${overdue>1?'s':''} — verifique os leads`;}
   else banner.classList.add('hidden');
 
-  const kpiCard=(label,value,valueColor,accentColor,sub='',onclick='')=>`
-    <div class="relative rounded-2xl kpi-hero overflow-hidden${onclick?' cursor-pointer transition-all':''}" style="background:rgba(255,255,255,0.03);border:1px solid ${onclick&&overdueFilter?accentColor+'80':'rgba(255,255,255,0.08)'};box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;${onclick?'user-select:none;':''}" ${onclick?`onclick="${onclick}" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'"`:''}>
-      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${accentColor}60,transparent);"></div>
-      <p class="section-label mb-3">${label}</p>
-      <p class="text-3xl font-bold leading-none" style="color:${valueColor}">${value}</p>
-      ${sub?`<p class="text-xs mt-2" style="color:rgba(255,255,255,0.3)">${sub}</p>`:''}
-      ${onclick?`<p class="text-xs mt-2 font-semibold" style="color:${overdueFilter?accentColor:'rgba(255,255,255,0.25)'};">${overdueFilter?'✕ Remover filtro':'→ Clique para filtrar'}</p>`:''}
+  // KPI compacto: linha única, altura baixa. Valor e label lado a lado
+  // em vez de empilhados — reduz altura vertical do dashboard em ~65%.
+  const kpiInline=(label,value,valueColor,accentColor,sub='',onclick='')=>`
+    <div class="relative rounded-xl flex items-center gap-3 px-4 py-2.5${onclick?' cursor-pointer transition-all':''}"
+      style="background:rgba(255,255,255,0.025);border:1px solid ${onclick&&overdueFilter?accentColor+'80':'rgba(255,255,255,0.07)'};${onclick?'user-select:none;':''}"
+      ${onclick?`onclick="${onclick}" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.025)'"`:''}>
+      <span style="width:3px;align-self:stretch;background:${accentColor};border-radius:2px;"></span>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-semibold uppercase tracking-wider truncate" style="color:var(--t3);letter-spacing:.06em;">${label}</p>
+        ${sub?`<p class="text-xs truncate" style="color:rgba(255,255,255,0.3);margin-top:1px;">${sub}</p>`:''}
+      </div>
+      <p class="text-xl font-bold leading-none flex-shrink-0" style="color:${valueColor};font-variant-numeric:tabular-nums;">${value}</p>
     </div>`;
 
-  // Removido o grid de 8 stageCards por status — era redundante:
-  // o Funil logo abaixo mostra as mesmas contagens por etapa com mais
-  // contexto (% de avanço, dias médios) e as pílulas da barra de filtros
-  // já permitem filtrar por status com um clique.
   document.getElementById('dashboard').innerHTML=`
-    <div class="grid grid-cols-${overdue>0?'4':'3'} gap-4 mb-4">
-      ${kpiCard('Total de Leads', c.Total, '#f4f4f5', '#71717a')}
-      ${kpiCard('Taxa de Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']} convertidos de ${denom} qualificados`)}
-      ${kpiCard('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'valor estimado em aberto')}
-      ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora', 'setOverdueFilter()'):''}
+    <div class="grid gap-2 mb-3" style="grid-template-columns:repeat(${overdue>0?'4':'3'},minmax(0,1fr));">
+      ${kpiInline('Total', c.Total, '#f4f4f5', '#71717a')}
+      ${kpiInline('Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']}/${denom} qual.`)}
+      ${kpiInline('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'em aberto')}
+      ${overdue>0?kpiInline('Vencidas', overdue, '#f87171', '#ef4444', overdueFilter?'✕ remover filtro':'clique p/ filtrar', 'setOverdueFilter()'):''}
     </div>`;
 }
 
