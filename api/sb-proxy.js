@@ -196,7 +196,102 @@ const HANDLERS = {
       `/crm_leads?id=eq.${encodeURIComponent(lead_id)}&select=*`,
       { method: 'PATCH', body: { assigned_to: assigned_to || null, updated_at: new Date().toISOString() }, headers: { 'Prefer': 'return=representation' } }
     );
-    return Array.isArray(data) ? data[0] : data;
+    const lead = Array.isArray(data) ? data[0] : data;
+    // Dispara notificação para o novo responsável (se houver). Usa service_role
+    // bypass pra conseguir inserir em crm_notifications (policy INSERT é negada
+    // por default pra usuários comuns).
+    if (assigned_to && lead) {
+      const prev = _currentAuth; _currentAuth = null;
+      try {
+        await sbFetch('/crm_notifications', {
+          method: 'POST',
+          body: {
+            user_id: assigned_to,
+            lead_id: lead.id,
+            type: 'assignment',
+            message: `Novo lead atribuído: ${lead.name || 'sem nome'}`,
+          },
+          headers: { 'Prefer': 'return=minimal' },
+        });
+      } catch (e) { console.warn('notify assignee:', e.message); }
+      finally { _currentAuth = prev; }
+    }
+    return lead;
+  },
+
+  // ── NOTIFICAÇÕES ──
+  async list_my_notifications({ limit = 30 } = {}) {
+    const n = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 100);
+    const data = await sbFetch(`/crm_notifications?select=*&order=created_at.desc&limit=${n}`);
+    return Array.isArray(data) ? data : [];
+  },
+  async mark_notification_read({ id } = {}) {
+    if (id == null) throw Object.assign(new Error('id obrigatório'), { statusCode: 400 });
+    await sbFetch(`/crm_notifications?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH', body: { read: true }, headers: { 'Prefer': 'return=minimal' },
+    });
+    return { ok: true };
+  },
+  async mark_all_notifications_read() {
+    // PostgREST precisa de filtro; usamos read=eq.false para atingir só as não-lidas
+    // do caller (RLS já limita user_id = auth.uid()).
+    await sbFetch(`/crm_notifications?read=eq.false`, {
+      method: 'PATCH', body: { read: true }, headers: { 'Prefer': 'return=minimal' },
+    });
+    return { ok: true };
+  },
+
+  // ── RELATÓRIO POR VENDEDOR (só admin) ──
+  async report_by_user() {
+    await requireAdmin();
+    const prev = _currentAuth; _currentAuth = null;
+    try {
+      const [users, leads] = await Promise.all([
+        sbFetch('/crm_users?select=id,name,email,role,active&order=name.asc'),
+        sbFetch('/crm_leads?select=id,status,assigned_to,stage_entered_at,created_at,archived'),
+      ]);
+      const byUser = new Map();
+      for (const u of (users || [])) {
+        byUser.set(u.id, {
+          id: u.id, name: u.name, email: u.email, role: u.role, active: u.active,
+          total: 0, ativos: 0, convertidos: 0, perdidos: 0, reuniao: 0,
+          // soma e contagem para média de dias na etapa atual
+          _sumDays: 0, _cntDays: 0,
+        });
+      }
+      const naoAtrib = {
+        id: null, name: '— Sem responsável —', email: '', role: '', active: true,
+        total: 0, ativos: 0, convertidos: 0, perdidos: 0, reuniao: 0,
+        _sumDays: 0, _cntDays: 0,
+      };
+      const now = Date.now();
+      for (const l of (leads || [])) {
+        const bucket = (l.assigned_to && byUser.get(l.assigned_to)) || naoAtrib;
+        bucket.total++;
+        if (l.archived) continue;
+        if (l.status === 'Convertido') bucket.convertidos++;
+        else if (l.status === 'Perdido') bucket.perdidos++;
+        else {
+          bucket.ativos++;
+          if (l.status === 'Reunião Agendada') bucket.reuniao++;
+        }
+        if (l.stage_entered_at) {
+          const d = new Date(l.stage_entered_at + 'T00:00:00').getTime();
+          if (!isNaN(d)) { bucket._sumDays += (now - d) / 86400000; bucket._cntDays++; }
+        }
+      }
+      const rows = [...byUser.values(), naoAtrib]
+        .filter(r => r.total > 0 || r.active)
+        .map(r => ({
+          ...r,
+          taxa_conversao: (r.convertidos + r.perdidos) > 0
+            ? Math.round((r.convertidos / (r.convertidos + r.perdidos)) * 100)
+            : null,
+          media_dias_etapa: r._cntDays ? Math.round(r._sumDays / r._cntDays) : null,
+        }))
+        .map(({ _sumDays, _cntDays, ...rest }) => rest);
+      return rows;
+    } finally { _currentAuth = prev; }
   },
 
   // ── ADMIN USERS (só admin) ──

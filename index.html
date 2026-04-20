@@ -258,6 +258,26 @@
 
     <!-- Actions -->
     <div class="flex items-center gap-2">
+      <!-- Notificações (sino) -->
+      <div class="relative">
+        <button id="notif-btn" onclick="toggleNotifDropdown(event)" title="Notificações"
+          class="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+          style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <svg class="w-4 h-4" style="color:var(--t2)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0m6 0H9"/></svg>
+          <span id="notif-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[.6rem] font-bold flex items-center justify-center"
+            style="background:#ef4444;color:white;border:1px solid rgba(0,0,0,.5);">0</span>
+        </button>
+        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 rounded-xl shadow-2xl overflow-hidden" style="width:320px;max-height:420px;background:#0b0b0f;border:1px solid rgba(255,255,255,0.1);z-index:9999;">
+          <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+            <p class="text-sm font-semibold" style="color:var(--t1)">Notificações</p>
+            <button onclick="markAllNotifRead()" class="text-xs transition-colors" style="color:var(--t3)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t3)'">Marcar todas como lidas</button>
+          </div>
+          <div id="notif-list" class="overflow-y-auto" style="max-height:360px;">
+            <p class="text-xs text-center py-6" style="color:var(--t3)">Carregando…</p>
+          </div>
+        </div>
+      </div>
+
       <!-- User pill (nome + role + sair) -->
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
            style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
@@ -653,9 +673,14 @@
           <button id="reun-f-done" onclick="setReunioesFilter('done')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);border-right:1px solid rgba(255,255,255,0.08);">Finalizadas</button>
           <button id="reun-f-all" onclick="setReunioesFilter('all')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Todas</button>
         </div>
+        <div class="flex rounded-lg overflow-hidden flex-shrink-0" style="border:1px solid rgba(255,255,255,0.08);">
+          <button id="reun-v-list" onclick="setReunioesView('list')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">Lista</button>
+          <button id="reun-v-cal" onclick="setReunioesView('calendar')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Calendário</button>
+        </div>
         <span id="reunioes-summary" class="text-xs" style="color:var(--t3)"></span>
       </div>
     </div>
+    <div id="reunioes-calendar" class="hidden"></div>
     <div id="reunioes-list" class="space-y-3"></div>
   </div><!-- /tabpanel-reunioes -->
 
@@ -955,6 +980,15 @@
       </button>
     </div>
     <div class="px-6 py-5 space-y-6">
+      <!-- REPORTS (só admin) -->
+      <div id="admin-reports-section" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Relatório por vendedor</p>
+          <button onclick="adminReloadReports()" class="text-xs px-2 py-1 rounded-lg" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:var(--t3);">↻ Atualizar</button>
+        </div>
+        <div id="admin-reports-table" class="rounded-xl overflow-hidden" style="border:1px solid var(--b1);"></div>
+      </div>
+
       <!-- USERS (só admin) -->
       <div id="admin-users-section" class="hidden">
         <div class="flex items-center justify-between mb-3">
@@ -2623,6 +2657,8 @@ async function reativarLead(id){
 
 // ── EXPORT ───────────────────────────────────────────────────
 function exportXLS(){
+  // `leads` já é filtrado pelo RLS do Supabase (list_leads no backend aplica
+  // auth.uid()+role), então vendedor/reunioes exportam só o que enxergam.
   if(!window.XLSX){toast('SheetJS não carregado','error');return;}
   const data=filteredLeads.length>0?filteredLeads:leads;
   if(!data.length){toast('Nenhum lead para exportar','warn');return;}
@@ -2813,6 +2849,12 @@ function openSettings(){
     if (Auth.isAdmin()) { sec.classList.remove('hidden'); adminReloadUsers(); }
     else { sec.classList.add('hidden'); }
   }
+  // Relatórios — só admin
+  const repSec = document.getElementById('admin-reports-section');
+  if (repSec) {
+    if (Auth.isAdmin()) { repSec.classList.remove('hidden'); adminReloadReports(); }
+    else { repSec.classList.add('hidden'); }
+  }
 }
 function closeSettings(){document.getElementById('settings-modal').classList.add('hidden');}
 
@@ -2888,6 +2930,47 @@ async function adminToggleActive(id, active){
     await populateBulkAssignSel();
     adminReloadUsers();
   } catch (e) { toast('Erro: '+e.message,'error'); }
+}
+
+async function adminReloadReports(){
+  const host = document.getElementById('admin-reports-table');
+  if (!host) return;
+  host.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--t3)">Carregando…</p>`;
+  try {
+    const rows = await DB._call('report_by_user') || [];
+    if (!rows.length) { host.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--t3)">Sem dados</p>`; return; }
+    host.innerHTML = `
+      <table class="w-full text-xs">
+        <thead>
+          <tr style="background:var(--s2);color:var(--t3);">
+            <th class="text-left  px-3 py-2 font-semibold">Vendedor</th>
+            <th class="text-right px-2 py-2 font-semibold">Ativos</th>
+            <th class="text-right px-2 py-2 font-semibold">Reun.</th>
+            <th class="text-right px-2 py-2 font-semibold">✓</th>
+            <th class="text-right px-2 py-2 font-semibold">✗</th>
+            <th class="text-right px-2 py-2 font-semibold">Taxa</th>
+            <th class="text-right px-3 py-2 font-semibold">⌀ dias</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr style="border-top:1px solid rgba(255,255,255,0.04);${r.active===false?'opacity:.5;':''}">
+              <td class="px-3 py-2" style="color:var(--t1)">
+                <span class="font-semibold">${esc(r.name||'—')}</span>
+                ${r.role?`<span class="ml-2 text-[.6rem] uppercase" style="color:var(--t3)">${esc(r.role)}</span>`:''}
+              </td>
+              <td class="text-right px-2 py-2" style="color:var(--t2)">${r.ativos}</td>
+              <td class="text-right px-2 py-2" style="color:#c4b5fd">${r.reuniao}</td>
+              <td class="text-right px-2 py-2" style="color:#6ee7b7;font-weight:600">${r.convertidos}</td>
+              <td class="text-right px-2 py-2" style="color:#fca5a5">${r.perdidos}</td>
+              <td class="text-right px-2 py-2" style="color:var(--t2)">${r.taxa_conversao==null?'—':r.taxa_conversao+'%'}</td>
+              <td class="text-right px-3 py-2" style="color:var(--t3)">${r.media_dias_etapa==null?'—':r.media_dias_etapa+'d'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    host.innerHTML = `<p class="text-xs text-center py-4" style="color:#fca5a5">Erro: ${esc(e.message)}</p>`;
+  }
 }
 
 function refreshConnStatus(){
@@ -3549,6 +3632,9 @@ function renderHoje(){
 
 // ── ABA REUNIÕES ─────────────────────────────────────────────
 let reunioesFilter = 'pending'; // pending | done | all
+let reunioesView   = 'list';    // list | calendar
+let reunioesCalRef = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; })(); // mês exibido no calendário
+
 function setReunioesFilter(f){
   reunioesFilter = f;
   ['pending','done','all'].forEach(k => {
@@ -3561,6 +3647,27 @@ function setReunioesFilter(f){
   renderReunioes();
 }
 
+function setReunioesView(v){
+  reunioesView = v;
+  ['list','cal'].forEach(k => {
+    const el = document.getElementById('reun-v-'+k);
+    if (!el) return;
+    const active = (v === 'list' && k === 'list') || (v === 'calendar' && k === 'cal');
+    el.style.background = active ? 'rgba(59,130,246,0.2)' : 'transparent';
+    el.style.color = active ? '#93c5fd' : 'rgba(255,255,255,0.28)';
+  });
+  document.getElementById('reunioes-calendar').classList.toggle('hidden', v !== 'calendar');
+  document.getElementById('reunioes-list').classList.toggle('hidden', v === 'calendar');
+  renderReunioes();
+}
+
+function navReunioesMonth(delta){
+  reunioesCalRef.m += delta;
+  while (reunioesCalRef.m < 0) { reunioesCalRef.m += 12; reunioesCalRef.y--; }
+  while (reunioesCalRef.m > 11) { reunioesCalRef.m -= 12; reunioesCalRef.y++; }
+  renderReunioes();
+}
+
 function renderReunioes(){
   const host = document.getElementById('reunioes-list');
   const sum  = document.getElementById('reunioes-summary');
@@ -3569,6 +3676,11 @@ function renderReunioes(){
   let pool = leads.filter(l => !l.archived && (l.status === 'Reunião Agendada' || l.meeting_outcome));
   if (reunioesFilter === 'pending') pool = pool.filter(l => !l.meeting_outcome);
   else if (reunioesFilter === 'done') pool = pool.filter(l => !!l.meeting_outcome);
+  // Se view=calendar, renderiza o calendário (usa todas as reuniões que têm meeting_at)
+  if (reunioesView === 'calendar') {
+    renderReunioesCalendar(pool);
+    // mantém a lista escondida pela visibilidade já controlada por setReunioesView
+  }
   // Ordenação: primeiro sem outcome por meeting_at asc (NULL depois); depois com outcome, mais recente primeiro
   pool.sort((a,b)=>{
     const ao = !!a.meeting_outcome, bo = !!b.meeting_outcome;
@@ -3636,6 +3748,76 @@ function renderReunioes(){
   }).join('');
 }
 
+// Calendário mensal — usa só as reuniões que têm meeting_at e estão no mês exibido
+function renderReunioesCalendar(pool){
+  const host = document.getElementById('reunioes-calendar');
+  if (!host) return;
+  const { y, m } = reunioesCalRef;
+  // Agrupa reuniões por data (YYYY-MM-DD) dentro do mês
+  const byDay = new Map();
+  pool.forEach(l => {
+    if (!l.meeting_at) return;
+    const d = new Date(l.meeting_at);
+    if (isNaN(d)) return;
+    if (d.getFullYear() !== y || d.getMonth() !== m) return;
+    const key = d.toISOString().slice(0,10);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push({ lead: l, dt: d });
+  });
+
+  const firstWeekday = new Date(y, m, 1).getDay(); // 0=dom
+  const daysInMonth  = new Date(y, m+1, 0).getDate();
+  const todayKey = today();
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ empty: true });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells.push({ d, key, items: byDay.get(key) || [] });
+  }
+  while (cells.length % 7 !== 0) cells.push({ empty: true });
+
+  const pad = (n) => String(n).padStart(2,'0');
+  const fmtTime = dt => `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+
+  host.innerHTML = `
+    <div class="glass rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <button onclick="navReunioesMonth(-1)" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="background:var(--s2);border:1px solid var(--b1);color:var(--t2);">‹</button>
+          <p class="text-sm font-semibold" style="color:var(--t1)">${MESES[m]} de ${y}</p>
+          <button onclick="navReunioesMonth(1)"  class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="background:var(--s2);border:1px solid var(--b1);color:var(--t2);">›</button>
+        </div>
+        <button onclick="reunioesCalRef={y:new Date().getFullYear(),m:new Date().getMonth()};renderReunioes()" class="text-xs px-2 py-1 rounded-lg transition-all" style="background:var(--s2);border:1px solid var(--b1);color:var(--t3);">Hoje</button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-[.65rem] font-semibold uppercase mb-1" style="color:var(--t3)">
+        ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=>`<div class="text-center py-1">${d}</div>`).join('')}
+      </div>
+      <div class="grid grid-cols-7 gap-1">
+        ${cells.map(c => {
+          if (c.empty) return `<div style="min-height:72px;"></div>`;
+          const isToday = c.key === todayKey;
+          const hasItems = c.items.length > 0;
+          const bg = isToday ? 'rgba(59,130,246,.08)' : (hasItems ? 'rgba(196,181,253,.05)' : 'var(--s2)');
+          const bd = isToday ? 'rgba(59,130,246,.4)' : (hasItems ? 'rgba(196,181,253,.25)' : 'var(--b1)');
+          return `
+            <div class="rounded-lg p-1.5 flex flex-col gap-1" style="min-height:72px;background:${bg};border:1px solid ${bd};">
+              <p class="text-[.65rem] font-semibold" style="color:${isToday?'#93c5fd':'var(--t2)'}">${c.d}</p>
+              ${c.items.slice(0,3).map(it => `
+                <button onclick="openDrawer(${it.lead.id})" class="text-left text-[.62rem] truncate px-1 py-0.5 rounded transition-all"
+                  style="background:rgba(196,181,253,.15);color:#c4b5fd;border:1px solid rgba(196,181,253,.25);"
+                  title="${esc(it.lead.name)} — ${fmtTime(it.dt)}">
+                  ${fmtTime(it.dt)} ${esc(it.lead.name)}
+                </button>
+              `).join('')}
+              ${c.items.length > 3 ? `<p class="text-[.55rem] text-center" style="color:var(--t3)">+${c.items.length-3} mais</p>` : ''}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
 // datetime-local espera "YYYY-MM-DDTHH:MM" — converte de ISO preservando fuso local
 function toLocalDT(v){
   if (!v) return '';
@@ -3689,6 +3871,84 @@ async function setMeetingOutcome(id, outcome){
   } catch(e){
     toast('Erro: '+e.message,'error');
   }
+}
+
+// ── NOTIFICAÇÕES (sino + polling 60s) ────────────────────────
+const Notifs = {
+  list: [],
+  _timer: null,
+  async refresh(){
+    try {
+      this.list = await DB._call('list_my_notifications', { limit: 30 }) || [];
+    } catch (e) {
+      // Tabela pode não existir ainda — silencia, apenas deixa badge zerado
+      this.list = [];
+    }
+    this.render();
+  },
+  unreadCount(){ return this.list.filter(n => !n.read).length; },
+  render(){
+    const badge = document.getElementById('notif-badge');
+    const count = this.unreadCount();
+    if (badge) {
+      if (count > 0) { badge.textContent = String(count > 99 ? '99+' : count); badge.classList.remove('hidden'); }
+      else { badge.classList.add('hidden'); }
+    }
+    const host = document.getElementById('notif-list');
+    if (!host) return;
+    if (!this.list.length) {
+      host.innerHTML = `<p class="text-xs text-center py-8" style="color:var(--t3)">Nenhuma notificação</p>`;
+      return;
+    }
+    host.innerHTML = this.list.map(n => {
+      const when = n.created_at ? new Date(n.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}) : '';
+      const unread = !n.read;
+      return `
+        <div onclick="openNotif(${n.id}, ${n.lead_id||'null'})"
+             class="px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors"
+             style="border-bottom:1px solid rgba(255,255,255,0.04); ${unread?'background:rgba(59,130,246,.05);':''}">
+          <div class="flex items-start gap-2">
+            ${unread ? '<span class="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style="background:#3b82f6;"></span>' : '<span class="w-2 flex-shrink-0"></span>'}
+            <div class="flex-1 min-w-0">
+              <p class="text-xs ${unread?'font-semibold':''}" style="color:var(--t1)">${esc(n.message)}</p>
+              <p class="text-[.65rem] mt-0.5" style="color:var(--t3)">${esc(when)}</p>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  },
+  startPolling(){
+    if (this._timer) clearInterval(this._timer);
+    this._timer = setInterval(() => this.refresh(), 60000);
+  },
+};
+
+function toggleNotifDropdown(e){
+  e?.stopPropagation();
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  const willShow = dd.classList.contains('hidden');
+  dd.classList.toggle('hidden');
+  if (willShow) Notifs.refresh();
+}
+
+async function openNotif(id, leadId){
+  try { await DB._call('mark_notification_read', { id }); }
+  catch (e) { console.warn(e.message); }
+  // Atualiza estado local otimisticamente
+  const n = Notifs.list.find(x => x.id === id); if (n) n.read = true;
+  Notifs.render();
+  if (leadId != null) {
+    document.getElementById('notif-dropdown')?.classList.add('hidden');
+    openDrawer(leadId);
+  }
+}
+
+async function markAllNotifRead(){
+  try { await DB._call('mark_all_notifications_read'); }
+  catch (e) { toast('Erro: '+e.message,'error'); return; }
+  Notifs.list.forEach(n => n.read = true);
+  Notifs.render();
 }
 
 // ── USERS (cache de crm_users para dropdowns de atribuição) ─
@@ -4204,6 +4464,10 @@ document.addEventListener('click',e=>{
   if(!menu.classList.contains('hidden')&&!menu.contains(e.target)) closeStatusMenu();
   const cmenu=document.getElementById('categoria-menu');
   if(!cmenu.classList.contains('hidden')&&!cmenu.contains(e.target)) closeCategoriaMenu();
+  // Fecha dropdown de notificações ao clicar fora
+  const notif=document.getElementById('notif-dropdown');
+  const nbtn=document.getElementById('notif-btn');
+  if(notif && !notif.classList.contains('hidden') && !notif.contains(e.target) && !nbtn.contains(e.target)) notif.classList.add('hidden');
 });
 document.getElementById('modal-backdrop').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('delete-modal').addEventListener('click',function(e){if(e.target===this)closeDeleteModal();});
@@ -4291,6 +4555,9 @@ async function populateBulkAssignSel(){
     if(DB.ok){
       try{ Automacoes.mappings=(await DB._call('list_stage_templates'))||[]; Automacoes.loadedOnce=true; }
       catch(e){ console.warn('list_stage_templates bootstrap:', e.message); }
+      // Primeira carga das notificações + polling a cada 60s
+      Notifs.refresh();
+      Notifs.startPolling();
     }
     setTimeout(checkSlaNotifications,2000);
     // Abre aba via hash (ex: /index.html#automacoes)

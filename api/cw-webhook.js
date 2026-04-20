@@ -11,6 +11,23 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+// Detecta se a SUPABASE_SERVICE_KEY configurada é, de fato, a service_role.
+// Se alguém colocou a anon key por engano, RLS vai bloquear os updates e o
+// webhook falha silenciosamente — melhor gritar cedo no log.
+function inspectKeyRole(jwt) {
+  if (!jwt) return 'MISSING';
+  try {
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString('utf8'));
+    return payload.role || 'unknown';
+  } catch { return 'invalid_jwt'; }
+}
+const SB_KEY_ROLE = inspectKeyRole(process.env.SUPABASE_SERVICE_KEY);
+if (SB_KEY_ROLE !== 'service_role') {
+  console.error(`⚠️  cw-webhook: SUPABASE_SERVICE_KEY tem role="${SB_KEY_ROLE}" — esperado "service_role". RLS bloqueará updates.`);
+} else {
+  console.log('cw-webhook: usando service_role (OK)');
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
