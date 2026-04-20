@@ -49,6 +49,38 @@ async function sbFetch(path, { method = 'GET', body, headers = {} } = {}) {
   return data;
 }
 
+async function sbAdmin(path, { method = 'GET', body } = {}) {
+  if (!SUPABASE_URL) { const e = new Error('SUPABASE_URL não configurado'); e.statusCode = 500; throw e; }
+  if (!SERVICE_KEY)  { const e = new Error('SUPABASE_SERVICE_KEY não configurado'); e.statusCode = 500; throw e; }
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}${path}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  if (!res.ok) {
+    const msg = typeof data === 'object' ? (data.msg || data.message || data.error_description || JSON.stringify(data)) : String(data);
+    const err = new Error(msg); err.statusCode = res.status; throw err;
+  }
+  return data;
+}
+
+async function requireAdmin() {
+  if (!_currentAuth) return;
+  const rows = await sbFetch('/crm_users?select=role&limit=1');
+  const role = Array.isArray(rows) && rows[0] ? rows[0].role : null;
+  if (role !== 'admin') {
+    const e = new Error('Acesso negado — apenas admin'); e.statusCode = 403; throw e;
+  }
+}
+
 const HANDLERS = {
   async ping() {
     await sbFetch('/crm_leads?select=id&limit=1');
@@ -170,6 +202,64 @@ const HANDLERS = {
       { method: 'PATCH', body: { assigned_to: assigned_to || null, updated_at: new Date().toISOString() }, headers: { 'Prefer': 'return=representation' } }
     );
     return Array.isArray(data) ? data[0] : data;
+  },
+
+  // ── ADMIN USERS ──
+  async list_users_all() {
+    await requireAdmin();
+    const prev = _currentAuth; _currentAuth = null;
+    try {
+      const data = await sbFetch('/crm_users?select=id,email,name,role,active&order=name.asc');
+      return Array.isArray(data) ? data : [];
+    } finally { _currentAuth = prev; }
+  },
+  async create_user({ email, password, name, role = 'vendedor' } = {}) {
+    await requireAdmin();
+    if (!email || !password || !name) throw Object.assign(new Error('email, password e name obrigatórios'), { statusCode: 400 });
+    if (!['admin','vendedor','reunioes'].includes(role)) throw Object.assign(new Error('role inválido'), { statusCode: 400 });
+    const created = await sbAdmin('/auth/v1/admin/users', {
+      method: 'POST',
+      body: { email, password, email_confirm: true, user_metadata: { name, role } },
+    });
+    const uid = created?.id || created?.user?.id;
+    if (uid) {
+      const prev = _currentAuth; _currentAuth = null;
+      try {
+        await sbFetch('/crm_users?on_conflict=id', {
+          method: 'POST',
+          body: { id: uid, email, name, role, active: true },
+          headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        });
+      } finally { _currentAuth = prev; }
+    }
+    return { id: uid, email, name, role, active: true };
+  },
+  async set_user_active({ id, active } = {}) {
+    await requireAdmin();
+    if (!id) throw Object.assign(new Error('id obrigatório'), { statusCode: 400 });
+    const prev = _currentAuth; _currentAuth = null;
+    try {
+      const data = await sbFetch(
+        `/crm_users?id=eq.${encodeURIComponent(id)}&select=id,email,name,role,active`,
+        { method: 'PATCH', body: { active: !!active }, headers: { 'Prefer': 'return=representation' } }
+      );
+      return Array.isArray(data) ? data[0] : data;
+    } finally { _currentAuth = prev; }
+  },
+  async set_user_role({ id, role } = {}) {
+    await requireAdmin();
+    if (!id) throw Object.assign(new Error('id obrigatório'), { statusCode: 400 });
+    if (!['admin','vendedor','reunioes'].includes(role)) throw Object.assign(new Error('role inválido'), { statusCode: 400 });
+    try { await sbAdmin(`/auth/v1/admin/users/${id}`, { method: 'PUT', body: { user_metadata: { role } } }); }
+    catch (e) { console.warn('update metadata:', e.message); }
+    const prev = _currentAuth; _currentAuth = null;
+    try {
+      const data = await sbFetch(
+        `/crm_users?id=eq.${encodeURIComponent(id)}&select=id,email,name,role,active`,
+        { method: 'PATCH', body: { role }, headers: { 'Prefer': 'return=representation' } }
+      );
+      return Array.isArray(data) ? data[0] : data;
+    } finally { _currentAuth = prev; }
   }
 };
 

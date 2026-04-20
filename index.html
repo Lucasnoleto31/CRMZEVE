@@ -341,6 +341,18 @@
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
       Evolução
     </button>
+    <button id="maintab-hoje" onclick="setMainTab('hoje')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t3);border-bottom:2px solid transparent;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Hoje
+    </button>
+    <button id="maintab-reunioes" onclick="setMainTab('reunioes')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t3);border-bottom:2px solid transparent;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      Reuniões
+    </button>
     <button id="maintab-automacoes" onclick="setMainTab('automacoes')"
       class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
       style="color:var(--t3);border-bottom:2px solid transparent;">
@@ -504,6 +516,13 @@
       <button onclick="bulkSetField('origin', document.getElementById('bulk-origin-input').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" title="Definir origem">↵</button>
     </div>
 
+    <div id="bulk-assign-wrap" class="hidden flex items-center gap-1" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
+      <select id="bulk-assign-sel" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:140px;">
+        <option value="">Atribuir a…</option>
+      </select>
+      <button onclick="bulkAssign(document.getElementById('bulk-assign-sel').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#93c5fd;" title="Atribuir responsáveis">↵</button>
+    </div>
+
     <button id="bulk-archive-btn" onclick="bulkArchive()" class="text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Arquivar</button>
     <button onclick="bulkDelete()" class="btn-red text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Excluir</button>
     <button onclick="openDispatchModal('selected')"
@@ -606,6 +625,39 @@
       <div id="automacoes-templates" class="divide-y" style="--tw-divide-opacity:.06;"></div>
     </div>
   </div><!-- /tabpanel-automacoes -->
+
+  <!-- ══ TAB: HOJE ══ -->
+  <div id="tabpanel-hoje" class="hidden space-y-5">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-base font-semibold" style="color:var(--t1)">Tarefas de Hoje</h2>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Próximas ações agrupadas por prazo. Clique em um lead para abrir o painel de cadência.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="hoje-summary" class="text-xs" style="color:var(--t3)"></span>
+      </div>
+    </div>
+    <div id="hoje-buckets" class="space-y-4"></div>
+  </div><!-- /tabpanel-hoje -->
+
+  <!-- ══ TAB: REUNIÕES ══ -->
+  <div id="tabpanel-reunioes" class="hidden space-y-5">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-base font-semibold" style="color:var(--t1)">Reuniões</h2>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Leads em <span style="color:#c4b5fd">Reunião Agendada</span>. Registre o resultado da apresentação.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex rounded-lg overflow-hidden flex-shrink-0" style="border:1px solid rgba(255,255,255,0.08);">
+          <button id="reun-f-pending" onclick="setReunioesFilter('pending')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">A realizar</button>
+          <button id="reun-f-done" onclick="setReunioesFilter('done')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);border-right:1px solid rgba(255,255,255,0.08);">Finalizadas</button>
+          <button id="reun-f-all" onclick="setReunioesFilter('all')" class="px-3 py-1.5 text-xs font-semibold transition-all" style="background:transparent;color:rgba(255,255,255,0.28);">Todas</button>
+        </div>
+        <span id="reunioes-summary" class="text-xs" style="color:var(--t3)"></span>
+      </div>
+    </div>
+    <div id="reunioes-list" class="space-y-3"></div>
+  </div><!-- /tabpanel-reunioes -->
 
   <!-- ══ TAB: EVOLUÇÃO ══ -->
   <div id="tabpanel-evolucao" class="hidden space-y-6">
@@ -865,14 +917,28 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
+    <!-- Abas internas do drawer -->
+    <div class="px-5 pt-3 flex-shrink-0" style="border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div class="flex gap-1 text-xs font-semibold">
+        <button id="drawer-tab-resumo" onclick="setDrawerTab('resumo')" class="px-3 py-2 transition-all" style="color:var(--t1);border-bottom:2px solid #3b82f6;">Resumo</button>
+        <button id="drawer-tab-cadencia" onclick="setDrawerTab('cadencia')" class="px-3 py-2 transition-all" style="color:var(--t3);border-bottom:2px solid transparent;">Cadência</button>
+        <button id="drawer-tab-historico" onclick="setDrawerTab('historico')" class="px-3 py-2 transition-all" style="color:var(--t3);border-bottom:2px solid transparent;">Histórico</button>
+      </div>
+    </div>
     <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-      <div id="drawer-assignee-section"></div>
-      <div id="drawer-score-section"></div>
-      <div id="drawer-next-action-section"></div>
-      <div id="drawer-cadencia-section"></div>
-      <div id="drawer-reactivate-section"></div>
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--t3)">Histórico</p>
+      <!-- TAB RESUMO -->
+      <div id="drawer-pane-resumo" class="space-y-4">
+        <div id="drawer-assignee-section"></div>
+        <div id="drawer-score-section"></div>
+        <div id="drawer-next-action-section"></div>
+        <div id="drawer-reactivate-section"></div>
+      </div>
+      <!-- TAB CADÊNCIA -->
+      <div id="drawer-pane-cadencia" class="hidden space-y-4">
+        <div id="drawer-cadencia-section"></div>
+      </div>
+      <!-- TAB HISTÓRICO -->
+      <div id="drawer-pane-historico" class="hidden">
         <div id="activity-list"></div>
       </div>
     </div>
@@ -888,7 +954,30 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="px-6 py-5 space-y-4">
+    <div class="px-6 py-5 space-y-6">
+      <!-- USERS (só admin) -->
+      <div id="admin-users-section" class="hidden">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-sm font-semibold" style="color:var(--t1)">Usuários</p>
+          <button onclick="adminReloadUsers()" class="text-xs px-2 py-1 rounded-lg" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:var(--t3);">↻ Atualizar</button>
+        </div>
+        <div id="admin-users-list" class="rounded-xl overflow-hidden mb-3" style="border:1px solid var(--b1);"></div>
+        <div class="rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
+          <p class="text-xs font-semibold mb-2" style="color:var(--t2)">Criar novo usuário</p>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="admin-new-name"  type="text"  placeholder="Nome" class="border rounded-lg px-3 py-2 text-xs"/>
+            <input id="admin-new-email" type="email" placeholder="email@zeve.com.br" class="border rounded-lg px-3 py-2 text-xs"/>
+            <input id="admin-new-pass"  type="text"  placeholder="Senha inicial" class="border rounded-lg px-3 py-2 text-xs"/>
+            <select id="admin-new-role" class="border rounded-lg px-3 py-2 text-xs">
+              <option value="vendedor">vendedor</option>
+              <option value="reunioes">reunioes</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <button onclick="adminCreateUser()" class="mt-3 btn-blue w-full text-white rounded-lg px-4 py-2 text-sm font-semibold transition-all">Criar usuário</button>
+        </div>
+      </div>
+
       <!-- CHATWOOT CONFIG -->
       <div>
         <p class="text-sm font-semibold mb-3" style="color:var(--t1)">Chatwoot — Disparo WhatsApp</p>
@@ -2010,6 +2099,30 @@ async function bulkSetField(field,value){
   }catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
 }
 
+// Atribui em massa (responsável = assigned_to) — usa o endpoint assign_lead.
+// Valor "" (primeira opção) limpa; qualquer uuid válido atribui ao usuário.
+async function bulkAssign(userId){
+  if(!Auth.isAdmin()){ toast('Só admin pode atribuir em massa','warn'); return; }
+  const ids=[...selectedIds];
+  if(!ids.length){ toast('Selecione leads primeiro','warn'); return; }
+  const target = userId || null;
+  const label = target ? (Users.nameOf(target)||'usuário') : 'ninguém';
+  if(!confirm(`Atribuir ${ids.length} lead${ids.length>1?'s':''} para ${label}?`)) return;
+  setLoading(true);
+  try{
+    for(const id of ids){
+      const idx = leads.findIndex(l=>l.id===id); if (idx===-1) continue;
+      if (leads[idx].assigned_to === target) continue;
+      const saved = await DB._call('assign_lead', { lead_id: id, assigned_to: target });
+      if (saved) leads[idx] = saved;
+      await DB.log(id, 'Responsável alterado', `Atribuído a ${label}`, Auth.user()?.name || '—');
+    }
+    clearSelection(); renderAll();
+    toast(`${ids.length} lead${ids.length>1?'s':''} atribuído${ids.length>1?'s':''} a ${label}`);
+  }catch(e){ toast('Erro: '+e.message,'error'); }
+  finally{ setLoading(false); }
+}
+
 // ── ARQUIVAMENTO ─────────────────────────────────────────────
 function setShowArchived(val){
   showArchived=val;
@@ -2280,9 +2393,22 @@ function closeDeleteModal(){document.getElementById('delete-modal').classList.ad
 async function confirmDelete(){if(pendingDeleteId===null)return;try{await DB.delete(pendingDeleteId);leads=leads.filter(l=>l.id!==pendingDeleteId);closeDeleteModal();renderAll();toast('Lead excluído');}catch(e){toast('Erro: '+e.message,'error');}}
 
 // ── ACTIVITY DRAWER ──────────────────────────────────────────
+function setDrawerTab(tab){
+  const panes=[['resumo','drawer-pane-resumo'],['cadencia','drawer-pane-cadencia'],['historico','drawer-pane-historico']];
+  panes.forEach(([k,pid])=>{
+    const el=document.getElementById(pid); if(el) el.classList.toggle('hidden', tab!==k);
+    const tb=document.getElementById('drawer-tab-'+k); if(tb){
+      const active=tab===k;
+      tb.style.color = active ? 'var(--t1)' : 'var(--t3)';
+      tb.style.borderBottomColor = active ? '#3b82f6' : 'transparent';
+    }
+  });
+}
+
 async function openDrawer(id){
   const l=leads.find(l=>l.id===id);if(!l)return;
   document.getElementById('activity-drawer').classList.remove('hidden');
+  setDrawerTab('resumo');
   document.getElementById('drawer-name').textContent=l.name;
   const sc=SC[l.status]||SC['Lead Novo'];
   const prio=PRIORITY_CFG[l.priority]||null;
@@ -2658,8 +2784,88 @@ function openSettings(){
   document.getElementById('cw-template').value=localStorage.getItem('cw_template')||'';
   document.getElementById('cw-template-body').value=localStorage.getItem('cw_template_body')||'';
   refreshConnStatus();
+  // Painel admin de usuários — só aparece para role=admin
+  const sec = document.getElementById('admin-users-section');
+  if (sec) {
+    if (Auth.isAdmin()) { sec.classList.remove('hidden'); adminReloadUsers(); }
+    else { sec.classList.add('hidden'); }
+  }
 }
 function closeSettings(){document.getElementById('settings-modal').classList.add('hidden');}
+
+// ── ADMIN: USUÁRIOS ──────────────────────────────────────────
+async function adminReloadUsers(){
+  const host = document.getElementById('admin-users-list');
+  if (!host) return;
+  host.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--t3)">Carregando…</p>`;
+  try {
+    const list = await DB._call('list_users_all') || [];
+    if (!list.length) { host.innerHTML = `<p class="text-xs text-center py-4" style="color:var(--t3)">Nenhum usuário</p>`; return; }
+    host.innerHTML = list.map(u => {
+      const isMe = Auth.user()?.id === u.id;
+      return `
+        <div class="px-3 py-2 flex items-center gap-2 flex-wrap" style="border-bottom:1px solid rgba(255,255,255,0.05);${u.active?'':'opacity:.55;'}">
+          <div class="flex-1 min-w-[140px]">
+            <p class="text-xs font-semibold" style="color:var(--t1)">${esc(u.name||'—')} ${isMe?'<span class=\"text-[.6rem]\" style=\"color:var(--t3)\">(você)</span>':''}</p>
+            <p class="text-[.65rem]" style="color:var(--t3)">${esc(u.email)}</p>
+          </div>
+          <select onchange="adminSetRole('${escAttr(u.id)}', this.value)" class="border rounded-lg px-2 py-1 text-xs" ${isMe?'disabled':''} style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);">
+            <option value="vendedor"${u.role==='vendedor'?' selected':''}>vendedor</option>
+            <option value="reunioes"${u.role==='reunioes'?' selected':''}>reunioes</option>
+            <option value="admin"${u.role==='admin'?' selected':''}>admin</option>
+          </select>
+          <button onclick="adminToggleActive('${escAttr(u.id)}', ${!u.active})" ${isMe?'disabled':''} class="text-[.65rem] font-semibold px-2 py-1 rounded-lg transition-all ${isMe?'opacity-40 cursor-not-allowed':''}"
+            style="background:${u.active?'rgba(239,68,68,.1)':'rgba(34,197,94,.1)'};color:${u.active?'#fca5a5':'#6ee7b7'};border:1px solid ${u.active?'rgba(239,68,68,.25)':'rgba(34,197,94,.25)'};">
+            ${u.active?'Desativar':'Ativar'}
+          </button>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    host.innerHTML = `<p class="text-xs text-center py-4" style="color:#fca5a5">Erro: ${esc(e.message)}</p>`;
+  }
+}
+
+async function adminCreateUser(){
+  const name  = document.getElementById('admin-new-name').value.trim();
+  const email = document.getElementById('admin-new-email').value.trim();
+  const pass  = document.getElementById('admin-new-pass').value;
+  const role  = document.getElementById('admin-new-role').value;
+  if (!name || !email || !pass) { toast('Preencha nome, email e senha','warn'); return; }
+  if (pass.length < 6) { toast('Senha precisa ter ao menos 6 caracteres','warn'); return; }
+  try {
+    await DB._call('create_user', { name, email, password: pass, role });
+    toast(`Usuário ${name} criado`,'success');
+    document.getElementById('admin-new-name').value='';
+    document.getElementById('admin-new-email').value='';
+    document.getElementById('admin-new-pass').value='';
+    // Invalida o cache pra que a lista e dropdowns se atualizem
+    Users.list = []; await Users.ensureLoaded();
+    await populateBulkAssignSel();
+    adminReloadUsers();
+  } catch (e) {
+    toast('Erro: '+e.message,'error');
+  }
+}
+
+async function adminSetRole(id, role){
+  try {
+    await DB._call('set_user_role', { id, role });
+    toast('Role atualizado');
+    Users.list = []; await Users.ensureLoaded();
+    await populateBulkAssignSel();
+    adminReloadUsers();
+  } catch (e) { toast('Erro: '+e.message,'error'); }
+}
+
+async function adminToggleActive(id, active){
+  try {
+    await DB._call('set_user_active', { id, active });
+    toast(active ? 'Usuário ativado' : 'Usuário desativado');
+    Users.list = []; await Users.ensureLoaded();
+    await populateBulkAssignSel();
+    adminReloadUsers();
+  } catch (e) { toast('Erro: '+e.message,'error'); }
+}
 
 function refreshConnStatus(){
   const dot=document.getElementById('conn-dot');const lbl=document.getElementById('conn-label');
@@ -2968,9 +3174,11 @@ function setMainTab(tab){
   mainTab=tab;
   document.getElementById('tabpanel-leads').classList.toggle('hidden',tab!=='leads');
   document.getElementById('tabpanel-kanban').classList.toggle('hidden',tab!=='kanban');
+  document.getElementById('tabpanel-hoje').classList.toggle('hidden',tab!=='hoje');
+  document.getElementById('tabpanel-reunioes').classList.toggle('hidden',tab!=='reunioes');
   document.getElementById('tabpanel-automacoes').classList.toggle('hidden',tab!=='automacoes');
   document.getElementById('tabpanel-evolucao').classList.toggle('hidden',tab!=='evolucao');
-  const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-automacoes','automacoes'],['maintab-evolucao','evolucao']];
+  const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-hoje','hoje'],['maintab-reunioes','reunioes'],['maintab-automacoes','automacoes'],['maintab-evolucao','evolucao']];
   tabs.forEach(([id,key])=>{
     const el=document.getElementById(id);if(!el)return;
     const active=tab===key;
@@ -2980,6 +3188,8 @@ function setMainTab(tab){
   if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
   if(tab==='kanban'){renderKanban();}
   if(tab==='automacoes'){renderAutomacoes();}
+  if(tab==='hoje'){renderHoje();}
+  if(tab==='reunioes'){renderReunioes();}
 }
 
 function renderEvolucaoKpis(){
@@ -3242,6 +3452,220 @@ function checkSlaNotifications(){
 function renderFunnelEv(){
   // renderiza o funil direto no container da aba Evolução (sem clonar HTML — evita listeners duplicados)
   renderFunnel('funnel-container-ev');
+}
+
+// ── ABA HOJE ─────────────────────────────────────────────────
+function renderHoje(){
+  const host = document.getElementById('hoje-buckets');
+  const summary = document.getElementById('hoje-summary');
+  if (!host) return;
+  const t = today();
+  const d3 = addDays(t, 3);
+  const pool = leads.filter(l =>
+    !l.archived &&
+    l.status !== 'Convertido' && l.status !== 'Perdido' &&
+    l.next_action_date
+  );
+  const buckets = {
+    vencidos: pool.filter(l => l.next_action_date < t),
+    hoje:     pool.filter(l => l.next_action_date === t),
+    proximos: pool.filter(l => l.next_action_date > t && l.next_action_date <= d3),
+  };
+  // Ordena cada bucket por data asc
+  for (const k of Object.keys(buckets)) {
+    buckets[k].sort((a,b)=> (a.next_action_date||'').localeCompare(b.next_action_date||''));
+  }
+  const total = buckets.vencidos.length + buckets.hoje.length + buckets.proximos.length;
+  summary.textContent = total ? `${total} ação${total>1?'ões':''} pendente${total>1?'s':''}` : 'Nenhuma ação pendente';
+
+  const sections = [
+    { key:'vencidos', title:'⚠️ Vencidos', clr:'#f87171', bg:'rgba(239,68,68,.08)', bd:'rgba(239,68,68,.25)' },
+    { key:'hoje',     title:'🕐 Hoje',      clr:'#fbbf24', bg:'rgba(245,158,11,.08)', bd:'rgba(245,158,11,.25)' },
+    { key:'proximos', title:'📅 Próximos 3 dias', clr:'#93c5fd', bg:'rgba(59,130,246,.06)', bd:'rgba(59,130,246,.2)' },
+  ];
+  if (total === 0) {
+    host.innerHTML = `<div class="glass rounded-2xl p-10 text-center text-sm" style="color:var(--t3)">Nenhuma próxima ação pendente — tudo em dia 🎉</div>`;
+    return;
+  }
+  host.innerHTML = sections.map(s => {
+    const items = buckets[s.key];
+    if (!items.length) return '';
+    return `
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="px-5 py-3 flex items-center justify-between" style="background:${s.bg};border-bottom:1px solid ${s.bd};">
+          <p class="text-sm font-semibold" style="color:${s.clr};">${s.title}</p>
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:${s.bg};color:${s.clr};border:1px solid ${s.bd};">${items.length}</span>
+        </div>
+        <div class="divide-y" style="border-color:rgba(255,255,255,0.04);">
+          ${items.map(l => {
+            const sc=SC[l.status]||SC['Lead Novo'];
+            const assignee = Users.byId(l.assigned_to);
+            return `
+              <div class="px-5 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors cursor-pointer" onclick="openDrawer(${l.id})">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold truncate" style="color:var(--t1)">${esc(l.name)} ${iaChip(l,'sm')}</p>
+                  <p class="text-xs truncate mt-0.5" style="color:var(--t2)">${esc(l.next_action||'—')}</p>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="badge ${sc.badge}" style="font-size:.62rem;padding:1px 6px;"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
+                    <span class="text-xs" style="color:var(--t3)">${toDateBR(l.next_action_date)}</span>
+                    ${assignee?`<span class="text-xs" style="color:var(--t3)">· ${esc(assignee.name||assignee.email)}</span>`:''}
+                  </div>
+                </div>
+                <button onclick="event.stopPropagation();markNextActionDone(${l.id})"
+                  class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex-shrink-0"
+                  style="background:rgba(34,197,94,.1);color:#6ee7b7;border:1px solid rgba(34,197,94,.2);"
+                  onmouseover="this.style.background='rgba(34,197,94,.2)'" onmouseout="this.style.background='rgba(34,197,94,.1)'">
+                  ✓ Feito
+                </button>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── ABA REUNIÕES ─────────────────────────────────────────────
+let reunioesFilter = 'pending'; // pending | done | all
+function setReunioesFilter(f){
+  reunioesFilter = f;
+  ['pending','done','all'].forEach(k => {
+    const el = document.getElementById('reun-f-'+k);
+    if (!el) return;
+    const active = k===f;
+    el.style.background = active ? 'rgba(59,130,246,0.2)' : 'transparent';
+    el.style.color = active ? '#93c5fd' : 'rgba(255,255,255,0.28)';
+  });
+  renderReunioes();
+}
+
+function renderReunioes(){
+  const host = document.getElementById('reunioes-list');
+  const sum  = document.getElementById('reunioes-summary');
+  if (!host) return;
+  // Vê todos os leads em "Reunião Agendada" ou que já tenham meeting_outcome gravado
+  let pool = leads.filter(l => !l.archived && (l.status === 'Reunião Agendada' || l.meeting_outcome));
+  if (reunioesFilter === 'pending') pool = pool.filter(l => !l.meeting_outcome);
+  else if (reunioesFilter === 'done') pool = pool.filter(l => !!l.meeting_outcome);
+  // Ordenação: primeiro sem outcome por meeting_at asc (NULL depois); depois com outcome, mais recente primeiro
+  pool.sort((a,b)=>{
+    const ao = !!a.meeting_outcome, bo = !!b.meeting_outcome;
+    if (ao !== bo) return ao ? 1 : -1;
+    const ad = a.meeting_at || '', bd = b.meeting_at || '';
+    if (ao) return bd.localeCompare(ad);
+    return (ad||'\uffff').localeCompare(bd||'\uffff');
+  });
+
+  sum.textContent = pool.length ? `${pool.length} reuni${pool.length>1?'ões':'ão'}` : 'Sem reuniões';
+
+  if (!pool.length) {
+    host.innerHTML = `<div class="glass rounded-2xl p-10 text-center text-sm" style="color:var(--t3)">Nenhuma reunião ${reunioesFilter==='done'?'finalizada':reunioesFilter==='pending'?'pendente':''}.</div>`;
+    return;
+  }
+
+  const fmtDT = v => {
+    if (!v) return '—';
+    try { return new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}); }
+    catch { return String(v); }
+  };
+  const OUTCOMES = {
+    realizada:     { label:'Realizada',        clr:'#6ee7b7', bg:'rgba(34,197,94,.12)',  bd:'rgba(34,197,94,.3)' },
+    nao_compareceu:{ label:'Não compareceu',   clr:'#fca5a5', bg:'rgba(239,68,68,.12)',  bd:'rgba(239,68,68,.3)' },
+    remarcou:      { label:'Remarcou',         clr:'#fcd34d', bg:'rgba(245,158,11,.12)', bd:'rgba(245,158,11,.3)' },
+    cancelou:      { label:'Cancelou',         clr:'#a1a1aa', bg:'rgba(161,161,170,.12)',bd:'rgba(161,161,170,.3)' },
+  };
+
+  host.innerHTML = pool.map(l => {
+    const out = OUTCOMES[l.meeting_outcome] || null;
+    const assignee = Users.byId(l.assigned_to);
+    return `
+      <div class="glass rounded-2xl p-4 flex items-start gap-4 flex-wrap">
+        <div class="flex-1 min-w-[260px]">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="openDrawer(${l.id})" class="text-sm font-semibold text-left" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'">${esc(l.name)}</button>
+            ${iaChip(l,'sm')}
+            ${out ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:${out.bg};color:${out.clr};border:1px solid ${out.bd};">${out.label}</span>` : ''}
+          </div>
+          <p class="text-xs mt-1" style="color:var(--t3)">
+            ${l.phone?`📱 ${esc(l.phone)} · `:''}
+            ${assignee?`👤 ${esc(assignee.name||assignee.email)}`:'sem responsável'}
+          </p>
+          <div class="flex items-center gap-2 flex-wrap mt-2">
+            <label class="text-xs" style="color:var(--t2)">Data/Hora:</label>
+            <input type="datetime-local" id="reun-at-${l.id}" value="${toLocalDT(l.meeting_at)}"
+                   class="border rounded-lg px-2 py-1 text-xs"
+                   style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"
+                   onchange="saveMeetingField(${l.id},'meeting_at',this.value)"/>
+            <input type="url" id="reun-link-${l.id}" value="${escAttr(l.meeting_link||'')}"
+                   placeholder="https://meet.google.com/..."
+                   class="border rounded-lg px-2 py-1 text-xs flex-1 min-w-[180px]"
+                   style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"
+                   onchange="saveMeetingField(${l.id},'meeting_link',this.value)"/>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="setMeetingOutcome(${l.id},'realizada')" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all" style="background:rgba(34,197,94,.1);color:#6ee7b7;border:1px solid rgba(34,197,94,.25);">✓ Realizada</button>
+          <button onclick="setMeetingOutcome(${l.id},'nao_compareceu')" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all" style="background:rgba(239,68,68,.08);color:#fca5a5;border:1px solid rgba(239,68,68,.25);">✗ Não compareceu</button>
+          <button onclick="setMeetingOutcome(${l.id},'remarcou')" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all" style="background:rgba(245,158,11,.08);color:#fcd34d;border:1px solid rgba(245,158,11,.25);">↻ Remarcou</button>
+          <button onclick="setMeetingOutcome(${l.id},'cancelou')" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all" style="background:rgba(161,161,170,.08);color:#d4d4d8;border:1px solid rgba(161,161,170,.25);">— Cancelou</button>
+          ${out ? `<button onclick="setMeetingOutcome(${l.id},null)" title="Remover resultado" class="text-xs px-2 py-1.5 rounded-lg" style="background:transparent;color:var(--t3);border:1px solid rgba(255,255,255,0.08);">↺</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// datetime-local espera "YYYY-MM-DDTHH:MM" — converte de ISO preservando fuso local
+function toLocalDT(v){
+  if (!v) return '';
+  try {
+    const d = new Date(v);
+    if (isNaN(d)) return '';
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return ''; }
+}
+
+async function saveMeetingField(id, field, rawVal){
+  const l = leads.find(x=>x.id===id); if (!l) return;
+  let val = rawVal;
+  if (field === 'meeting_at' && val) {
+    // converte para ISO usando o fuso local do navegador
+    const d = new Date(val);
+    if (!isNaN(d)) val = d.toISOString();
+  }
+  if (!val) val = null;
+  l[field] = val;
+  try {
+    const saved = await DB.upsert(l);
+    leads[leads.findIndex(x=>x.id===id)] = saved;
+    toast('Salvo');
+  } catch(e){
+    toast('Erro: '+e.message,'error');
+  }
+}
+
+async function setMeetingOutcome(id, outcome){
+  const l = leads.find(x=>x.id===id); if (!l) return;
+  l.meeting_outcome = outcome || null;
+  try {
+    const saved = await DB.upsert(l);
+    leads[leads.findIndex(x=>x.id===id)] = saved;
+    const label = outcome ? (
+      outcome==='realizada'?'Realizada':
+      outcome==='nao_compareceu'?'Não compareceu':
+      outcome==='remarcou'?'Remarcou':'Cancelou'
+    ) : 'Limpo';
+    await DB.log(id, 'Resultado da reunião', label, Auth.user()?.name || '—');
+    // Sugestão: se realizada, move para "Em Abertura". Se cancelou, para "Perdido" (pede motivo via modal).
+    if (outcome === 'realizada' && l.status === 'Reunião Agendada') {
+      await _applyStatusChange(id, 'Em Abertura');
+      return;
+    }
+    renderReunioes();
+    renderAll();
+    toast(`Reunião: ${label}`);
+  } catch(e){
+    toast('Erro: '+e.message,'error');
+  }
 }
 
 // ── USERS (cache de crm_users para dropdowns de atribuição) ─
@@ -3559,6 +3983,18 @@ async function _applyStatusChange(id,newStatus){
   try{
     const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;
     await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');
+    // Fluxo Aikon → Artur: ao entrar em "Reunião Agendada", reatribui para quem tem role=reunioes
+    if (newStatus === 'Reunião Agendada') {
+      try {
+        await Users.ensureLoaded();
+        const reun = Users.list.find(u => u.role === 'reunioes' && u.active !== false);
+        if (reun && s.assigned_to !== reun.id) {
+          const patched = await DB._call('assign_lead', { lead_id: id, assigned_to: reun.id });
+          if (patched) leads[leads.findIndex(l=>l.id===id)] = patched;
+          await DB.log(id, 'Reatribuído automaticamente', `Reunião Agendada → ${reun.name||reun.email}`, Auth.user()?.name || '—');
+        }
+      } catch (e) { console.warn('auto-assign reunioes:', e.message); }
+    }
     renderAll();toastUndo(`Status: ${old} → ${newStatus}`);
     // Automação: sugere/dispara template vinculado à nova etapa
     maybeSuggestTemplateOnStage(id,newStatus);
@@ -3698,6 +4134,8 @@ function renderChart(){
 function renderAll(){
   renderDashboard();renderFunnel();renderTable();
   if(mainTab==='kanban')renderKanban();
+  if(mainTab==='hoje')renderHoje();
+  if(mainTab==='reunioes')renderReunioes();
   if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderChart();renderFunnelEv();}
   renderReativacaoBanner();
 }
@@ -3762,13 +4200,67 @@ function renderUserChip(){
   if (avEl)   avEl.textContent   = ((u.name || u.email || '?')[0] || '?').toUpperCase();
 }
 
+// Esconde/mostra features que são exclusivas de role=admin ou role=reunioes.
+// A aba "Reuniões" fica visível para admin + reunioes. Automações/Settings só admin.
+// Importar/Exportar/bulk-assign só admin.
+function applyRoleVisibility(){
+  const isAdmin    = Auth.isAdmin();
+  const isReunioes = Auth.isReunioes();
+  const showReun   = isAdmin || isReunioes;
+
+  const set = (id, show) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = show ? '' : 'none';
+  };
+
+  // Tab de automações, botão engrenagem, importar, bulk-assign: só admin
+  set('maintab-automacoes', isAdmin);
+  set('bulk-assign-wrap',   isAdmin);
+  // Engrenagem (botão ao lado do conn-btn) — não tem id próprio; selecionamos pelo título
+  document.querySelectorAll('button[title="Configurações"]').forEach(b => {
+    b.style.display = isAdmin ? '' : 'none';
+  });
+  // Botão importar: procuramos pelo input type=file adjacente — marcamos o botão por texto
+  document.querySelectorAll('button').forEach(b => {
+    const t = (b.textContent || '').trim();
+    if (t === 'Importar' && b.onclick && String(b.onclick).includes('triggerImport')) {
+      b.style.display = isAdmin ? '' : 'none';
+    }
+  });
+
+  // Aba Reuniões: admin e reunioes
+  set('maintab-reunioes', showReun);
+
+  // Se o role atual não tem permissão pra aba atual, manda pra leads
+  const forbidden = (
+    (!isAdmin && mainTab === 'automacoes') ||
+    (!showReun && mainTab === 'reunioes')
+  );
+  if (forbidden) setMainTab('leads');
+}
+
+// Popula o <select> de bulk-assign com os usuários carregados
+async function populateBulkAssignSel(){
+  const sel = document.getElementById('bulk-assign-sel');
+  if (!sel) return;
+  await Users.ensureLoaded();
+  sel.innerHTML = '<option value="">Atribuir a…</option>'
+    + '<option value="">— sem responsável —</option>'
+    + Users.list.map(u => `<option value="${escAttr(u.id)}">${esc(u.name||u.email)} · ${esc(u.role)}</option>`).join('');
+}
+
 (async function(){
   setLoading(true);
   renderUserChip();
+  applyRoleVisibility();
   try{
     await DB.init();
     refreshConnStatus();renderOfflineBanner();
     leads=await DB.loadLeads();
+    // Carrega cache de users cedo pra alimentar dropdowns e filtros por atribuição
+    try { await Users.ensureLoaded(); } catch (e) { console.warn('users:', e.message); }
+    await populateBulkAssignSel();
     renderAll();
     renderFilterPresets();
     // Pré-carrega mapeamentos etapa↔template para que a sugestão de disparo
@@ -3780,7 +4272,7 @@ function renderUserChip(){
     setTimeout(checkSlaNotifications,2000);
     // Abre aba via hash (ex: /index.html#automacoes)
     const h=(location.hash||'').replace('#','').trim();
-    if(h&&['leads','kanban','automacoes','evolucao'].includes(h))setMainTab(h);
+    if(h&&['leads','kanban','hoje','reunioes','automacoes','evolucao'].includes(h))setMainTab(h);
   }
   catch(e){toast('Erro ao inicializar','error');renderAll();}
   finally{setLoading(false);}
