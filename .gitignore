@@ -1,0 +1,34 @@
+# Credenciais — jamais commitar
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Dependências
+node_modules/
+bot/node_modules/
+
+# Build / cache
+.next/
+dist/
+build/
+.cache/
+.netlify/
+.vercel/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+!.vscode/settings.json
+
+# Bot (whatsapp-web.js)
+bot/.wwebjs_auth/
+bot/.wwebjs_cache/
