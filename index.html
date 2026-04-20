@@ -1317,18 +1317,32 @@ const DB = {
     const headers = { 'Content-Type': 'application/json' };
     const token = await Auth.ensureFreshToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(SB_PROXY_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ action, params: params || {} })
-    });
+    let res;
+    try {
+      res = await fetch(SB_PROXY_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action, params: params || {} })
+      });
+    } catch (netErr) {
+      // Queda de rede real (DNS, TLS, offline) — dispara modo offline
+      const e = new Error('sem conexão com o servidor');
+      e.isOffline = true;
+      throw e;
+    }
     if (res.status === 401) {
       // token inválido/expirado → força logout
       Auth.logout();
       throw new Error('sessão expirou');
     }
     const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload.error || `proxy ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(payload.error || `proxy ${res.status}`);
+      err.statusCode = res.status;
+      // Só considera "offline" em erro do servidor (5xx). 4xx é problema do request (RLS, validação).
+      if (res.status >= 500) err.isOffline = true;
+      throw err;
+    }
     return payload.data;
   },
   _markOffline(reason) {
@@ -1338,14 +1352,20 @@ const DB = {
     if (typeof refreshConnStatus === 'function') refreshConnStatus();
     if (typeof renderOfflineBanner === 'function') renderOfflineBanner();
   },
+  // Helper: decide se um erro sai propagado ou cai em fallback offline.
+  // Retorna true se marcou offline (chamador deve seguir para fallback local).
+  _handle(e) {
+    if (e && e.isOffline) { this._markOffline(e.message); return true; }
+    return false;
+  },
   async init() {
     try { await this._call('ping'); this.ok = true; offlineMode = false; return true; }
-    catch (e) { this._markOffline(e.message); return false; }
+    catch (e) { this._markOffline(e.message || 'init'); return false; }
   },
   async loadLeads() {
     if (this.ok) {
       try { return await this._call('list_leads'); }
-      catch (e) { this._markOffline(e.message); }
+      catch (e) { if (!this._handle(e)) throw e; }
     }
     return JSON.parse(localStorage.getItem('crm_leads') || '[]');
   },
@@ -1355,7 +1375,10 @@ const DB = {
       try {
         const data = await this._call('upsert_lead', { lead });
         if (data) return data;
-      } catch (e) { this._markOffline(e.message); }
+        // Servidor respondeu OK mas sem representation (ex.: RLS bloqueou o SELECT de volta).
+        // Não é falha — só não temos a linha de volta. Devolve o próprio lead local.
+        return lead;
+      } catch (e) { if (!this._handle(e)) throw e; }
     }
     const arr = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     if (lead.id) { const i = arr.findIndex(l => l.id === lead.id); if (i !== -1) arr[i] = { ...arr[i], ...lead }; else arr.push(lead); }
@@ -1366,7 +1389,7 @@ const DB = {
   async delete(id) {
     if (this.ok) {
       try { await this._call('delete_lead', { id }); return; }
-      catch (e) { this._markOffline(e.message); }
+      catch (e) { if (!this._handle(e)) throw e; }
     }
     const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => l.id !== id)));
@@ -1374,7 +1397,7 @@ const DB = {
   async deleteMany(ids) {
     if (this.ok) {
       try { await this._call('delete_leads', { ids }); return; }
-      catch (e) { this._markOffline(e.message); }
+      catch (e) { if (!this._handle(e)) throw e; }
     }
     const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => !ids.includes(l.id))));
@@ -1382,7 +1405,7 @@ const DB = {
   async getActivity(lid) {
     if (this.ok) {
       try { return await this._call('get_activity', { lead_id: lid }); }
-      catch (e) { this._markOffline(e.message); }
+      catch (e) { if (!this._handle(e)) throw e; }
     }
     const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
     return a.filter(x => x.lead_id === lid).sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -1390,7 +1413,7 @@ const DB = {
   async getRecentActivity(limit = 40) {
     if (this.ok) {
       try { return await this._call('get_recent_activity', { limit }); }
-      catch (e) { this._markOffline(e.message); }
+      catch (e) { if (!this._handle(e)) throw e; }
     }
     const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
     return a.slice(0, limit);
@@ -1398,7 +1421,7 @@ const DB = {
   async log(lid, action, detail, responsible) {
     if (this.ok) {
       try { await this._call('log_activity', { lead_id: lid, action, detail, responsible }); return; }
-      catch (e) { console.warn('SB log:', e.message); /* fallthrough para local */ }
+      catch (e) { if (this._handle(e)) { /* só então cai no fallback local */ } else { console.warn('SB log:', e.message); return; } }
     }
     const e = { lead_id: lid, action, detail: detail || null, responsible: responsible || '—', created_at: new Date().toISOString() };
     const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
