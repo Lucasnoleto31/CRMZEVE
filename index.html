@@ -3137,8 +3137,8 @@ function renderAutomacoesTemplates(){
             <label class="block text-xs mb-1" style="color:var(--t3)">Vincular à etapa</label>
             <select data-tpl="${escAttr(tpl.name)}" class="tpl-stage-sel border rounded-lg px-2 py-1.5 text-xs" style="min-width:170px;">${stageOpts}</select>
           </div>
-          <label class="flex items-center gap-1 text-xs" style="color:var(--t3)">
-            <input type="checkbox" data-tpl-auto="${escAttr(tpl.name)}"/> auto
+          <label class="flex items-center gap-1 text-xs" style="color:var(--t3)" title="Dispara sem pedir confirmação quando um lead entra na etapa">
+            <input type="checkbox" data-tpl-auto="${escAttr(tpl.name)}" checked/> auto
           </label>
           <button onclick="mapTemplateToStage('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Vincular</button>
           <button onclick="testDispatchTemplate('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#6ee7b7;" title="Enviar para o primeiro lead selecionado">Testar</button>
