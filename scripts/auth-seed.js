@@ -23,15 +23,34 @@ try { require('dotenv').config({ path: require('path').join(__dirname, '..', 'bo
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET;
-const PASSWORD     = process.env.SEED_PASSWORD;
+
+// Aceita a senha via env (SEED_PASSWORD) OU via argumento --password=...
+// Windows/PowerShell torna a sintaxe inline ruim, então o argumento ajuda.
+function parsePasswordArg() {
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--password' && args[i+1]) return args[i+1];
+    if (args[i].startsWith('--password=')) return args[i].slice(11);
+    if (args[i] === '-p' && args[i+1]) return args[i+1];
+  }
+  return null;
+}
+const PASSWORD = parsePasswordArg() || process.env.SEED_PASSWORD;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('❌ SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios.');
+  console.error('   Defina no .env raiz ou em bot/.env e rode de novo.');
+  process.exit(1);
+}
+if (typeof fetch !== 'function') {
+  console.error('❌ Este script exige Node 18+ (fetch nativo). Seu node é:', process.version);
   process.exit(1);
 }
 if (!PASSWORD) {
-  console.error('❌ SEED_PASSWORD não definido. Exemplo:');
-  console.error("   SEED_PASSWORD='Zeve@2026' node scripts/auth-seed.js");
+  console.error('❌ Senha não informada. Use:');
+  console.error('   node scripts/auth-seed.js --password=Zeve@2026      (qualquer shell)');
+  console.error('   (PowerShell) $env:SEED_PASSWORD=\'Zeve@2026\'; node scripts/auth-seed.js');
+  console.error('   (bash)       SEED_PASSWORD=\'Zeve@2026\' node scripts/auth-seed.js');
   process.exit(1);
 }
 
