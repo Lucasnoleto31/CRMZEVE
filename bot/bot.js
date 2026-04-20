@@ -555,12 +555,12 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
     }
   }
 
-  // 3. Busca conversa existente na inbox; se não houver, cria via /conversations (root)
-  //    /contacts/{id}/conversations é read-only (GET) no Chatwoot moderno;
-  //    POST nele devolve 404. Mesma lógica do CW.getOrCreateConversation do frontend.
+  // 3. Busca conversa existente na inbox; se não houver, cria via /conversations (root).
+  //    /contacts/{id}/conversations é read-only no Chatwoot moderno (só GET).
+  //    POST /conversations exige source_id (identificador da ponte contato↔inbox).
   let conversationId;
   try {
-    // 3a. tenta reusar
+    // 3a. tenta reusar conversa já aberta com a inbox configurada
     try {
       const list = await cwApi(`/contacts/${contactId}/conversations`);
       const items = list?.payload || (Array.isArray(list) ? list : []);
@@ -571,11 +571,45 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
       }
     } catch { /* segue para criar */ }
 
-    // 3b. cria se não reusou
+    // 3b. se não reusou, precisa do source_id do contact_inbox antes
     if (!conversationId) {
+      let sourceId = null;
+
+      // tenta ler contact_inboxes já existentes do contato
+      try {
+        const detail = await cwApi(`/contacts/${contactId}`);
+        const payload = detail?.payload || detail;
+        const inboxes = payload?.contact_inboxes || [];
+        const match = inboxes.find(ci => String(ci?.inbox?.id || ci?.inbox_id) === String(CW_INBOX));
+        if (match?.source_id) sourceId = match.source_id;
+      } catch { /* segue para criar contact_inbox */ }
+
+      // não tinha ponte para esta inbox — cria
+      if (!sourceId) {
+        try {
+          // Para WhatsApp, source_id é o número E.164 (com ou sem '+', varia por provedor).
+          // Usamos com '+' — se sua inbox usar sem, trocar aqui.
+          const ci = await cwApi(`/contacts/${contactId}/contact_inboxes`, 'POST', {
+            inbox_id:  parseInt(CW_INBOX, 10),
+            source_id: phone, // já está em E.164
+          });
+          sourceId = ci?.source_id || ci?.payload?.source_id;
+          if (!sourceId) {
+            console.error(`   ❌ contact_inbox sem source_id. Resposta: ${JSON.stringify(ci).slice(0,200)}`);
+            return false;
+          }
+          console.log(`   ↳ contact_inbox criado (source_id=${sourceId})`);
+        } catch (e) {
+          console.error(`   ❌ Erro ao criar contact_inbox: ${e.message}`);
+          return false;
+        }
+      }
+
+      // agora sim cria a conversa
       const conv = await cwApi('/conversations', 'POST', {
-        contact_id: contactId,
+        source_id:  sourceId,
         inbox_id:   parseInt(CW_INBOX, 10),
+        contact_id: contactId,
       });
       conversationId = conv?.id || conv?.payload?.id;
       if (!conversationId) {
