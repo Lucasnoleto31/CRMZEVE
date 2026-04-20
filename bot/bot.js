@@ -517,11 +517,41 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
         name:         lead.name,
         phone_number: phone,
       });
-      contactId = created?.id || created?.contact?.id;
+      // Chatwoot retorna o contato em diferentes caminhos dependendo da versão/provedor.
+      // Mesma lógica que o frontend usa em CW.createContact.
+      const contact = created?.contact || created?.payload?.contact || created?.payload || created;
+      contactId = contact?.id;
+      if (!contactId) {
+        console.error(`   ❌ createContact sem id. Resposta: ${JSON.stringify(created).slice(0,200)}`);
+        return false;
+      }
       console.log(`   ↳ Contato criado: #${contactId}`);
     } catch (e) {
-      console.error(`   ❌ Erro ao criar contato: ${e.message}`);
-      return false;
+      // 422 "already been taken" = contato já existe no Chatwoot por outra origem.
+      // Busca pelo número e segue com o id encontrado.
+      if (/already been taken|422/.test(e.message)) {
+        try {
+          const digits = phone.replace(/\D/g, '');
+          const search = await cwApi(`/contacts/search?q=${encodeURIComponent(digits.slice(-10))}&page=1`);
+          const found = search?.payload?.find(c => {
+            const p = (c.phone_number || '').replace(/\D/g, '');
+            return p.endsWith(digits.slice(-10));
+          });
+          if (found?.id) {
+            contactId = found.id;
+            console.log(`   ↳ Contato já existia: #${contactId}`);
+          } else {
+            console.error(`   ❌ 422 ao criar mas não achou contato existente. ${e.message}`);
+            return false;
+          }
+        } catch (searchErr) {
+          console.error(`   ❌ Erro no fallback de busca: ${searchErr.message}`);
+          return false;
+        }
+      } else {
+        console.error(`   ❌ Erro ao criar contato: ${e.message}`);
+        return false;
+      }
     }
   }
 
