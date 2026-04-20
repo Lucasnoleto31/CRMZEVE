@@ -1,7 +1,7 @@
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET || process.env.SUPABASE_KEY;
-
-const ALLOWED_ORIGIN = process.env.SB_PROXY_ALLOWED_ORIGIN || '*';
+const SUPABASE_URL    = process.env.SUPABASE_URL;
+const SERVICE_KEY     = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET;
+const ANON_KEY        = process.env.SUPABASE_ANON_KEY    || process.env.SUPABASE_KEY;
+const ALLOWED_ORIGIN  = process.env.SB_PROXY_ALLOWED_ORIGIN || '*';
 
 function cors() {
   return {
@@ -12,21 +12,30 @@ function cors() {
   };
 }
 
+// JWT do request atual (setado no handler antes de HANDLERS[action], limpo no finally).
+let _currentAuth = null;
+
+function buildHeaders() {
+  if (_currentAuth) {
+    if (!ANON_KEY) {
+      const err = new Error('SUPABASE_ANON_KEY não configurado'); err.statusCode = 500; throw err;
+    }
+    return { apikey: ANON_KEY, Authorization: `Bearer ${_currentAuth}` };
+  }
+  if (!SERVICE_KEY) {
+    const err = new Error('SUPABASE_SERVICE_KEY não configurado'); err.statusCode = 500; throw err;
+  }
+  return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
+}
+
 async function sbFetch(path, { method = 'GET', body, headers = {} } = {}) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    const err = new Error('Supabase env vars not configured (SUPABASE_URL / SUPABASE_SERVICE_KEY)');
-    err.statusCode = 500;
-    throw err;
+  if (!SUPABASE_URL) {
+    const err = new Error('SUPABASE_URL não configurado'); err.statusCode = 500; throw err;
   }
   const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1${path}`;
   const res = await fetch(url, {
     method,
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      ...headers
-    },
+    headers: { ...buildHeaders(), 'Content-Type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined
   });
   const text = await res.text();
@@ -173,6 +182,11 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: `unknown action: ${action}` }) };
   }
 
+  // Extrai JWT (se houver) do Authorization header. Sem token = service_role.
+  const authHeader = (event.headers && (event.headers['authorization'] || event.headers['Authorization'])) || '';
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+  _currentAuth = match ? match[1] : null;
+
   try {
     const data = await fn(params || {});
     return {
@@ -187,5 +201,7 @@ exports.handler = async (event) => {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: err.message || 'proxy error' })
     };
+  } finally {
+    _currentAuth = null;
   }
 };

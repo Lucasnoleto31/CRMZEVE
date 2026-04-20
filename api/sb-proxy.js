@@ -1,22 +1,38 @@
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET || process.env.SUPABASE_KEY;
-const ALLOWED_ORIGIN = process.env.SB_PROXY_ALLOWED_ORIGIN || '*';
+const SUPABASE_URL    = process.env.SUPABASE_URL;
+const SERVICE_KEY     = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SECRET;
+const ANON_KEY        = process.env.SUPABASE_ANON_KEY    || process.env.SUPABASE_KEY;
+const ALLOWED_ORIGIN  = process.env.SB_PROXY_ALLOWED_ORIGIN || '*';
+
+// Auth do request em andamento — setado no handler principal antes de chamar
+// os HANDLERS[action] e resetado no finally. Em ambiente serverless cada
+// invocação roda single-threaded então é seguro.
+let _currentAuth = null;
+
+function buildHeaders() {
+  // Se chegou um JWT de usuário, usa ele (RLS do Supabase avalia por auth.uid()).
+  // Senão, cai no service_role (bot, webhook, rotinas internas).
+  if (_currentAuth) {
+    if (!ANON_KEY) {
+      const err = new Error('SUPABASE_ANON_KEY não configurado — necessário quando há JWT de usuário');
+      err.statusCode = 500; throw err;
+    }
+    return { apikey: ANON_KEY, Authorization: `Bearer ${_currentAuth}` };
+  }
+  if (!SERVICE_KEY) {
+    const err = new Error('SUPABASE_SERVICE_KEY não configurado');
+    err.statusCode = 500; throw err;
+  }
+  return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
+}
 
 async function sbFetch(path, { method = 'GET', body, headers = {} } = {}) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    const err = new Error('Supabase env vars not configured (SUPABASE_URL / SUPABASE_SERVICE_KEY)');
-    err.statusCode = 500;
-    throw err;
+  if (!SUPABASE_URL) {
+    const err = new Error('SUPABASE_URL não configurado'); err.statusCode = 500; throw err;
   }
   const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1${path}`;
   const res = await fetch(url, {
     method,
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      ...headers
-    },
+    headers: { ...buildHeaders(), 'Content-Type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined
   });
   const text = await res.text();
@@ -146,11 +162,19 @@ module.exports = async (req, res) => {
   const fn = HANDLERS[action];
   if (!fn) return res.status(400).json({ error: `unknown action: ${action}` });
 
+  // Extrai JWT (se houver) do Authorization header. Sem token = fallback
+  // service_role (mantém bot/webhook/chamadas internas funcionando).
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+  _currentAuth = match ? match[1] : null;
+
   try {
     const data = await fn(params || {});
     return res.status(200).json({ data });
   } catch (err) {
     const status = err.statusCode || 500;
     return res.status(status).json({ error: err.message || 'proxy error' });
+  } finally {
+    _currentAuth = null;
   }
 };
