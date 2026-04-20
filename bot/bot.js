@@ -322,10 +322,26 @@ async function importarMembrosExistentes(chat, rl) {
     return;
   }
 
+  // Pergunta separada sobre disparo — evita spam em backfills de membros antigos.
+  // Só perguntamos se o Chatwoot está configurado; caso contrário nem adianta oferecer.
+  const cwReady = CW_ATIVO && CW_URL && CW_ACCOUNT && CW_TOKEN && CW_INBOX;
+  let deveDisparar = false;
+  if (cwReady) {
+    const respDisp = await pergunta(
+      rl,
+      `Disparar template do Chatwoot para os ${novos.length} novos (etapa "Lead Novo")? (s/n): `
+    );
+    deveDisparar = respDisp.trim().toLowerCase() === 's';
+  } else {
+    console.log('ℹ️  Chatwoot não configurado — import será feito sem disparo.');
+  }
+
   console.log('\n⏳ Importando membros...\n');
 
   let salvos = 0;
   let erros = 0;
+  let disparados = 0;
+  let disparoPulado = 0;
 
   for (let i = 0; i < novos.length; i++) {
     const p = novos[i];
@@ -363,26 +379,45 @@ async function importarMembrosExistentes(chat, rl) {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from('crm_leads')
-        .insert(leadData);
+        .insert(leadData)
+        .select('id')
+        .single();
 
       if (error) {
         if (erros === 0) console.error('\n\n❌ Primeiro erro:', JSON.stringify(error));
         erros++;
       } else {
         salvos++;
+        // Só dispara se o usuário confirmou na pergunta de antes.
+        // Pausa maior aqui para respeitar rate-limit em importações grandes.
+        if (deveDisparar) {
+          try {
+            const ok = await chatwootDisparar(leadData, saved.id);
+            if (ok) disparados++; else disparoPulado++;
+          } catch (dispErr) {
+            console.error(`\n   ❌ Disparo falhou para ${leadData.name}: ${dispErr.message}`);
+            disparoPulado++;
+          }
+          await new Promise(r => setTimeout(r, 1500));
+        }
       }
     } catch (e) {
       if (erros === 0) console.error('\n\n❌ Primeiro erro (catch):', e.message);
       erros++;
     }
 
-    // Pequena pausa para não sobrecarregar
+    // Pequena pausa entre leads para não sobrecarregar o whatsapp-web
     await new Promise(r => setTimeout(r, 200));
   }
 
-  console.log(`\n\n✅ Importação concluída: ${salvos} cadastrados no CRM, ${pulados} ignorados (já existiam), ${erros} erros.\n`);
+  console.log(`\n\n✅ Importação concluída: ${salvos} cadastrados no CRM, ${pulados} ignorados (já existiam), ${erros} erros.`);
+  if (deveDisparar) {
+    console.log(`📤 Chatwoot: ${disparados} template(s) disparado(s), ${disparoPulado} pulado(s).\n`);
+  } else {
+    console.log('📤 Chatwoot: disparo não solicitado neste import.\n');
+  }
 }
 
 // ─── Chatwoot — disparo automático ───────────────────────────────────────────
