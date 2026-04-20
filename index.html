@@ -164,6 +164,24 @@
     /* Connector line in drawer */
     .act-line { width:1px; background:rgba(255,255,255,0.08); flex:1; min-height:12px; margin-top:2px; }
 
+    /* Chip "a IA falou com este lead" — aparece quando status_ia OU categoria_ia */
+    .ia-chip {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:18px; height:18px; border-radius:5px; flex-shrink:0;
+      background:rgba(6,182,212,0.12); border:1px solid rgba(103,232,249,0.35);
+      color:#67e8f9; font-size:.65rem; line-height:1; margin-right:6px;
+      box-shadow:0 0 0 1px rgba(6,182,212,0.08), 0 0 8px rgba(6,182,212,0.1);
+      cursor:help;
+    }
+    .ia-chip-lg {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:3px 8px; border-radius:999px; font-size:.65rem; font-weight:600;
+      background:rgba(6,182,212,0.12); border:1px solid rgba(103,232,249,0.35);
+      color:#67e8f9; cursor:help;
+    }
+    /* Linha da tabela com um sutil tom azul quando a IA já conversou */
+    tr.has-ia { box-shadow: inset 3px 0 0 0 rgba(103,232,249,0.35); }
+
     /* ── KANBAN ── */
     .kanban-board { display:grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
     @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(8, 250px); } }
@@ -1220,6 +1238,27 @@ const diffDays=iso=>{if(!iso)return null;const[y,m,d]=iso.split('-').map(Number)
 
 function debounce(fn,ms=250){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms);};}
 
+// Sinaliza que a IA (bot/webhook) já interagiu com o lead.
+// Base: lead.status_ia (preenchido pelo webhook quando chega resposta) OU
+// lead.categoria_ia (preenchido quando a IA classifica) OU status inicial
+// após o disparo automático ("IA Disparou").
+function iaTouched(l){
+  return !!(l && (l.status_ia || l.categoria_ia || l.status === 'IA Disparou'));
+}
+function iaTooltip(l){
+  const parts = [];
+  if (l.status === 'IA Disparou') parts.push('Template disparado pela IA');
+  if (l.status_ia) parts.push(`IA: ${l.status_ia}`);
+  if (l.categoria_ia) parts.push(`Qualificação IA: ${l.categoria_ia}`);
+  return parts.length ? parts.join(' · ') : 'A IA já interagiu com este lead';
+}
+function iaChip(l, size='sm'){
+  if (!iaTouched(l)) return '';
+  const cls = size === 'lg' ? 'ia-chip-lg' : 'ia-chip';
+  const label = size === 'lg' ? '🤖 IA' : '🤖';
+  return `<span class="${cls}" title="${escAttr(iaTooltip(l))}">${label}</span>`;
+}
+
 function fmtPhone(i){let v=i.value.replace(/\D/g,'').slice(0,11);if(v.length>6)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);else if(v.length>0)v='('+v;i.value=v;}
 function toWA(p){let d=p.replace(/\D/g,'');if(!d.startsWith('55'))d='55'+d;return'https://wa.me/'+d;}
 function fuClass(f,s){if(!f||s==='Convertido'||s==='Perdido')return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
@@ -1696,7 +1735,8 @@ function renderTable(){
     const lvl=LEVEL_CFG[l.level]||null;
     const sla=getSlaStatus(l);
     const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
-    return`<tr style="${isSel?'background:rgba(37,99,235,.07);':''}" id="row-${l.id}">
+    const iaFlag = iaTouched(l);
+    return`<tr class="${iaFlag?'has-ia':''}" style="${isSel?'background:rgba(37,99,235,.07);':''}" id="row-${l.id}">
       <td class="px-5 py-4 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
 
       <!-- Lead -->
@@ -1704,7 +1744,10 @@ function renderTable(){
         <div class="flex items-start gap-2.5">
           ${prio?`<span title="${esc(l.priority)}" style="width:7px;height:7px;border-radius:50%;background:${prio.clr};flex-shrink:0;margin-top:5px;box-shadow:0 0 6px ${prio.clr}88;"></span>`:'<span style="width:7px;flex-shrink:0;"></span>'}
           <div class="min-w-0">
-            <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block w-full truncate transition-colors" style="color:var(--t1)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+            <div class="flex items-center min-w-0">
+              ${iaChip(l)}
+              <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block truncate transition-colors" style="color:var(--t1);min-width:0;" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+            </div>
             <div class="flex items-center gap-2 mt-0.5 flex-wrap">
               ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<button onclick="event.stopPropagation();openCategoriaMenu(${l.id},this)" title="Alterar qualificação" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">${cat.medal} ${cat.label}</button>`:`<button onclick="event.stopPropagation();openCategoriaMenu(${l.id},this)" title="Qualificar lead" style="font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='rgba(251,191,36,.12)';this.style.color='#fbbf24'" onmouseout="this.style.background='rgba(255,255,255,.05)';this.style.color='rgba(255,255,255,.3)'">+ qualificar</button>`;})()}
               ${l.produto_alvo?(l.produto_alvo.split(',').map(p=>`<span style="font-size:.6rem;color:rgba(255,255,255,0.38);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:3px;">${esc(p.trim())}</span>`).join(''))  :''}
@@ -2126,6 +2169,7 @@ async function openDrawer(id){
   const lvl=LEVEL_CFG[l.level]||null;
   document.getElementById('drawer-meta').innerHTML=`
     <span class="badge ${sc.badge}"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
+    ${iaChip(l,'lg')}
     ${l.responsible?`<span class="text-xs" style="color:var(--t3)">· ${esc(l.responsible)}</span>`:''}
     ${l.value?`<span class="text-xs font-semibold" style="color:#6ee7b7">· ${toCur(l.value)}</span>`:''}
     ${l.capital?`<span class="text-xs font-semibold" style="color:#a78bfa">Cap: ${toCur(l.capital)}</span>`:''}
@@ -3277,7 +3321,7 @@ function renderKanban(){
       const na=l.next_action;
       const naOver=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
       return`<div class="kb-card" draggable="true" data-lead-id="${l.id}">
-        <div class="kb-card-name" title="${esc(l.name)}">${cat?`<span style="color:${cat.clr};">${cat.medal} </span>`:''}${esc(l.name)}</div>
+        <div class="kb-card-name" title="${esc(l.name)}">${iaChip(l)}${cat?`<span style="color:${cat.clr};">${cat.medal} </span>`:''}${esc(l.name)}</div>
         <div class="kb-card-meta">
           ${prio?`<span><span class="k-dot" style="background:${prio.clr};"></span>${esc(l.priority)}</span>`:''}
           ${l.responsible?`<span>👤 ${esc(l.responsible)}</span>`:''}
