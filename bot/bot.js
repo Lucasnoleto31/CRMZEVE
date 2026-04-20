@@ -587,12 +587,25 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
       // não tinha ponte para esta inbox — cria
       if (!sourceId) {
         try {
-          // Para WhatsApp, source_id é o número E.164 (com ou sem '+', varia por provedor).
-          // Usamos com '+' — se sua inbox usar sem, trocar aqui.
-          const ci = await cwApi(`/contacts/${contactId}/contact_inboxes`, 'POST', {
-            inbox_id:  parseInt(CW_INBOX, 10),
-            source_id: phone, // já está em E.164
-          });
+          // Para WhatsApp, source_id é o número E.164. Alguns provedores
+          // esperam com '+', outros sem — tentamos com '+' primeiro e sem
+          // no fallback em caso de 422/400.
+          let ci;
+          try {
+            ci = await cwApi(`/contacts/${contactId}/contact_inboxes`, 'POST', {
+              inbox_id:  parseInt(CW_INBOX, 10),
+              source_id: phone,
+            });
+          } catch (first) {
+            if (/422|400/.test(first.message)) {
+              ci = await cwApi(`/contacts/${contactId}/contact_inboxes`, 'POST', {
+                inbox_id:  parseInt(CW_INBOX, 10),
+                source_id: phone.replace(/\D/g, ''),
+              });
+            } else {
+              throw first;
+            }
+          }
           sourceId = ci?.source_id || ci?.payload?.source_id;
           if (!sourceId) {
             console.error(`   ❌ contact_inbox sem source_id. Resposta: ${JSON.stringify(ci).slice(0,200)}`);
@@ -601,6 +614,26 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
           console.log(`   ↳ contact_inbox criado (source_id=${sourceId})`);
         } catch (e) {
           console.error(`   ❌ Erro ao criar contact_inbox: ${e.message}`);
+          // Se foi 404, quase sempre significa que o CHATWOOT_INBOX_ID
+          // configurado não existe nessa conta. Lista as inboxes que
+          // existem de fato para o usuário identificar o id certo.
+          if (/404/.test(e.message)) {
+            try {
+              const list = await cwApi('/inboxes');
+              const items = list?.payload || (Array.isArray(list) ? list : []);
+              if (items.length) {
+                console.error(`   ↳ Inboxes disponíveis nesta conta (CHATWOOT_INBOX_ID atual: ${CW_INBOX}):`);
+                items.forEach(ib => {
+                  console.error(`       id=${ib.id}  name="${ib.name}"  channel="${ib.channel_type || ib.channel}"`);
+                });
+                console.error(`   ↳ Ajuste CHATWOOT_INBOX_ID em bot/.env para um desses ids.`);
+              } else {
+                console.error('   ↳ Nenhuma inbox retornada pela API — token pode não ter permissão ou conta errada.');
+              }
+            } catch (listErr) {
+              console.error(`   ↳ Não consegui listar inboxes para diagnóstico: ${listErr.message}`);
+            }
+          }
           return false;
         }
       }
