@@ -6,7 +6,6 @@
   <title>CRM Zeve</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -699,38 +698,14 @@
 <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 backdrop">
   <div class="glass anim-up rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
     <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.08);">
-      <h2 class="text-base font-semibold" style="color:var(--t1)">Configurar Supabase</h2>
+      <h2 class="text-base font-semibold" style="color:var(--t1)">Configurações</h2>
       <button onclick="closeSettings()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
     <div class="px-6 py-5 space-y-4">
-      <div id="settings-status" class="rounded-xl px-5 py-4 text-sm font-medium"></div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Project URL</label>
-          <input id="s-url" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono" readonly/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Anon Key</label>
-          <input id="s-key" type="password" placeholder="eyJh…" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono" readonly/>
-        </div>
-        <div class="flex gap-3">
-          <button onclick="connectSupabase()" class="btn-blue flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all">Conectar</button>
-          <button onclick="disconnectSupabase()"
-            class="rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
-            style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Desconectar</button>
-        </div>
-      </div>
-
-      <div id="migrate-box" class="hidden rounded-xl p-4" style="background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2);">
-        <p class="text-sm font-semibold mb-1" style="color:#fcd34d">Migrar dados locais?</p>
-        <p class="text-xs mb-3" style="color:#fbbf24">Você tem <strong id="migrate-count"></strong> leads neste navegador. Enviar para o Supabase?</p>
-        <button onclick="migrateToSupabase()" class="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style="background:#b45309">Migrar agora</button>
-      </div>
-
       <!-- CHATWOOT CONFIG -->
-      <div style="border-top:1px solid var(--b1);padding-top:16px;margin-top:4px;">
+      <div>
         <p class="text-sm font-semibold mb-3" style="color:var(--t1)">Chatwoot — Disparo WhatsApp</p>
         <div class="space-y-3">
           <div>
@@ -763,16 +738,6 @@
         </div>
       </div>
 
-      <details class="rounded-xl overflow-hidden" style="border:1px solid var(--b1);">
-        <summary class="px-5 py-4 text-sm font-medium cursor-pointer select-none" style="color:var(--t2); background:var(--s2)">
-          SQL — criar tabelas no Supabase
-        </summary>
-        <div class="p-4" style="background:var(--s2)">
-          <p class="text-xs mb-2" style="color:var(--t3)">Cole no <strong style="color:var(--t2)">SQL Editor</strong> do Supabase:</p>
-          <pre class="text-xs p-3 rounded-lg overflow-x-auto select-all leading-relaxed font-mono" style="background:#0d1117; color:#7ee787;" id="sql-block"></pre>
-          <button onclick="copySQL()" class="mt-2 text-xs font-medium" style="color:#60a5fa">Copiar SQL</button>
-        </div>
-      </details>
     </div>
   </div>
 </div>
@@ -938,9 +903,8 @@
 const STATUSES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido','Perdido'];
 const FUNNEL_STAGES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido'];
 
-// Supabase config
-const SUPABASE_URL = 'https://hnwmabibzqlsnvetpdpg.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhud21hYmlienFsc252ZXRwZHBnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDg3OTc2MSwiZXhwIjoyMDkwNDU1NzYxfQ.AViURnCZOVg1aIhF9YzUNp4VxglQlCV8DiOtx4vVKSg';
+// Backend proxy endpoint (credenciais ficam no servidor, nunca no browser)
+const SB_PROXY_URL = '/api/sb-proxy';
 
 // Priority config
 const PRIORITY_CFG = {
@@ -1022,121 +986,85 @@ const CATEGORIA_CFG = {
   'Começando':      { medal:'🥉', label:'Começando',      bg:'rgba(205,120,50,.13)',  clr:'#f97316', border:'rgba(249,115,22,.3)' },
 };
 
-const SETUP_SQL = `create table if not exists crm_leads (
-  id bigserial primary key,
-  name text not null,
-  phone text not null,
-  entry text,
-  followup text,
-  status text not null default 'Novo',
-  responsible text,
-  origin text,
-  community text,
-  product text,
-  value numeric default 0,
-  capital numeric default 0,
-  priority text,
-  level text,
-  first_contact text,
-  loss_reason text,
-  tags text,
-  notes text,
-  next_action text,
-  next_action_date text,
-  stage_entered_at text,
-  cadencia_step integer default 0,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- Migrate existing tables (run if table already exists)
--- alter table crm_leads add column if not exists next_action text;
--- alter table crm_leads add column if not exists next_action_date text;
--- alter table crm_leads add column if not exists stage_entered_at text;
--- alter table crm_leads add column if not exists cadencia_step integer default 0;
-
-create table if not exists crm_activity (
-  id bigserial primary key,
-  lead_id bigint references crm_leads(id) on delete cascade,
-  action text not null,
-  detail text,
-  responsible text,
-  created_at timestamptz default now()
-);
-
-alter table crm_leads enable row level security;
-alter table crm_activity enable row level security;
-create policy "allow_all" on crm_leads for all using (true) with check (true);
-create policy "allow_all" on crm_activity for all using (true) with check (true);`;
-
-// ── DB ADAPTER ──────────────────────────────────────────────
+// ── DB ADAPTER (via backend proxy — credenciais no servidor) ─
 const DB = {
-  client: null, ok: false,
+  ok: false,
+  async _call(action, params) {
+    const res = await fetch(SB_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params: params || {} })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error || `proxy ${res.status}`);
+    return payload.data;
+  },
   async init() {
-    let url = localStorage.getItem('crm_sb_url');
-    let key = localStorage.getItem('crm_sb_key');
-    if(!url || !key){
-      url = SUPABASE_URL;
-      key = SUPABASE_ANON_KEY;
-      localStorage.setItem('crm_sb_url', url);
-      localStorage.setItem('crm_sb_key', key);
-    }
-    try {
-      this.client = window.supabase.createClient(url,key);
-      const {error} = await this.client.from('crm_leads').select('id').limit(1);
-      if(error) throw error;
-      this.ok=true; return true;
-    } catch(e){ console.warn('SB:',e.message); this.client=null; this.ok=false; return false; }
+    try { await this._call('ping'); this.ok = true; return true; }
+    catch (e) { console.warn('SB proxy:', e.message); this.ok = false; return false; }
   },
   async loadLeads() {
-    if(this.ok){
-      const PAGE=1000;
-      let all=[],from=0,done=false;
-      while(!done){
-        const {data,error}=await this.client.from('crm_leads').select('*').order('created_at',{ascending:false}).range(from,from+PAGE-1);
-        if(error||!data) break;
-        all=all.concat(data);
-        done=data.length<PAGE;
-        from+=PAGE;
-      }
-      return all;
+    if (this.ok) {
+      try { return await this._call('list_leads'); }
+      catch (e) { console.warn('SB loadLeads:', e.message); this.ok = false; }
     }
-    return JSON.parse(localStorage.getItem('crm_leads')||'[]');
+    return JSON.parse(localStorage.getItem('crm_leads') || '[]');
   },
   async upsert(lead) {
-    const now=new Date().toISOString();
-    if(this.ok){
-      if(lead.id){
-        const {data,error}=await this.client.from('crm_leads').update({...lead,updated_at:now}).eq('id',lead.id).select().single();
-        if(!error) return data;
-      } else {
-        const {id:_,...rest}=lead;
-        const {data,error}=await this.client.from('crm_leads').insert({...rest,created_at:now,updated_at:now}).select().single();
-        if(!error) return data;
-      }
+    const now = new Date().toISOString();
+    if (this.ok) {
+      try {
+        const data = await this._call('upsert_lead', { lead });
+        if (data) return data;
+      } catch (e) { console.warn('SB upsert:', e.message); this.ok = false; }
     }
-    const arr=JSON.parse(localStorage.getItem('crm_leads')||'[]');
-    if(lead.id){ const i=arr.findIndex(l=>l.id===lead.id); if(i!==-1) arr[i]={...arr[i],...lead}; else arr.push(lead); }
-    else { const nid=parseInt(localStorage.getItem('crm_nid')||'1',10); lead={...lead,id:nid,created_at:now}; arr.unshift(lead); localStorage.setItem('crm_nid',String(nid+1)); }
-    localStorage.setItem('crm_leads',JSON.stringify(arr));
+    const arr = JSON.parse(localStorage.getItem('crm_leads') || '[]');
+    if (lead.id) { const i = arr.findIndex(l => l.id === lead.id); if (i !== -1) arr[i] = { ...arr[i], ...lead }; else arr.push(lead); }
+    else { const nid = parseInt(localStorage.getItem('crm_nid') || '1', 10); lead = { ...lead, id: nid, created_at: now }; arr.unshift(lead); localStorage.setItem('crm_nid', String(nid + 1)); }
+    localStorage.setItem('crm_leads', JSON.stringify(arr));
     return lead;
   },
-  async delete(id){ if(this.ok){await this.client.from('crm_leads').delete().eq('id',id);return;} const a=JSON.parse(localStorage.getItem('crm_leads')||'[]'); localStorage.setItem('crm_leads',JSON.stringify(a.filter(l=>l.id!==id))); },
-  async deleteMany(ids){ if(this.ok){await this.client.from('crm_leads').delete().in('id',ids);return;} const a=JSON.parse(localStorage.getItem('crm_leads')||'[]'); localStorage.setItem('crm_leads',JSON.stringify(a.filter(l=>!ids.includes(l.id)))); },
-  async getActivity(lid){
-    if(this.ok){const {data}=await this.client.from('crm_activity').select('*').eq('lead_id',lid).order('created_at',{ascending:false});return data||[];}
-    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');
-    return a.filter(x=>x.lead_id===lid).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+  async delete(id) {
+    if (this.ok) {
+      try { await this._call('delete_lead', { id }); return; }
+      catch (e) { console.warn('SB delete:', e.message); this.ok = false; }
+    }
+    const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
+    localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => l.id !== id)));
   },
-  async getRecentActivity(limit=40){
-    if(this.ok){const {data}=await this.client.from('crm_activity').select('*').order('created_at',{ascending:false}).limit(limit);return data||[];}
-    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');return a.slice(0,limit);
+  async deleteMany(ids) {
+    if (this.ok) {
+      try { await this._call('delete_leads', { ids }); return; }
+      catch (e) { console.warn('SB deleteMany:', e.message); this.ok = false; }
+    }
+    const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
+    localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => !ids.includes(l.id))));
   },
-  async log(lid,action,detail,responsible){
-    const e={lead_id:lid,action,detail:detail||null,responsible:responsible||'—',created_at:new Date().toISOString()};
-    if(this.ok){await this.client.from('crm_activity').insert(e);return;}
-    const a=JSON.parse(localStorage.getItem('crm_activity')||'[]');
-    a.unshift({id:Date.now(),...e}); localStorage.setItem('crm_activity',JSON.stringify(a));
+  async getActivity(lid) {
+    if (this.ok) {
+      try { return await this._call('get_activity', { lead_id: lid }); }
+      catch (e) { console.warn('SB getActivity:', e.message); this.ok = false; }
+    }
+    const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
+    return a.filter(x => x.lead_id === lid).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  },
+  async getRecentActivity(limit = 40) {
+    if (this.ok) {
+      try { return await this._call('get_recent_activity', { limit }); }
+      catch (e) { console.warn('SB getRecentActivity:', e.message); this.ok = false; }
+    }
+    const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
+    return a.slice(0, limit);
+  },
+  async log(lid, action, detail, responsible) {
+    if (this.ok) {
+      try { await this._call('log_activity', { lead_id: lid, action, detail, responsible }); return; }
+      catch (e) { console.warn('SB log:', e.message); /* fallthrough para local */ }
+    }
+    const e = { lead_id: lid, action, detail: detail || null, responsible: responsible || '—', created_at: new Date().toISOString() };
+    const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
+    a.unshift({ id: Date.now(), ...e });
+    localStorage.setItem('crm_activity', JSON.stringify(a));
   }
 };
 
@@ -2282,9 +2210,6 @@ function downloadTemplate(){
 // ── SETTINGS ─────────────────────────────────────────────────
 function openSettings(){
   document.getElementById('settings-modal').classList.remove('hidden');
-  document.getElementById('s-url').value=localStorage.getItem('crm_sb_url')||'';
-  document.getElementById('s-key').value=localStorage.getItem('crm_sb_key')||'';
-  document.getElementById('sql-block').textContent=SETUP_SQL;
   document.getElementById('cw-url').value=localStorage.getItem('cw_url')||'';
   document.getElementById('cw-account').value=localStorage.getItem('cw_account')||'';
   document.getElementById('cw-inbox').value=localStorage.getItem('cw_inbox')||'';
@@ -2292,54 +2217,18 @@ function openSettings(){
   document.getElementById('cw-template').value=localStorage.getItem('cw_template')||'';
   document.getElementById('cw-template-body').value=localStorage.getItem('cw_template_body')||'';
   refreshConnStatus();
-  const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');
-  const mb=document.getElementById('migrate-box');
-  if(!DB.ok&&loc.length>0){mb.classList.remove('hidden');document.getElementById('migrate-count').textContent=loc.length;}
-  else mb.classList.add('hidden');
 }
 function closeSettings(){document.getElementById('settings-modal').classList.add('hidden');}
 
 function refreshConnStatus(){
-  const el=document.getElementById('settings-status');
   const dot=document.getElementById('conn-dot');const lbl=document.getElementById('conn-label');
+  if(!dot||!lbl)return;
   if(DB.ok){
-    el.style.cssText='background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#6ee7b7;border-radius:10px;padding:12px 16px;';
-    el.textContent='🟢 Conectado ao Supabase — dados salvos na nuvem';
-    dot.style.background='#22c55e';lbl.style.color='#6ee7b7';lbl.textContent='Supabase';
+    dot.style.background='#22c55e';lbl.style.color='#6ee7b7';lbl.textContent='Online';
   }else{
-    el.style.cssText='background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fcd34d;border-radius:10px;padding:12px 16px;';
-    el.textContent='🟡 Modo local — dados apenas neste navegador';
     dot.style.background='#52525b';lbl.style.color='var(--t3)';lbl.textContent='Local';
   }
 }
-
-async function connectSupabase(){
-  const url=document.getElementById('s-url').value.trim();const key=document.getElementById('s-key').value.trim();
-  if(!url||!key){toast('Preencha URL e Key','warn');return;}
-  const el=document.getElementById('settings-status');
-  el.style.cssText='background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:#93c5fd;border-radius:10px;padding:12px 16px;';
-  el.textContent='Testando conexão…';
-  localStorage.setItem('crm_sb_url',url);localStorage.setItem('crm_sb_key',key);
-  const ok=await DB.init();
-  if(ok){refreshConnStatus();toast('Supabase conectado!');leads=await DB.loadLeads();renderAll();const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');if(loc.length>0){document.getElementById('migrate-box').classList.remove('hidden');document.getElementById('migrate-count').textContent=loc.length;}}
-  else{localStorage.removeItem('crm_sb_url');localStorage.removeItem('crm_sb_key');refreshConnStatus();toast('Falha. Verifique URL e Key.','error');}
-}
-
-function disconnectSupabase(){
-  localStorage.removeItem('crm_sb_url');localStorage.removeItem('crm_sb_key');
-  DB.client=null;DB.ok=false;leads=JSON.parse(localStorage.getItem('crm_leads')||'[]');
-  refreshConnStatus();renderAll();toast('Desconectado','warn');
-}
-
-async function migrateToSupabase(){
-  if(!DB.ok){toast('Conecte ao Supabase primeiro','warn');return;}
-  const loc=JSON.parse(localStorage.getItem('crm_leads')||'[]');if(!loc.length){toast('Nenhum dado local','warn');return;}
-  setLoading(true);
-  try{for(const l of loc){const{id:_,created_at:_c,...rest}=l;await DB.upsert(rest);}leads=await DB.loadLeads();renderAll();document.getElementById('migrate-box').classList.add('hidden');toast(`${loc.length} leads migrados!`);}
-  catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
-}
-
-function copySQL(){navigator.clipboard?.writeText(SETUP_SQL).then(()=>toast('SQL copiado!')).catch(()=>toast('Copie manualmente','warn'));}
 
 // ── CHATWOOT CONFIG ──────────────────────────────────────────
 const CW = {
