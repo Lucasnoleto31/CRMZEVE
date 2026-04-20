@@ -555,16 +555,37 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
     }
   }
 
-  // 3. Cria conversa
+  // 3. Busca conversa existente na inbox; se não houver, cria via /conversations (root)
+  //    /contacts/{id}/conversations é read-only (GET) no Chatwoot moderno;
+  //    POST nele devolve 404. Mesma lógica do CW.getOrCreateConversation do frontend.
   let conversationId;
   try {
-    const conv = await cwApi(`/contacts/${contactId}/conversations`, 'POST', {
-      inbox_id: parseInt(CW_INBOX, 10),
-    });
-    conversationId = conv?.id;
-    console.log(`   ↳ Conversa criada: #${conversationId}`);
+    // 3a. tenta reusar
+    try {
+      const list = await cwApi(`/contacts/${contactId}/conversations`);
+      const items = list?.payload || (Array.isArray(list) ? list : []);
+      const existing = items.find(c => String(c.inbox_id) === String(CW_INBOX));
+      if (existing?.id) {
+        conversationId = existing.id;
+        console.log(`   ↳ Conversa existente: #${conversationId}`);
+      }
+    } catch { /* segue para criar */ }
+
+    // 3b. cria se não reusou
+    if (!conversationId) {
+      const conv = await cwApi('/conversations', 'POST', {
+        contact_id: contactId,
+        inbox_id:   parseInt(CW_INBOX, 10),
+      });
+      conversationId = conv?.id || conv?.payload?.id;
+      if (!conversationId) {
+        console.error(`   ❌ createConversation sem id. Resposta: ${JSON.stringify(conv).slice(0,200)}`);
+        return false;
+      }
+      console.log(`   ↳ Conversa criada: #${conversationId}`);
+    }
   } catch (e) {
-    console.error(`   ❌ Erro ao criar conversa: ${e.message}`);
+    console.error(`   ❌ Erro ao criar/buscar conversa: ${e.message}`);
     return false;
   }
 
