@@ -332,19 +332,27 @@ async function importarMembrosExistentes(chat, rl) {
     process.stdout.write(`\r  Processando ${i + 1}/${novos.length}...`);
 
     try {
-      let nome = p.name || null;
+      let nome = (p.name || '').trim() || null;
       if (!nome) {
         try {
           const contact = await client.getContactById(p.id);
-          nome = contact.pushname || contact.name || null;
+          nome = (
+            contact.pushname ||
+            contact.name ||
+            contact.verifiedName ||
+            contact.shortName ||
+            contact.formattedName ||
+            ''
+          ).trim() || null;
         } catch {
           // contato sem nome disponível
         }
       }
+      const phoneFmt = formatarTelefone(p.number);
 
       const leadData = {
-        name:       nome || 'Sem nome',
-        phone:      formatarTelefone(p.number),
+        name:       nome || `Lead ${phoneFmt}`,
+        phone:      phoneFmt,
         status:     'Lead Novo',
         origin:     'WhatsApp',
         community:  targetGroupName,
@@ -416,14 +424,42 @@ async function cwApi(path, method = 'GET', body = null) {
   return json;
 }
 
-async function chatwootDisparar(lead, leadId) {
+// Busca o mapeamento etapa → template da tabela crm_stage_templates.
+// O bot e o frontend compartilham essa mesma fonte de verdade, então o que
+// o usuário configurar na aba "Automações" do CRM vale também aqui.
+async function getStageTemplate(stage) {
+  try {
+    const { data, error } = await supabase
+      .from('crm_stage_templates')
+      .select('*')
+      .eq('stage', stage)
+      .eq('enabled', true)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (e) {
+    console.error(`   ⚠️  Não foi possível ler crm_stage_templates: ${e.message}`);
+    return null;
+  }
+}
+
+async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
   if (!CW_ATIVO || !CW_URL || !CW_ACCOUNT || !CW_TOKEN || !CW_INBOX) {
     console.log('⚠️  Chatwoot não configurado — disparo automático ignorado.');
     return false;
   }
 
   const phone = toE164(lead.phone);
-  console.log(`📤 Chatwoot: iniciando disparo para ${lead.name} (${phone})…`);
+  console.log(`📤 Chatwoot: iniciando disparo para ${lead.name} (${phone}) — etapa "${stage}"…`);
+
+  // Resolve qual mensagem enviar:
+  //   1º tenta o template vinculado à etapa (crm_stage_templates)
+  //   2º cai para CHATWOOT_MENSAGEM (texto livre — só funciona dentro de janela de 24h)
+  const mapping = await getStageTemplate(stage);
+  if (!mapping && !CW_MENSAGEM) {
+    console.log(`   ⚠️  Sem template vinculado à etapa "${stage}" e sem CHATWOOT_MENSAGEM definido — disparo ignorado.`);
+    return false;
+  }
 
   // 1. Busca contato existente
   let contactId;
@@ -467,28 +503,49 @@ async function chatwootDisparar(lead, leadId) {
     return false;
   }
 
-  // 4. Envia mensagem
+  // 4. Envia mensagem — template aprovado se existir, senão texto livre
   try {
-    await cwApi(`/conversations/${conversationId}/messages`, 'POST', {
-      content:      CW_MENSAGEM,
-      message_type: 'outgoing',
-      private:      false,
-    });
-    console.log(`   ✅ Mensagem enviada!`);
+    const payload = mapping
+      ? {
+          message_type: 'outgoing',
+          private:      false,
+          content:      mapping.template_body || '',
+          template_params: {
+            name:     mapping.template_name,
+            category: mapping.category || 'MARKETING',
+            language: mapping.language || 'pt_BR',
+            processed_params: {},
+          },
+        }
+      : {
+          message_type: 'outgoing',
+          private:      false,
+          content:      CW_MENSAGEM,
+        };
+    await cwApi(`/conversations/${conversationId}/messages`, 'POST', payload);
+    console.log(`   ✅ ${mapping ? `Template "${mapping.template_name}" enviado!` : 'Mensagem livre enviada!'}`);
   } catch (e) {
     console.error(`   ❌ Erro ao enviar mensagem: ${e.message}`);
     return false;
   }
 
-  // 5. Atualiza status no Supabase → IA Disparou
+  // 5. Registra atividade no CRM e avança status → IA Disparou
   try {
+    const now = new Date().toISOString();
     await supabase
       .from('crm_leads')
-      .update({ status: 'IA Disparou', updated_at: new Date().toISOString() })
+      .update({ status: 'IA Disparou', stage_entered_at: now.slice(0, 10), cadencia_step: 0, updated_at: now })
       .eq('id', leadId);
+    await supabase.from('crm_activity').insert({
+      lead_id:     leadId,
+      action:      'Template disparado',
+      detail:      mapping ? `${mapping.template_name} (bot · etapa ${stage})` : `mensagem livre (bot · etapa ${stage})`,
+      responsible: 'Bot',
+      created_at:  now,
+    });
     console.log(`   ↳ Status atualizado: IA Disparou`);
   } catch (e) {
-    console.error(`   ⚠️  Erro ao atualizar status: ${e.message}`);
+    console.error(`   ⚠️  Erro ao atualizar status/activity: ${e.message}`);
   }
 
   return true;
@@ -510,7 +567,18 @@ client.on('group_join', async (notification) => {
         const contact = await client.getContactById(memberId);
 
         const phoneFormatado = formatarTelefone(contact.number || memberId.replace('@c.us', ''));
-        const nome = contact.pushname || contact.name || 'Sem nome';
+        // Fallback encadeado: pushname > name > verifiedName > shortName > formattedName.
+        // Se nada estiver populado (acontece em contatos novos que nunca mandaram mensagem
+        // para este número ou que não compartilham nome), usa o próprio telefone como nome —
+        // evita que leads entrem no CRM como "Sem nome" e acabem em templates assim.
+        const nome = (
+          contact.pushname ||
+          contact.name ||
+          contact.verifiedName ||
+          contact.shortName ||
+          contact.formattedName ||
+          ''
+        ).trim() || `Lead ${phoneFormatado}`;
 
         // Verifica duplicata
         const digits = phoneFormatado.replace(/\D/g, '').slice(-10);
@@ -527,7 +595,7 @@ client.on('group_join', async (notification) => {
 
         const today = new Date().toISOString();
         const leadData = {
-          name:       nome,
+          name:       nome || `Lead ${phoneFormatado}`,
           phone:      phoneFormatado,
           status:     'Lead Novo',
           origin:     'WhatsApp',
