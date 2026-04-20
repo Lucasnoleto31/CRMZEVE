@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Entrar — CRM Zeve</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#000; --s1:#080808; --s2:rgba(255,255,255,0.03); --s3:rgba(255,255,255,0.06);
+      --b1:rgba(255,255,255,0.08); --t1:#fafafa; --t2:rgba(255,255,255,0.55); --t3:rgba(255,255,255,0.28);
+    }
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:var(--t1);font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .glass{background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(0,0,0,0.6));border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(40px);}
+    input{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--t1);}
+    input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.15);}
+    .btn-primary{background:#2563eb;color:white;transition:all .15s;}
+    .btn-primary:hover{background:#3b82f6;box-shadow:0 0 20px rgba(59,130,246,.3);}
+    .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
+    .err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#fca5a5;}
+  </style>
+</head>
+<body>
+  <form id="login-form" class="glass rounded-2xl p-8 w-full max-w-sm shadow-2xl space-y-5" autocomplete="on">
+    <div class="flex items-center gap-3 mb-2">
+      <div style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">Z</div>
+      <div>
+        <h1 class="text-lg font-semibold leading-none">CRM Zeve</h1>
+        <p class="text-xs mt-1" style="color:var(--t3)">Entrar com e-mail e senha</p>
+      </div>
+    </div>
+
+    <div id="err" class="err hidden rounded-lg px-3 py-2 text-sm"></div>
+
+    <div>
+      <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">E-mail</label>
+      <input id="email" type="email" required autocomplete="username"
+             placeholder="voce@zeve.com.br"
+             class="w-full rounded-lg px-3 py-2.5 text-sm"/>
+    </div>
+    <div>
+      <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Senha</label>
+      <input id="password" type="password" required autocomplete="current-password"
+             class="w-full rounded-lg px-3 py-2.5 text-sm"/>
+    </div>
+
+    <button id="submit" type="submit"
+            class="btn-primary w-full rounded-lg px-4 py-2.5 text-sm font-semibold">
+      Entrar
+    </button>
+
+    <p class="text-xs text-center" style="color:var(--t3)">
+      Esqueceu a senha? Peça ao administrador para redefinir.
+    </p>
+  </form>
+
+  <script>
+    const form    = document.getElementById('login-form');
+    const emailEl = document.getElementById('email');
+    const passEl  = document.getElementById('password');
+    const btn     = document.getElementById('submit');
+    const errEl   = document.getElementById('err');
+
+    // Se já tem sessão válida, não mostra o login
+    try {
+      const s = JSON.parse(localStorage.getItem('crm_session') || 'null');
+      if (s && s.access_token && s.expires_at && s.expires_at * 1000 > Date.now() + 30000) {
+        location.replace('/index.html');
+      }
+    } catch {}
+
+    function showErr(msg){
+      errEl.textContent = msg;
+      errEl.classList.remove('hidden');
+    }
+    function clearErr(){ errEl.classList.add('hidden'); }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErr();
+      btn.disabled = true;
+      btn.textContent = 'Entrando…';
+      try {
+        const res = await fetch('/api/auth-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailEl.value.trim(), password: passEl.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Falha ao entrar (${res.status})`);
+        localStorage.setItem('crm_session', JSON.stringify({
+          access_token:  data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at:    data.expires_at,
+          user:          data.user,
+        }));
+        location.replace('/index.html');
+      } catch (err) {
+        showErr(err.message || 'Erro desconhecido');
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    });
+  </script>
+</body>
+</html>
