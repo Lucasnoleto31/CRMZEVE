@@ -1270,31 +1270,16 @@ function renderDashboard(){
       ${onclick?`<p class="text-xs mt-2 font-semibold" style="color:${overdueFilter?accentColor:'rgba(255,255,255,0.25)'};">${overdueFilter?'✕ Remover filtro':'→ Clique para filtrar'}</p>`:''}
     </div>`;
 
-  const stageCard=(label,value,valueColor,accentColor,pct,onclick='')=>`
-    <div class="relative rounded-xl kpi-stage overflow-hidden cursor-pointer transition-all" style="background:rgba(255,255,255,0.025);border:1px solid ${accentColor}30;" onclick="${onclick}" onmouseover="this.style.background='rgba(255,255,255,0.045)'" onmouseout="this.style.background='rgba(255,255,255,0.025)'">
-      <div class="absolute bottom-0 left-0 h-0.5 transition-all" style="width:${pct}%;background:${accentColor};border-radius:2px;"></div>
-      <p class="text-xs font-semibold mb-2 truncate" style="color:${accentColor};font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;">${label}</p>
-      <p class="text-2xl font-bold" style="color:#fff">${value}</p>
-      <p class="text-xs mt-1" style="color:rgba(255,255,255,0.25)">${pct}%</p>
-    </div>`;
-
-  const total=c.Total||1;
+  // Removido o grid de 8 stageCards por status — era redundante:
+  // o Funil logo abaixo mostra as mesmas contagens por etapa com mais
+  // contexto (% de avanço, dias médios) e as pílulas da barra de filtros
+  // já permitem filtrar por status com um clique.
   document.getElementById('dashboard').innerHTML=`
-    <div class="grid grid-cols-3 gap-4 mb-4">
+    <div class="grid grid-cols-${overdue>0?'4':'3'} gap-4 mb-4">
       ${kpiCard('Total de Leads', c.Total, '#f4f4f5', '#71717a')}
       ${kpiCard('Taxa de Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']} convertidos de ${denom} qualificados`)}
       ${kpiCard('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'valor estimado em aberto')}
       ${overdue>0?kpiCard('Ações Vencidas', overdue, '#f87171', '#ef4444', 'leads precisam de atenção agora', 'setOverdueFilter()'):''}
-    </div>
-    <div class="grid gap-3" style="grid-template-columns:repeat(8,minmax(0,1fr))">
-      ${stageCard('Lead Novo',    c['Lead Novo'],        '#a1a1aa','#71717a', Math.round(c['Lead Novo']/total*100),        "setStatusPill('Lead Novo')")}
-      ${stageCard('IA Disparou',  c['IA Disparou'],      '#67e8f9','#06b6d4', Math.round(c['IA Disparou']/total*100),      "setStatusPill('IA Disparou')")}
-      ${stageCard('Qualificado',  c['Qualificado'],      '#93c5fd','#3b82f6', Math.round(c['Qualificado']/total*100),      "setStatusPill('Qualificado')")}
-      ${stageCard('AIKON',        c['AIKON em Ação'],    '#fcd34d','#f59e0b', Math.round(c['AIKON em Ação']/total*100),    "setStatusPill('AIKON em Ação')")}
-      ${stageCard('Reunião',      c['Reunião Agendada'], '#c4b5fd','#a855f7', Math.round(c['Reunião Agendada']/total*100), "setStatusPill('Reunião Agendada')")}
-      ${stageCard('Abertura',     c['Em Abertura'],      '#fdba74','#f97316', Math.round(c['Em Abertura']/total*100),      "setStatusPill('Em Abertura')")}
-      ${stageCard('Convertido',   c['Convertido'],       '#6ee7b7','#22c55e', Math.round(c['Convertido']/total*100),       "setStatusPill('Convertido')")}
-      ${stageCard('Perdido',      c['Perdido'],          '#fca5a5','#ef4444', Math.round(c['Perdido']/total*100),           "setStatusPill('Perdido')")}
     </div>`;
 }
 
