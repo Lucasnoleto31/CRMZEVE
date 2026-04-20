@@ -222,6 +222,21 @@
 </head>
 <body>
 
+<!-- ═══ AUTH GUARD ═══ Redireciona para /login.html se não há sessão válida. -->
+<script>
+  (function authGuard(){
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem('crm_session') || 'null'); } catch {}
+    const now = Math.floor(Date.now() / 1000);
+    // Aceita como válido se access_token existe e expira > 30s à frente.
+    // Se só o refresh_token existe, deixa o app tentar renovar via /api/auth-refresh
+    // (renderizado abaixo em Auth.ensureFreshToken).
+    if (!s || !s.access_token || !s.user) {
+      location.replace('/login.html');
+    }
+  })();
+</script>
+
 <!-- NOISE OVERLAY -->
 <div class="noise" aria-hidden="true"></div>
 
@@ -243,6 +258,18 @@
 
     <!-- Actions -->
     <div class="flex items-center gap-2">
+      <!-- User pill (nome + role + sair) -->
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+           style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+        <span style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.65rem;" id="user-avatar">?</span>
+        <div class="leading-tight">
+          <span id="user-name" style="color:var(--t1);font-weight:600;"></span>
+          <span id="user-role" class="block" style="color:var(--t3);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;"></span>
+        </div>
+        <button onclick="Auth.logout()" title="Sair" class="ml-1 transition-colors" style="color:var(--t3)" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='var(--t3)'">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
       <!-- Connection pill -->
       <button onclick="openSettings()" id="conn-btn"
         style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:99px;"
@@ -1063,6 +1090,56 @@ const FUNNEL_STAGES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação'
 // Backend proxy endpoint (credenciais ficam no servidor, nunca no browser)
 const SB_PROXY_URL = '/api/sb-proxy';
 
+// ── AUTH (sessão do usuário logado) ─────────────────────────
+const Auth = {
+  _refreshing: null,
+  session() {
+    try { return JSON.parse(localStorage.getItem('crm_session') || 'null'); } catch { return null; }
+  },
+  user()  { return this.session()?.user || null; },
+  role()  { return this.user()?.role || null; },
+  token() { return this.session()?.access_token || null; },
+  isAdmin()    { return this.role() === 'admin'; },
+  isReunioes() { return this.role() === 'reunioes'; },
+  isVendedor() { return this.role() === 'vendedor'; },
+  save(s) { localStorage.setItem('crm_session', JSON.stringify(s)); },
+  clear() { localStorage.removeItem('crm_session'); },
+  // Se o token está a menos de 60s de expirar, renova antes de usar
+  async ensureFreshToken() {
+    const s = this.session();
+    if (!s || !s.access_token) return null;
+    const now = Math.floor(Date.now() / 1000);
+    if (s.expires_at && s.expires_at - now > 60) return s.access_token;
+    if (this._refreshing) return this._refreshing;
+    this._refreshing = (async () => {
+      try {
+        if (!s.refresh_token) throw new Error('sem refresh_token');
+        const res = await fetch('/api/auth-refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: s.refresh_token }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || `refresh ${res.status}`);
+        const next = { ...s, access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at };
+        this.save(next);
+        return d.access_token;
+      } catch (e) {
+        this.clear();
+        location.replace('/login.html');
+        throw e;
+      } finally {
+        this._refreshing = null;
+      }
+    })();
+    return this._refreshing;
+  },
+  logout() {
+    this.clear();
+    location.replace('/login.html');
+  },
+};
+
 // Priority config
 const PRIORITY_CFG = {
   'Urgente': { clr:'#ef4444' },
@@ -1147,11 +1224,19 @@ const CATEGORIA_CFG = {
 const DB = {
   ok: false,
   async _call(action, params) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = await Auth.ensureFreshToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(SB_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ action, params: params || {} })
     });
+    if (res.status === 401) {
+      // token inválido/expirado → força logout
+      Auth.logout();
+      throw new Error('sessão expirou');
+    }
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(payload.error || `proxy ${res.status}`);
     return payload.data;
@@ -3611,8 +3696,20 @@ document.getElementById('import-modal').addEventListener('click',function(e){if(
 document.getElementById('dispatch-modal').addEventListener('click',function(e){if(e.target===this)closeDispatchModal();});
 
 // ── INIT ─────────────────────────────────────────────────────
+function renderUserChip(){
+  const u = Auth.user();
+  if (!u) return;
+  const nameEl = document.getElementById('user-name');
+  const roleEl = document.getElementById('user-role');
+  const avEl   = document.getElementById('user-avatar');
+  if (nameEl) nameEl.textContent = u.name || u.email || '';
+  if (roleEl) roleEl.textContent = (u.role || '').toUpperCase();
+  if (avEl)   avEl.textContent   = ((u.name || u.email || '?')[0] || '?').toUpperCase();
+}
+
 (async function(){
   setLoading(true);
+  renderUserChip();
   try{
     await DB.init();
     refreshConnStatus();renderOfflineBanner();
