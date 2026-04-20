@@ -159,10 +159,43 @@
     .backdrop { background: rgba(0,0,0,.88); backdrop-filter:blur(12px); }
 
     /* Line clamp */
-    .clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .clamp2 { display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 
     /* Connector line in drawer */
     .act-line { width:1px; background:rgba(255,255,255,0.08); flex:1; min-height:12px; margin-top:2px; }
+
+    /* ── KANBAN ── */
+    .kanban-board { display:grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
+    @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(8, 250px); } }
+    .kb-col { display:flex; flex-direction:column; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:14px; min-height:260px; overflow:hidden; }
+    .kb-col.drop-target { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.4); }
+    .kb-col-head { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; gap:6px; position:sticky; top:0; backdrop-filter:blur(12px); background:rgba(12,12,12,0.8); z-index:2; }
+    .kb-col-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .kb-col-count { font-size:.65rem; font-weight:600; padding:2px 7px; border-radius:99px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.55); }
+    .kb-col-body { padding:10px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; max-height:calc(100vh - 320px); }
+    .kb-card { background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 12px; cursor:grab; transition:all .15s; user-select:none; }
+    .kb-card:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.15); transform:translateY(-1px); }
+    .kb-card.dragging { opacity:0.45; cursor:grabbing; }
+    .kb-card-name { font-size:.85rem; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .kb-card-meta { display:flex; flex-wrap:wrap; gap:4px 8px; margin-top:5px; font-size:.65rem; color:var(--t3); }
+    .kb-card-meta .k-dot { width:5px; height:5px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:middle; }
+    .kb-card-action { font-size:.65rem; margin-top:6px; color:var(--t2); display:-webkit-box; -webkit-line-clamp:1; line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+    .kb-card-action.overdue { color:#f87171; }
+    .kb-empty { padding:16px 10px; text-align:center; font-size:.7rem; color:rgba(255,255,255,0.25); border:1px dashed rgba(255,255,255,0.08); border-radius:8px; }
+
+    /* ── TIMELINE ── */
+    .timeline { display:flex; flex-direction:column; gap:0; }
+    .tl-item { display:flex; gap:12px; position:relative; }
+    .tl-item:not(:last-child)::after { content:''; position:absolute; left:14px; top:30px; bottom:-8px; width:1px; background:rgba(255,255,255,0.08); }
+    .tl-ico { width:30px; height:30px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.85rem; background:var(--s2); border:1px solid rgba(255,255,255,0.06); position:relative; z-index:1; }
+    .tl-ico.tl-success { background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.25); }
+    .tl-ico.tl-info { background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.25); }
+    .tl-ico.tl-warn { background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.25); }
+    .tl-ico.tl-danger { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.25); }
+    .tl-body { flex:1; padding-bottom:16px; min-width:0; }
+    .tl-title { font-size:.82rem; font-weight:600; color:var(--t1); }
+    .tl-detail { font-size:.72rem; color:var(--t2); margin-top:2px; }
+    .tl-meta { font-size:.68rem; color:var(--t3); margin-top:4px; }
   </style>
 </head>
 <body>
@@ -229,6 +262,15 @@
   </div>
 </div>
 
+<!-- OFFLINE BANNER (fallback localStorage quando proxy Supabase falhou) -->
+<div id="offline-banner" class="hidden" style="background:rgba(245,158,11,.1); border-bottom:1px solid rgba(245,158,11,.3);">
+  <div class="max-w-screen-2xl mx-auto px-6 py-2.5 flex items-center gap-3">
+    <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:#fbbf24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636L5.636 18.364m0-12.728L18.364 18.364"/></svg>
+    <p class="text-xs font-medium flex-1" style="color:#fcd34d">Sem conexão com o banco de dados — salvando apenas neste navegador. Alterações não estão sincronizando.</p>
+    <button onclick="retryDbConnection()" class="text-xs font-semibold px-3 py-1 rounded-lg transition-all" style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fcd34d;">Tentar reconectar</button>
+  </div>
+</div>
+
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ TAB NAV ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <nav style="background:rgba(0,0,0,0.5);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(20px);">
   <div class="max-w-screen-2xl mx-auto px-6 flex items-center gap-1">
@@ -237,6 +279,12 @@
       style="color:var(--t1);border-bottom:2px solid #3b82f6;">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       Leads
+    </button>
+    <button id="maintab-kanban" onclick="setMainTab('kanban')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t3);border-bottom:2px solid transparent;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7"/></svg>
+      Kanban
     </button>
     <button id="maintab-evolucao" onclick="setMainTab('evolucao')"
       class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
@@ -285,7 +333,7 @@
     <div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05);">
       <div class="relative flex-1">
         <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input id="f-search" type="text" placeholder="Buscar por nome ou telefone…" oninput="renderTable()"
+        <input id="f-search" type="text" placeholder="Buscar por nome, telefone ou notas (Ctrl+/)" oninput="debouncedRender()"
           class="w-full border rounded-xl pl-9 pr-3 py-2.5 text-sm"/>
       </div>
       <select id="f-responsible" onchange="renderTable()" class="border rounded-xl px-3 py-2.5 text-sm" style="min-width:140px;"><option value="">Responsável</option></select>
@@ -348,6 +396,13 @@
       <span class="text-xs" style="color:var(--t3)">→</span>
       <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
     </div>
+    <!-- Linha 4: presets de filtro salvos -->
+    <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap" style="border-top:1px solid rgba(255,255,255,0.04);">
+      <span class="text-xs font-semibold" style="color:var(--t3)">Filtros salvos:</span>
+      <div id="filter-presets" class="flex items-center gap-1 flex-wrap"></div>
+      <button onclick="saveCurrentFilter()" class="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#93c5fd;" title="Salvar filtros atuais como preset">+ Salvar atual</button>
+      <button onclick="clearFilters()" class="text-xs transition-colors ml-auto" style="color:var(--t3)" title="Limpar todos os filtros">✕ Limpar filtros</button>
+    </div>
   </div>
       <!-- TAG MULTI-SELECT -->
       <div style="position:relative; z-index:100;">
@@ -375,6 +430,17 @@
       <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
     </select>
     <button onclick="bulkChangeStatus()" class="btn-blue text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Aplicar</button>
+
+    <!-- Bulk edit: responsável/origem -->
+    <div class="flex items-center gap-1" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
+      <input id="bulk-resp-input" type="text" placeholder="Responsável…" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:110px;"/>
+      <button onclick="bulkSetField('responsible', document.getElementById('bulk-resp-input').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" title="Atribuir responsável">↵</button>
+    </div>
+    <div class="flex items-center gap-1">
+      <input id="bulk-origin-input" type="text" placeholder="Origem…" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:100px;"/>
+      <button onclick="bulkSetField('origin', document.getElementById('bulk-origin-input').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" title="Definir origem">↵</button>
+    </div>
+
     <button id="bulk-archive-btn" onclick="bulkArchive()" class="text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Arquivar</button>
     <button onclick="bulkDelete()" class="btn-red text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Excluir</button>
     <button onclick="openDispatchModal('selected')"
@@ -422,6 +488,22 @@
   </div>
 
   </div><!-- /tabpanel-leads -->
+
+  <!-- ══ TAB: KANBAN ══ -->
+  <div id="tabpanel-kanban" class="hidden space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold" style="color:var(--t1)">Pipeline Kanban</h2>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Arraste os cards para mover entre etapas · ocultos: Convertido e Perdido</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2 text-xs" style="color:var(--t3)">
+          <input type="checkbox" id="kb-show-closed" onchange="renderKanban()"/> Mostrar finalizados
+        </label>
+      </div>
+    </div>
+    <div id="kanban-board" class="kanban-board"></div>
+  </div><!-- /tabpanel-kanban -->
 
   <!-- ══ TAB: EVOLUÇÃO ══ -->
   <div id="tabpanel-evolucao" class="hidden space-y-6">
@@ -999,14 +1081,21 @@ const DB = {
     if (!res.ok) throw new Error(payload.error || `proxy ${res.status}`);
     return payload.data;
   },
+  _markOffline(reason) {
+    if (this.ok) console.warn('SB proxy caiu:', reason);
+    this.ok = false;
+    if (typeof offlineMode !== 'undefined') offlineMode = true;
+    if (typeof refreshConnStatus === 'function') refreshConnStatus();
+    if (typeof renderOfflineBanner === 'function') renderOfflineBanner();
+  },
   async init() {
-    try { await this._call('ping'); this.ok = true; return true; }
-    catch (e) { console.warn('SB proxy:', e.message); this.ok = false; return false; }
+    try { await this._call('ping'); this.ok = true; offlineMode = false; return true; }
+    catch (e) { this._markOffline(e.message); return false; }
   },
   async loadLeads() {
     if (this.ok) {
       try { return await this._call('list_leads'); }
-      catch (e) { console.warn('SB loadLeads:', e.message); this.ok = false; }
+      catch (e) { this._markOffline(e.message); }
     }
     return JSON.parse(localStorage.getItem('crm_leads') || '[]');
   },
@@ -1016,7 +1105,7 @@ const DB = {
       try {
         const data = await this._call('upsert_lead', { lead });
         if (data) return data;
-      } catch (e) { console.warn('SB upsert:', e.message); this.ok = false; }
+      } catch (e) { this._markOffline(e.message); }
     }
     const arr = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     if (lead.id) { const i = arr.findIndex(l => l.id === lead.id); if (i !== -1) arr[i] = { ...arr[i], ...lead }; else arr.push(lead); }
@@ -1027,7 +1116,7 @@ const DB = {
   async delete(id) {
     if (this.ok) {
       try { await this._call('delete_lead', { id }); return; }
-      catch (e) { console.warn('SB delete:', e.message); this.ok = false; }
+      catch (e) { this._markOffline(e.message); }
     }
     const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => l.id !== id)));
@@ -1035,7 +1124,7 @@ const DB = {
   async deleteMany(ids) {
     if (this.ok) {
       try { await this._call('delete_leads', { ids }); return; }
-      catch (e) { console.warn('SB deleteMany:', e.message); this.ok = false; }
+      catch (e) { this._markOffline(e.message); }
     }
     const a = JSON.parse(localStorage.getItem('crm_leads') || '[]');
     localStorage.setItem('crm_leads', JSON.stringify(a.filter(l => !ids.includes(l.id))));
@@ -1043,7 +1132,7 @@ const DB = {
   async getActivity(lid) {
     if (this.ok) {
       try { return await this._call('get_activity', { lead_id: lid }); }
-      catch (e) { console.warn('SB getActivity:', e.message); this.ok = false; }
+      catch (e) { this._markOffline(e.message); }
     }
     const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
     return a.filter(x => x.lead_id === lid).sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -1051,7 +1140,7 @@ const DB = {
   async getRecentActivity(limit = 40) {
     if (this.ok) {
       try { return await this._call('get_recent_activity', { limit }); }
-      catch (e) { console.warn('SB getRecentActivity:', e.message); this.ok = false; }
+      catch (e) { this._markOffline(e.message); }
     }
     const a = JSON.parse(localStorage.getItem('crm_activity') || '[]');
     return a.slice(0, limit);
@@ -1070,19 +1159,27 @@ const DB = {
 
 // ── STATE ────────────────────────────────────────────────────
 let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null,showArchived=false,mainTab='leads';
+let lastStatusChange=null; // {id, old, new, at, prevStageAt, prevStep, prevNa, prevNaDate}
+let offlineMode=false; // true quando o proxy Supabase falhou e estamos em localStorage
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const today=()=>new Date().toISOString().slice(0,10);
+// atributos HTML: codifica aspas/apóstrofes para ser seguro em data-*
+const escAttr=s=>esc(s).replace(/'/g,'&#39;');
+// today() em timezone LOCAL (resolve bug de virada de dia no fuso -03)
+const today=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const toDateBR=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;};
 const toCur=v=>{if(!v&&v!==0)return'—';return'R$\u00a0'+parseFloat(v).toLocaleString('pt-BR',{maximumFractionDigits:0});};
-const diffDays=iso=>!iso?null:Math.max(0,Math.round((new Date(today())-new Date(iso))/86400000));
+// diffDays: usa componente de data local, evita UTC drift
+const diffDays=iso=>{if(!iso)return null;const[y,m,d]=iso.split('-').map(Number);const past=new Date(y,(m||1)-1,d||1);const[yt,mt,dt]=today().split('-').map(Number);const now=new Date(yt,mt-1,dt);return Math.max(0,Math.round((now-past)/86400000));};
+
+function debounce(fn,ms=250){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms);};}
 
 function fmtPhone(i){let v=i.value.replace(/\D/g,'').slice(0,11);if(v.length>6)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);else if(v.length>0)v='('+v;i.value=v;}
 function toWA(p){let d=p.replace(/\D/g,'');if(!d.startsWith('55'))d='55'+d;return'https://wa.me/'+d;}
 function fuClass(f,s){if(!f||s==='Convertido'||s==='Perdido')return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
 
-function addDays(dateStr,n){const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function addDays(dateStr,n){const[y,m,d]=dateStr.split('-').map(Number);const dt=new Date(y,(m||1)-1,d||1);dt.setDate(dt.getDate()+n);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
 
 function calcScore(lead){
   if(lead.status==='Convertido')return 100;
@@ -1122,6 +1219,22 @@ function toast(msg,type='success'){
   document.getElementById('toasts').appendChild(el);
   setTimeout(()=>el.remove(),3200);
 }
+
+// Toast com botão "desfazer" (5s de janela)
+function toastUndo(msg){
+  const el=document.createElement('div');
+  el.className='anim-toast pointer-events-auto text-white text-sm font-medium px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3';
+  el.style.cssText='background:#27272a;border:1px solid rgba(255,255,255,.12);max-width:340px;';
+  const text=document.createElement('span');text.textContent=msg;text.style.flex='1';
+  const btn=document.createElement('button');btn.textContent='Desfazer';btn.style.cssText='color:#93c5fd;font-weight:600;font-size:.8rem;padding:4px 10px;border:1px solid rgba(59,130,246,.4);border-radius:6px;background:rgba(59,130,246,.12);cursor:pointer;';
+  btn.onclick=()=>{undoLastStatus();el.remove();};
+  el.appendChild(text);el.appendChild(btn);
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),5200);
+}
+
+// Debounce da busca (evita refiltro a cada tecla)
+const debouncedRender=debounce(()=>renderTable(),180);
 
 function setLoading(v){
   document.getElementById('loading-state').classList.toggle('hidden',!v);
@@ -1186,7 +1299,7 @@ function renderDashboard(){
 }
 
 // ── FUNNEL ───────────────────────────────────────────────────
-function renderFunnel(){
+function renderFunnel(containerId){
   const activeLeads=leads.filter(l=>!l.archived);
   const cnt={};const daySum={};
   STATUSES.forEach(s=>{cnt[s]=0;daySum[s]=0;});
@@ -1281,7 +1394,8 @@ function renderFunnel(){
     <div style="flex:1;height:1px;background:rgba(239,68,68,.12);"></div>
   </div>`;
 
-  document.getElementById('funnel-container').innerHTML=html;
+  const target=document.getElementById(containerId||'funnel-container');
+  if(target) target.innerHTML=html;
 }
 
 // ── FILTERS ──────────────────────────────────────────────────
@@ -1374,7 +1488,13 @@ function getFiltered(){
   const dt=document.getElementById('f-date-to').value;
   const t=today();
   return leads.filter(l=>{
-    if(q&&!l.name.toLowerCase().includes(q)&&!l.phone.replace(/\D/g,'').includes(q.replace(/\D/g,'')))return false;
+    if(q){
+      const hayName=l.name?.toLowerCase().includes(q);
+      const hayPhone=l.phone?.replace(/\D/g,'').includes(q.replace(/\D/g,''));
+      const hayNotes=l.notes?.toLowerCase().includes(q);
+      const hayResp=l.responsible?.toLowerCase().includes(q);
+      if(!(hayName||hayPhone||hayNotes||hayResp))return false;
+    }
     const nst=STATUSES.includes(l.status)?l.status:'Lead Novo';
     if(st&&nst!==st)return false;if(re&&l.responsible!==re)return false;
     if(or&&l.origin!==or)return false;
@@ -1455,6 +1575,70 @@ function clearFilters(){
   renderTable();
 }
 
+// ── FILTER PRESETS ───────────────────────────────────────────
+function _getFilterState(){
+  return{
+    search:document.getElementById('f-search').value,
+    status:document.getElementById('f-status').value,
+    responsible:document.getElementById('f-responsible').value,
+    origin:document.getElementById('f-origin').value,
+    dateFrom:document.getElementById('f-date-from').value,
+    dateTo:document.getElementById('f-date-to').value,
+    tags:[...selectedTags],
+    dates:[...selectedDates],
+    overdue:overdueFilter,
+    archived:showArchived
+  };
+}
+function _applyFilterState(s){
+  document.getElementById('f-search').value=s.search||'';
+  document.getElementById('f-status').value=s.status||'';
+  document.getElementById('f-responsible').value=s.responsible||'';
+  document.getElementById('f-origin').value=s.origin||'';
+  document.getElementById('f-date-from').value=s.dateFrom||'';
+  document.getElementById('f-date-to').value=s.dateTo||'';
+  selectedTags.clear();(s.tags||[]).forEach(t=>selectedTags.add(t));
+  selectedDates.clear();(s.dates||[]).forEach(d=>selectedDates.add(d));
+  overdueFilter=!!s.overdue;
+  if(typeof setShowArchived==='function'&&typeof s.archived==='boolean')setShowArchived(s.archived);
+  updateTagFilterLabel();renderDateChips();buildTagDropdown();syncStatusPills();syncOverduePill();
+  renderDashboard();renderTable();
+}
+function _loadPresets(){try{return JSON.parse(localStorage.getItem('crm_filter_presets')||'[]');}catch{return[];}}
+function _savePresets(arr){localStorage.setItem('crm_filter_presets',JSON.stringify(arr||[]));}
+function saveCurrentFilter(){
+  const name=prompt('Nome para este filtro:');
+  if(!name)return;
+  const n=name.trim().slice(0,40);if(!n)return;
+  const presets=_loadPresets().filter(p=>p.name!==n);
+  presets.push({name:n,state:_getFilterState()});
+  _savePresets(presets);
+  renderFilterPresets();
+  toast(`Preset "${n}" salvo`);
+}
+function applyFilterPreset(name){
+  const p=_loadPresets().find(x=>x.name===name);
+  if(!p)return;
+  _applyFilterState(p.state);
+  toast(`Filtro: ${name}`);
+}
+function deleteFilterPreset(name){
+  if(!confirm(`Remover o preset "${name}"?`))return;
+  _savePresets(_loadPresets().filter(p=>p.name!==name));
+  renderFilterPresets();
+}
+function renderFilterPresets(){
+  const wrap=document.getElementById('filter-presets');
+  if(!wrap)return;
+  const arr=_loadPresets();
+  if(!arr.length){wrap.innerHTML=`<span class="text-xs italic" style="color:rgba(255,255,255,0.25);">nenhum ainda</span>`;return;}
+  wrap.innerHTML=arr.map(p=>`
+    <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:var(--t2);">
+      <button type="button" class="preset-apply" data-preset="${escAttr(p.name)}" style="color:var(--t2);">${esc(p.name)}</button>
+      <button type="button" class="preset-del" data-preset="${escAttr(p.name)}" title="Remover" style="color:var(--t3);line-height:1;opacity:.6;">×</button>
+    </span>`).join('');
+}
+
 // ── TABLE ────────────────────────────────────────────────────
 function renderTable(){
   populateDropdowns();
@@ -1476,7 +1660,7 @@ function renderTable(){
     const sc=SC[l.status]||SC['Lead Novo'];
     const fuc=fuClass(l.followup,l.status);
     const tags=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
-    const tagsHTML=tags.map(t=>`<span class="text-xs px-2 py-0.5 rounded-full transition-all" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" onclick="toggleTagFilter(unescape('${escape(t)}'))" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
+    const tagsHTML=tags.map(t=>`<span class="lead-tag text-xs px-2 py-0.5 rounded-full transition-all" data-tag="${escAttr(t)}" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
     const isSel=selectedIds.has(l.id);
     const prio=PRIORITY_CFG[l.priority]||null;
     const lvl=LEVEL_CFG[l.level]||null;
@@ -1611,6 +1795,28 @@ async function bulkDelete(){
   catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
 }
 
+// Atualiza um campo simples (responsible/origin/product/priority…) em todos os selecionados
+async function bulkSetField(field,value){
+  const v=String(value||'').trim();
+  const ids=[...selectedIds];
+  if(!ids.length){toast('Selecione leads primeiro','warn');return;}
+  if(!v){toast('Preencha o valor','warn');return;}
+  const ALLOWED=new Set(['responsible','origin','community','product','priority','level']);
+  if(!ALLOWED.has(field)){toast('Campo não permitido','error');return;}
+  setLoading(true);
+  try{
+    for(const id of ids){
+      const idx=leads.findIndex(l=>l.id===id);if(idx===-1)continue;
+      const old=leads[idx][field];
+      if((old||'')===v)continue;
+      leads[idx][field]=v;
+      const s=await DB.upsert(leads[idx]);leads[idx]=s;
+      await DB.log(id,'Lead editado',`${field}: ${old||'—'} → ${v}`,s.responsible||'—');
+    }
+    clearSelection();renderAll();toast(`${ids.length} lead${ids.length>1?'s':''} atualizado${ids.length>1?'s':''}`);
+  }catch(e){toast('Erro: '+e.message,'error');}finally{setLoading(false);}
+}
+
 // ── ARQUIVAMENTO ─────────────────────────────────────────────
 function setShowArchived(val){
   showArchived=val;
@@ -1658,22 +1864,20 @@ async function bulkArchive(){
 }
 
 // ── STATUS DROPDOWN MENU ──────────────────────────────────────
-let statusMenuId=null;
-
 function openStatusMenu(id,event){
   event.stopPropagation();
   closeStatusMenu();
-  statusMenuId=id;
   const lead=leads.find(l=>l.id===id);
   const menu=document.getElementById('status-menu');
+  menu.dataset.leadId=String(id);
   const items=document.getElementById('status-menu-items');
   items.innerHTML=STATUSES.map(s=>{
     const sc=SC[s];const isCur=lead&&lead.status===s;
-    return`<button onclick="setLeadStatus('${s}')" class="w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
+    return`<button data-status="${escAttr(s)}" class="status-menu-item w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
       style="${isCur?'background:var(--s3);':''}color:${isCur?'var(--t1)':'var(--t2)'};"
       onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='${isCur?'var(--s3)':'transparent'}'">
       <span style="width:8px;height:8px;border-radius:50%;background:${sc.dot};flex-shrink:0;"></span>
-      ${s}${isCur?' <span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
+      ${esc(s)}${isCur?' <span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
     </button>`;
   }).join('');
   const btn=event.currentTarget;
@@ -1684,31 +1888,25 @@ function openStatusMenu(id,event){
 }
 
 function closeStatusMenu(){
-  document.getElementById('status-menu').classList.add('hidden');
-  statusMenuId=null;
+  const m=document.getElementById('status-menu');
+  m.classList.add('hidden');
+  delete m.dataset.leadId;
 }
 
-async function setLeadStatus(newStatus){
-  const id=statusMenuId; closeStatusMenu();
-  const lead=leads.find(l=>l.id===id); if(!lead||lead.status===newStatus)return;
-  const old=lead.status; lead.status=newStatus;
-  if(newStatus==='Perdido'){openLossModal(id,old);return;}
-  // Atualiza stage e cadência
-  lead.stage_entered_at=today();lead.cadencia_step=0;
-  const firstStep=CADENCIA_CFG[newStatus]?.[0];
-  if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
-  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();}
-  catch(e){toast('Erro: '+e.message,'error');lead.status=old;}
+async function setLeadStatus(newStatus,explicitId){
+  const menu=document.getElementById('status-menu');
+  const id=explicitId!==undefined?explicitId:(menu.dataset.leadId?parseInt(menu.dataset.leadId,10):null);
+  closeStatusMenu();
+  if(id==null)return;
+  await _applyStatusChange(id,newStatus);
 }
 
 // ── CATEGORIA MENU ───────────────────────────────────────────
-let categoriaMenuId=null;
-
 function openCategoriaMenu(id,btn){
   closeCategoriaMenu();
-  categoriaMenuId=id;
   const lead=leads.find(l=>l.id===id);
   const menu=document.getElementById('categoria-menu');
+  menu.dataset.leadId=String(id);
   const items=document.getElementById('categoria-menu-items');
   const opts=[
     {value:'Aumentar Lotes',...CATEGORIA_CFG['Aumentar Lotes']},
@@ -1718,11 +1916,11 @@ function openCategoriaMenu(id,btn){
   ];
   items.innerHTML=opts.map(o=>{
     const isCur=lead&&(lead.categoria_ia||'')===(o.value);
-    return`<button onclick="setLeadCategoria('${o.value}')" class="w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
+    return`<button data-cat="${escAttr(o.value)}" class="categoria-menu-item w-full flex items-center gap-3 px-3 py-2 text-sm transition-all text-left"
       style="${isCur?'background:var(--s3);':''}color:${isCur?'var(--t1)':o.clr};"
       onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='${isCur?'var(--s3)':'transparent'}'">
       <span style="font-size:.85rem;">${o.medal}</span>
-      <span>${o.label}</span>
+      <span>${esc(o.label)}</span>
       ${isCur?'<span style="margin-left:auto;font-size:.65rem;color:var(--t3)">atual</span>':''}
     </button>`;
   }).join('');
@@ -1733,12 +1931,16 @@ function openCategoriaMenu(id,btn){
 }
 
 function closeCategoriaMenu(){
-  document.getElementById('categoria-menu').classList.add('hidden');
-  categoriaMenuId=null;
+  const m=document.getElementById('categoria-menu');
+  m.classList.add('hidden');
+  delete m.dataset.leadId;
 }
 
 async function setLeadCategoria(newCat){
-  const id=categoriaMenuId; closeCategoriaMenu();
+  const menu=document.getElementById('categoria-menu');
+  const id=menu.dataset.leadId?parseInt(menu.dataset.leadId,10):null;
+  closeCategoriaMenu();
+  if(id==null)return;
   const lead=leads.find(l=>l.id===id); if(!lead)return;
   if((lead.categoria_ia||'')===(newCat))return;
   const old=lead.categoria_ia;
@@ -1751,6 +1953,20 @@ async function setLeadCategoria(newCat){
     renderAll();
     toast(`Qualificação: ${catLabel}`);
   }catch(e){toast('Erro: '+e.message,'error');lead.categoria_ia=old;}
+}
+
+// ── UNDO ÚLTIMO STATUS ───────────────────────────────────────
+async function undoLastStatus(){
+  if(!lastStatusChange){toast('Nada para desfazer','warn');return;}
+  const ch=lastStatusChange;lastStatusChange=null;
+  const lead=leads.find(l=>l.id===ch.id);if(!lead){toast('Lead não encontrado','error');return;}
+  lead.status=ch.old;
+  lead.stage_entered_at=ch.prevStageAt??null;
+  lead.cadencia_step=ch.prevStep??0;
+  lead.next_action=ch.prevNa??null;
+  lead.next_action_date=ch.prevNaDate??null;
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===ch.id)]=s;await DB.log(ch.id,'Status alterado',`${ch.new} → ${ch.old} (desfeito)`,s.responsible||'—');renderAll();toast(`Desfeito: ${ch.new} → ${ch.old}`);}
+  catch(e){toast('Erro ao desfazer: '+e.message,'error');}
 }
 
 // ── LOSS REASON MODAL ────────────────────────────────────────
@@ -1976,19 +2192,23 @@ async function openDrawer(id){
   list.innerHTML=`<p class="text-xs text-center py-8" style="color:var(--t3)">Carregando…</p>`;
   const acts=await DB.getActivity(id);
   if(!acts.length){list.innerHTML=`<p class="text-xs text-center py-12" style="color:var(--t3)">Nenhuma atividade registrada</p>`;return;}
-  const ico={'Lead criado':'✨','Lead editado':'✏️','Status alterado':'🔄','Status alterado (bulk)':'🔄','Cadência avançada':'✅','Template disparado':'📨','Lead reativado':'↺','Ação concluída':'✓'};
-  list.innerHTML=acts.map((a,i)=>`
-    <div style="display:flex;gap:12px;">
-      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
-        <div style="width:30px;height:30px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:.85rem;">${ico[a.action]||'📌'}</div>
-        ${i<acts.length-1?'<div class="act-line"></div>':''}
+  const ico={'Lead criado':'✨','Lead editado':'✏️','Status alterado':'🔄','Status alterado (bulk)':'🔄','Cadência avançada':'✅','Template disparado':'📨','Lead reativado':'↺','Ação concluída':'✓','Qualificação alterada':'🏷️','Lead importado':'📥','Arquivado':'🗄️','Desarquivado':'📤','Reativado automaticamente':'🔁'};
+  const tone=a=>{
+    if(/(conclu|concluída|convertido|reativ)/i.test(a))return 'tl-success';
+    if(/(status alterado)/i.test(a)&&/Perdido/i.test(a))return 'tl-danger';
+    if(/(criado|editado|template|qualific|disparado|importado)/i.test(a))return 'tl-info';
+    if(/(arquiv|perdido)/i.test(a))return 'tl-warn';
+    return '';
+  };
+  list.innerHTML=`<div class="timeline">`+acts.map(a=>`
+    <div class="tl-item">
+      <div class="tl-ico ${tone(a.action+' '+(a.detail||''))}">${ico[a.action]||'📌'}</div>
+      <div class="tl-body">
+        <p class="tl-title">${esc(a.action)}</p>
+        ${a.detail?`<p class="tl-detail">${esc(a.detail)}</p>`:''}
+        <p class="tl-meta">${a.created_at?new Date(a.created_at).toLocaleString('pt-BR'):''} · ${esc(a.responsible||'—')}</p>
       </div>
-      <div style="flex:1;padding-bottom:${i<acts.length-1?'16px':'0'};">
-        <p class="text-sm font-semibold" style="color:var(--t1)">${esc(a.action)}</p>
-        ${a.detail?`<p class="text-xs mt-0.5" style="color:var(--t2)">${esc(a.detail)}</p>`:''}
-        <p class="text-xs mt-1" style="color:var(--t3)">${a.created_at?new Date(a.created_at).toLocaleString('pt-BR'):''} · ${esc(a.responsible||'—')}</p>
-      </div>
-    </div>`).join('');
+    </div>`).join('')+`</div>`;
 }
 function closeDrawer(){document.getElementById('activity-drawer').classList.add('hidden');}
 
@@ -2226,8 +2446,22 @@ function refreshConnStatus(){
   if(DB.ok){
     dot.style.background='#22c55e';lbl.style.color='#6ee7b7';lbl.textContent='Online';
   }else{
-    dot.style.background='#52525b';lbl.style.color='var(--t3)';lbl.textContent='Local';
+    dot.style.background='#fbbf24';lbl.style.color='#fcd34d';lbl.textContent='Offline';
   }
+}
+
+function renderOfflineBanner(){
+  const el=document.getElementById('offline-banner');
+  if(!el)return;
+  el.classList.toggle('hidden',!offlineMode);
+}
+
+async function retryDbConnection(){
+  toast('Reconectando…','warn');
+  const ok=await DB.init();
+  refreshConnStatus();renderOfflineBanner();
+  if(ok){toast('Reconectado ao banco');leads=await DB.loadLeads();renderAll();}
+  else toast('Ainda sem conexão','error');
 }
 
 // ── CHATWOOT CONFIG ──────────────────────────────────────────
@@ -2486,14 +2720,17 @@ async function runDispatch() {
 function setMainTab(tab){
   mainTab=tab;
   document.getElementById('tabpanel-leads').classList.toggle('hidden',tab!=='leads');
+  document.getElementById('tabpanel-kanban').classList.toggle('hidden',tab!=='kanban');
   document.getElementById('tabpanel-evolucao').classList.toggle('hidden',tab!=='evolucao');
-  const tl=document.getElementById('maintab-leads');
-  const te=document.getElementById('maintab-evolucao');
-  tl.style.color=tab==='leads'?'var(--t1)':'var(--t3)';
-  tl.style.borderBottomColor=tab==='leads'?'#3b82f6':'transparent';
-  te.style.color=tab==='evolucao'?'var(--t1)':'var(--t3)';
-  te.style.borderBottomColor=tab==='evolucao'?'#3b82f6':'transparent';
+  const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-evolucao','evolucao']];
+  tabs.forEach(([id,key])=>{
+    const el=document.getElementById(id);if(!el)return;
+    const active=tab===key;
+    el.style.color=active?'var(--t1)':'var(--t3)';
+    el.style.borderBottomColor=active?'#3b82f6':'transparent';
+  });
   if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
+  if(tab==='kanban'){renderKanban();}
 }
 
 function renderEvolucaoKpis(){
@@ -2754,10 +2991,94 @@ function checkSlaNotifications(){
 }
 
 function renderFunnelEv(){
-  // reutiliza lógica do funil principal mas renderiza em funnel-container-ev
-  const c=document.getElementById('funnel-container-ev');
-  const s=document.getElementById('funnel-container');
-  if(c&&s) c.innerHTML=s.innerHTML;
+  // renderiza o funil direto no container da aba Evolução (sem clonar HTML — evita listeners duplicados)
+  renderFunnel('funnel-container-ev');
+}
+
+// ── KANBAN ───────────────────────────────────────────────────
+function renderKanban(){
+  const board=document.getElementById('kanban-board');
+  if(!board)return;
+  const showClosed=document.getElementById('kb-show-closed')?.checked;
+  const cols=showClosed?STATUSES:STATUSES.filter(s=>s!=='Convertido'&&s!=='Perdido');
+  const active=leads.filter(l=>!l.archived);
+  const byStatus={};cols.forEach(s=>byStatus[s]=[]);
+  active.forEach(l=>{const st=cols.includes(l.status)?l.status:(cols[0]||'Lead Novo');if(byStatus[st])byStatus[st].push(l);});
+  const t=today();
+  board.style.gridTemplateColumns=`repeat(${cols.length}, minmax(240px, 1fr))`;
+  board.innerHTML=cols.map(s=>{
+    const sc=SC[s]||SC['Lead Novo'];
+    const items=byStatus[s]||[];
+    const cards=items.map(l=>{
+      const cat=CATEGORIA_CFG[l.categoria_ia];
+      const prio=PRIORITY_CFG[l.priority];
+      const sla=getSlaStatus(l);
+      const na=l.next_action;
+      const naOver=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+      return`<div class="kb-card" draggable="true" data-lead-id="${l.id}">
+        <div class="kb-card-name" title="${esc(l.name)}">${cat?`<span style="color:${cat.clr};">${cat.medal} </span>`:''}${esc(l.name)}</div>
+        <div class="kb-card-meta">
+          ${prio?`<span><span class="k-dot" style="background:${prio.clr};"></span>${esc(l.priority)}</span>`:''}
+          ${l.responsible?`<span>👤 ${esc(l.responsible)}</span>`:''}
+          ${l.value?`<span style="color:#6ee7b7;">${toCur(l.value)}</span>`:''}
+          ${sla&&sla.overdue?`<span style="color:#f87171;">⚠️ ${sla.days}d</span>`:''}
+        </div>
+        ${na?`<p class="kb-card-action${naOver?' overdue':''}" title="${esc(na)}">${naOver?'⚠️ ':'→ '}${esc(na)}</p>`:''}
+      </div>`;
+    }).join('')||`<div class="kb-empty">Vazio</div>`;
+    return`<div class="kb-col" data-status="${escAttr(s)}">
+      <div class="kb-col-head">
+        <span class="kb-col-title" style="color:${sc.clr};">● ${esc(s)}</span>
+        <span class="kb-col-count">${items.length}</span>
+      </div>
+      <div class="kb-col-body">${cards}</div>
+    </div>`;
+  }).join('');
+  wireKanbanDnd();
+}
+
+let _kbDraggingId=null;
+function wireKanbanDnd(){
+  const board=document.getElementById('kanban-board');
+  if(!board)return;
+  board.querySelectorAll('.kb-card').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      _kbDraggingId=parseInt(card.dataset.leadId,10);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{e.dataTransfer.setData('text/plain',String(_kbDraggingId));}catch{}
+    });
+    card.addEventListener('dragend',()=>{card.classList.remove('dragging');_kbDraggingId=null;board.querySelectorAll('.kb-col').forEach(c=>c.classList.remove('drop-target'));});
+    card.addEventListener('click',()=>{openDrawer(parseInt(card.dataset.leadId,10));});
+  });
+  board.querySelectorAll('.kb-col').forEach(col=>{
+    col.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drop-target');});
+    col.addEventListener('dragleave',e=>{if(!col.contains(e.relatedTarget))col.classList.remove('drop-target');});
+    col.addEventListener('drop',async e=>{
+      e.preventDefault();col.classList.remove('drop-target');
+      const id=_kbDraggingId??parseInt(e.dataTransfer.getData('text/plain'),10);
+      const newStatus=col.dataset.status;
+      if(!id||!newStatus)return;
+      const lead=leads.find(l=>l.id===id);
+      if(!lead||lead.status===newStatus)return;
+      // Reaproveita pipeline de setLeadStatus: grava snapshot de undo, cadência etc.
+      await _applyStatusChange(id,newStatus);
+    });
+  });
+}
+
+// Lógica compartilhada entre menu de status e drop do kanban (não fica amarrada ao dataset do menu)
+async function _applyStatusChange(id,newStatus){
+  const lead=leads.find(l=>l.id===id);if(!lead||lead.status===newStatus)return;
+  const old=lead.status;
+  lastStatusChange={id,old,new:newStatus,at:Date.now(),prevStageAt:lead.stage_entered_at,prevStep:lead.cadencia_step,prevNa:lead.next_action,prevNaDate:lead.next_action_date};
+  lead.status=newStatus;
+  if(newStatus==='Perdido'){openLossModal(id,old);return;}
+  lead.stage_entered_at=today();lead.cadencia_step=0;
+  const firstStep=CADENCIA_CFG[newStatus]?.[0];
+  if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
+  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();toastUndo(`Status: ${old} → ${newStatus}`);}
+  catch(e){toast('Erro: '+e.message,'error');lead.status=old;lastStatusChange=null;}
 }
 
 // ── GRÁFICO EVOLUÇÃO ─────────────────────────────────────────
@@ -2891,12 +3212,46 @@ function renderChart(){
 
 function renderAll(){
   renderDashboard();renderFunnel();renderTable();
+  if(mainTab==='kanban')renderKanban();
   if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderChart();renderFunnelEv();}
   renderReativacaoBanner();
 }
 
 // ── EVENTS ───────────────────────────────────────────────────
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeCategoriaMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');}});
+// Delegação de clique em tags (evita XSS do onclick inline com unescape/escape)
+// e itens dos menus de Status/Categoria (que agora usam dataset em vez de global)
+document.addEventListener('click',e=>{
+  const tagEl=e.target.closest('.lead-tag');
+  if(tagEl&&tagEl.dataset.tag){toggleTagFilter(tagEl.dataset.tag);return;}
+  const stItem=e.target.closest('.status-menu-item');
+  if(stItem&&stItem.dataset.status){setLeadStatus(stItem.dataset.status);return;}
+  const catItem=e.target.closest('.categoria-menu-item');
+  if(catItem&&catItem.dataset.cat!==undefined){setLeadCategoria(catItem.dataset.cat);return;}
+  const presetApply=e.target.closest('.preset-apply');
+  if(presetApply&&presetApply.dataset.preset){applyFilterPreset(presetApply.dataset.preset);return;}
+  const presetDel=e.target.closest('.preset-del');
+  if(presetDel&&presetDel.dataset.preset){deleteFilterPreset(presetDel.dataset.preset);return;}
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeCategoriaMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');return;}
+  // atalhos globais — só quando foco NÃO está em input/textarea/select
+  const tag=(e.target.tagName||'').toLowerCase();
+  const editing=tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable;
+  if(editing)return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  // /  ou Ctrl+/ → foco na busca
+  if(e.key==='/'){const s=document.getElementById('f-search');if(s){e.preventDefault();s.focus();s.select();}return;}
+  // n → novo lead
+  if(e.key==='n'||e.key==='N'){e.preventDefault();openModal();return;}
+  // k → aba kanban, l → leads, v → evolução
+  if(e.key==='k'||e.key==='K'){e.preventDefault();setMainTab('kanban');return;}
+  if(e.key==='l'||e.key==='L'){e.preventDefault();setMainTab('leads');return;}
+  if(e.key==='v'||e.key==='V'){e.preventDefault();setMainTab('evolucao');return;}
+  // z → desfazer último status
+  if(e.key==='z'||e.key==='Z'){e.preventDefault();undoLastStatus();return;}
+  // ? → mostra atalhos
+  if(e.key==='?'){e.preventDefault();toast('Atalhos: /=busca · N=novo · K=kanban · L=leads · V=evolução · Z=desfazer · Esc=fechar','warn');return;}
+});
 document.addEventListener('click',e=>{
   const menu=document.getElementById('status-menu');
   if(!menu.classList.contains('hidden')&&!menu.contains(e.target)) closeStatusMenu();
@@ -2912,7 +3267,14 @@ document.getElementById('dispatch-modal').addEventListener('click',function(e){i
 // ── INIT ─────────────────────────────────────────────────────
 (async function(){
   setLoading(true);
-  try{await DB.init();refreshConnStatus();leads=await DB.loadLeads();renderAll();setTimeout(checkSlaNotifications,2000);}
+  try{
+    await DB.init();
+    refreshConnStatus();renderOfflineBanner();
+    leads=await DB.loadLeads();
+    renderAll();
+    renderFilterPresets();
+    setTimeout(checkSlaNotifications,2000);
+  }
   catch(e){toast('Erro ao inicializar','error');renderAll();}
   finally{setLoading(false);}
 })();
