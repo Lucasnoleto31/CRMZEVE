@@ -408,6 +408,8 @@
       <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
       <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
       <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
+      <!-- Filtro IA: alterna Todos → Só IA → Sem IA → Todos -->
+      <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span><span id="spill-ia-label">Todos os contatos</span></button>
     </div>
     <!-- Linha 3: filtro de datas -->
     <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap">
@@ -1224,6 +1226,7 @@ const DB = {
 let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol='created_at',sortDir='desc',overdueFilter=false,chartPeriod='week',evolutionChart=null,showArchived=false,mainTab='leads';
 let lastStatusChange=null; // {id, old, new, at, prevStageAt, prevStep, prevNa, prevNaDate}
 let offlineMode=false; // true quando o proxy Supabase falhou e estamos em localStorage
+let iaFilter='all';    // 'all' | 'ia' | 'noia' — filtra por contatos tocados pela IA
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1577,6 +1580,9 @@ function getFiltered(){
     }
     // aba ativos vs arquivados
     if(showArchived){if(!l.archived)return false;}else{if(l.archived)return false;}
+    // filtro "tocado pela IA"
+    if(iaFilter==='ia'&&!iaTouched(l))return false;
+    if(iaFilter==='noia'&&iaTouched(l))return false;
     // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
     if(overdueFilter){
       const notClosed=l.status!=='Convertido'&&l.status!=='Perdido';
@@ -1625,6 +1631,20 @@ function syncOverduePill(){
   pill.classList.toggle('active-pill',overdueFilter);
 }
 
+function cycleIaFilter(){
+  iaFilter = iaFilter==='all' ? 'ia' : iaFilter==='ia' ? 'noia' : 'all';
+  syncIaPill();
+  renderTable();
+}
+function syncIaPill(){
+  const pill=document.getElementById('spill-ia');
+  const label=document.getElementById('spill-ia-label');
+  if(!pill||!label)return;
+  if(iaFilter==='ia'){pill.classList.add('active-pill');label.textContent='🤖 Só contatos com IA';}
+  else if(iaFilter==='noia'){pill.classList.add('active-pill');label.textContent='🙅 Sem interação IA';}
+  else{pill.classList.remove('active-pill');label.textContent='Todos os contatos';}
+}
+
 function syncStatusPills(){
   const val=document.getElementById('f-status').value;
   document.querySelectorAll('.spill').forEach(btn=>{
@@ -1638,8 +1658,9 @@ function clearFilters(){
   ['f-status','f-responsible','f-origin'].forEach(id=>document.getElementById(id).value='');
   selectedTags.clear();selectedDates.clear();
   overdueFilter=false;
+  iaFilter='all';
   updateTagFilterLabel();renderDateChips();buildTagDropdown();
-  syncStatusPills();syncOverduePill();
+  syncStatusPills();syncOverduePill();syncIaPill();
   renderDashboard();
   renderTable();
 }
@@ -1656,6 +1677,7 @@ function _getFilterState(){
     tags:[...selectedTags],
     dates:[...selectedDates],
     overdue:overdueFilter,
+    iaFilter:iaFilter,
     archived:showArchived
   };
 }
@@ -1669,8 +1691,9 @@ function _applyFilterState(s){
   selectedTags.clear();(s.tags||[]).forEach(t=>selectedTags.add(t));
   selectedDates.clear();(s.dates||[]).forEach(d=>selectedDates.add(d));
   overdueFilter=!!s.overdue;
+  iaFilter=['all','ia','noia'].includes(s.iaFilter)?s.iaFilter:'all';
   if(typeof setShowArchived==='function'&&typeof s.archived==='boolean')setShowArchived(s.archived);
-  updateTagFilterLabel();renderDateChips();buildTagDropdown();syncStatusPills();syncOverduePill();
+  updateTagFilterLabel();renderDateChips();buildTagDropdown();syncStatusPills();syncOverduePill();syncIaPill();
   renderDashboard();renderTable();
 }
 function _loadPresets(){try{return JSON.parse(localStorage.getItem('crm_filter_presets')||'[]');}catch{return[];}}
