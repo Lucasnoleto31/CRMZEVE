@@ -292,6 +292,12 @@
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
       Evolução
     </button>
+    <button id="maintab-automacoes" onclick="setMainTab('automacoes')"
+      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
+      style="color:var(--t3);border-bottom:2px solid transparent;">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Automações
+    </button>
   </div>
 </nav>
 
@@ -504,6 +510,45 @@
     </div>
     <div id="kanban-board" class="kanban-board"></div>
   </div><!-- /tabpanel-kanban -->
+
+  <!-- ══ TAB: AUTOMAÇÕES ══ -->
+  <div id="tabpanel-automacoes" class="hidden space-y-5">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-base font-semibold" style="color:var(--t1)">Automações — disparo por etapa</h2>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Sincronize templates do Chatwoot e vincule cada um a uma etapa do funil. Quando um lead muda de status, você recebe a sugestão de disparo.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="syncChatwootTemplates()" class="text-xs font-semibold px-3 py-2 rounded-lg transition-all" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">🔄 Sincronizar templates</button>
+      </div>
+    </div>
+
+    <!-- Aviso config Chatwoot -->
+    <div id="automacoes-cw-warn" class="hidden rounded-xl px-4 py-3 text-sm" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;">
+      ⚠️ Configure a conexão do Chatwoot (URL, Account ID, Inbox ID, Token) na engrenagem antes de sincronizar.
+    </div>
+
+    <!-- Resumo por etapa -->
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold" style="color:var(--t1)">Mapa por etapa</h3>
+        <span id="automacoes-summary-count" class="text-xs" style="color:var(--t3)"></span>
+      </div>
+      <div id="automacoes-stage-map" class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));"></div>
+    </div>
+
+    <!-- Lista de templates -->
+    <div class="glass rounded-2xl overflow-hidden">
+      <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div>
+          <h3 class="text-sm font-semibold" style="color:var(--t1)">Templates disponíveis no Chatwoot</h3>
+          <p class="text-xs mt-0.5" style="color:var(--t3)">Escolha a etapa em que cada template deve ser sugerido ou disparado.</p>
+        </div>
+        <input id="automacoes-search" type="text" placeholder="Filtrar por nome…" oninput="renderAutomacoesTemplates()" class="border rounded-lg px-3 py-1.5 text-xs" style="min-width:180px;"/>
+      </div>
+      <div id="automacoes-templates" class="divide-y" style="--tw-divide-opacity:.06;"></div>
+    </div>
+  </div><!-- /tabpanel-automacoes -->
 
   <!-- ══ TAB: EVOLUÇÃO ══ -->
   <div id="tabpanel-evolucao" class="hidden space-y-6">
@@ -2552,20 +2597,46 @@ const CW = {
     return cr.id;
   },
 
-  async sendTemplate(convId, contactName) {
+  async sendTemplate(convId, contactName, overrides) {
+    const name = overrides?.name || this.template;
+    const body = overrides?.body || this.templateBody;
+    const lang = overrides?.language || 'pt_BR';
+    const cat  = overrides?.category || 'MARKETING';
     await this._fetch(`/conversations/${convId}/messages`, {
       method: 'POST',
       body: JSON.stringify({
         message_type: 'outgoing',
-        content: this.templateBody,
+        content: body,
         private: false,
         template_params: {
-          name: this.template,
-          category: 'MARKETING',
-          language: 'pt_BR',
-          processed_params: {}
+          name: name,
+          category: cat,
+          language: lang,
+          processed_params: overrides?.processed_params || {}
         }
       })
+    });
+  },
+
+  // Lista templates aprovados da inbox (WhatsApp Cloud API / 360dialog)
+  async listTemplates() {
+    if (!this.url || !this.account || !this.inbox || !this.token) return [];
+    const inbox = await this._fetch(`/inboxes/${this.inbox}`);
+    // Chatwoot retorna os templates em diferentes chaves dependendo da versão/provedor
+    const raw = inbox?.message_templates
+      || inbox?.additional_attributes?.message_templates
+      || inbox?.additional_attributes?.whatsapp?.message_templates
+      || [];
+    return (Array.isArray(raw) ? raw : []).map(tpl => {
+      const body = (tpl.components || []).find(c => (c.type||'').toUpperCase()==='BODY');
+      return {
+        name: tpl.name,
+        language: tpl.language || 'pt_BR',
+        category: tpl.category || 'MARKETING',
+        status: tpl.status || '',
+        body: body?.text || tpl.body || '',
+        raw: tpl
+      };
     });
   }
 };
@@ -2706,8 +2777,9 @@ function setMainTab(tab){
   mainTab=tab;
   document.getElementById('tabpanel-leads').classList.toggle('hidden',tab!=='leads');
   document.getElementById('tabpanel-kanban').classList.toggle('hidden',tab!=='kanban');
+  document.getElementById('tabpanel-automacoes').classList.toggle('hidden',tab!=='automacoes');
   document.getElementById('tabpanel-evolucao').classList.toggle('hidden',tab!=='evolucao');
-  const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-evolucao','evolucao']];
+  const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-automacoes','automacoes'],['maintab-evolucao','evolucao']];
   tabs.forEach(([id,key])=>{
     const el=document.getElementById(id);if(!el)return;
     const active=tab===key;
@@ -2716,6 +2788,7 @@ function setMainTab(tab){
   });
   if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
   if(tab==='kanban'){renderKanban();}
+  if(tab==='automacoes'){renderAutomacoes();}
 }
 
 function renderEvolucaoKpis(){
@@ -2980,6 +3053,209 @@ function renderFunnelEv(){
   renderFunnel('funnel-container-ev');
 }
 
+// ── AUTOMAÇÕES (templates Chatwoot × etapa do funil) ────────
+const Automacoes = {
+  templates: [],      // [{name, language, category, status, body}]
+  mappings: [],       // [{stage, template_name, template_body, language, category, enabled, auto_trigger}]
+  loadedOnce: false,
+  byStage(stage){ return this.mappings.find(m=>m.stage===stage); },
+  byTemplate(name){ return this.mappings.filter(m=>m.template_name===name); }
+};
+
+async function renderAutomacoes(){
+  // aviso se Chatwoot não configurado
+  document.getElementById('automacoes-cw-warn').classList.toggle('hidden', !!CW.ok || !!CW.url);
+  // carrega mapeamentos do Supabase (cache na sessão)
+  if(!Automacoes.loadedOnce){
+    try{ Automacoes.mappings = (await DB._call('list_stage_templates'))||[]; Automacoes.loadedOnce=true; }
+    catch(e){ console.warn('list_stage_templates:', e.message); Automacoes.mappings=[]; }
+  }
+  renderAutomacoesSummary();
+  renderAutomacoesTemplates();
+}
+
+function renderAutomacoesSummary(){
+  const wrap=document.getElementById('automacoes-stage-map');
+  const count=document.getElementById('automacoes-summary-count');
+  const mappedStages=new Set(Automacoes.mappings.filter(m=>m.enabled).map(m=>m.stage));
+  count.textContent=`${mappedStages.size} de ${STATUSES.length} etapas com template`;
+  wrap.innerHTML=STATUSES.map(stage=>{
+    const m=Automacoes.byStage(stage);
+    const sc=SC[stage]||SC['Lead Novo'];
+    const hasT=m&&m.enabled&&m.template_name;
+    return`<div class="rounded-xl p-3" style="background:rgba(255,255,255,0.03);border:1px solid ${hasT?sc.clr+'33':'rgba(255,255,255,0.06)'};">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold" style="color:${sc.clr};">● ${esc(stage)}</span>
+        ${hasT?`<span class="text-xs" style="color:var(--t3)">${m.auto_trigger?'⚡ auto':'sugerido'}</span>`:''}
+      </div>
+      <p class="text-sm mt-1.5 font-mono" style="color:${hasT?'var(--t1)':'var(--t3)'};">${hasT?esc(m.template_name):'— sem template —'}</p>
+      ${hasT?`<div class="flex gap-2 mt-2">
+        <button onclick="scrollToTemplate('${escAttr(m.template_name)}')" class="text-xs transition-colors" style="color:#60a5fa;">ver</button>
+        <button onclick="toggleStageAuto('${escAttr(stage)}')" class="text-xs transition-colors" style="color:var(--t3)" title="Alternar auto">${m.auto_trigger?'parar auto':'ativar auto'}</button>
+        <button onclick="unmapStage('${escAttr(stage)}')" class="text-xs transition-colors" style="color:#f87171;">remover</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderAutomacoesTemplates(){
+  const wrap=document.getElementById('automacoes-templates');
+  const q=(document.getElementById('automacoes-search').value||'').trim().toLowerCase();
+  const list=Automacoes.templates.filter(t=>!q||t.name.toLowerCase().includes(q)||(t.body||'').toLowerCase().includes(q));
+  if(!Automacoes.templates.length){
+    wrap.innerHTML=`<div class="px-5 py-10 text-center">
+      <p class="text-sm" style="color:var(--t2)">Nenhum template sincronizado ainda.</p>
+      <p class="text-xs mt-1" style="color:var(--t3)">Clique em "Sincronizar templates" acima para buscar do Chatwoot.</p>
+    </div>`;
+    return;
+  }
+  if(!list.length){
+    wrap.innerHTML=`<div class="px-5 py-8 text-center text-sm" style="color:var(--t3)">Nada encontrado para "${esc(q)}"</div>`;
+    return;
+  }
+  wrap.innerHTML=list.map(tpl=>{
+    const mapped=Automacoes.byTemplate(tpl.name);
+    const stageOpts=['<option value="">— escolher etapa —</option>']
+      .concat(STATUSES.map(s=>`<option value="${escAttr(s)}">${esc(s)}</option>`))
+      .join('');
+    return`<div class="px-5 py-4" id="tpl-row-${escAttr(tpl.name)}" style="border-top:1px solid rgba(255,255,255,0.06);">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-semibold font-mono" style="color:var(--t1)">${esc(tpl.name)}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2);">${esc(tpl.language||'pt_BR')}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(168,85,247,.1);color:#c4b5fd;border:1px solid rgba(168,85,247,.2);">${esc(tpl.category||'MARKETING')}</span>
+            ${tpl.status?`<span class="text-xs" style="color:${/approved/i.test(tpl.status)?'#6ee7b7':'#fcd34d'};">● ${esc(tpl.status)}</span>`:''}
+          </div>
+          ${tpl.body?`<pre class="text-xs mt-2 whitespace-pre-wrap" style="color:var(--t2);background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);">${esc(tpl.body)}</pre>`:''}
+          ${mapped.length?`<div class="mt-2 flex flex-wrap gap-1.5">
+            ${mapped.map(m=>`<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#6ee7b7;">vinculado: ${esc(m.stage)}${m.auto_trigger?' ⚡':''}</span>`).join('')}
+          </div>`:''}
+        </div>
+        <div class="flex items-end gap-2 flex-wrap">
+          <div>
+            <label class="block text-xs mb-1" style="color:var(--t3)">Vincular à etapa</label>
+            <select data-tpl="${escAttr(tpl.name)}" class="tpl-stage-sel border rounded-lg px-2 py-1.5 text-xs" style="min-width:170px;">${stageOpts}</select>
+          </div>
+          <label class="flex items-center gap-1 text-xs" style="color:var(--t3)">
+            <input type="checkbox" data-tpl-auto="${escAttr(tpl.name)}"/> auto
+          </label>
+          <button onclick="mapTemplateToStage('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Vincular</button>
+          <button onclick="testDispatchTemplate('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#6ee7b7;" title="Enviar para o primeiro lead selecionado">Testar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function syncChatwootTemplates(){
+  if(!CW.url||!CW.account||!CW.inbox||!CW.token){
+    toast('Configure Chatwoot na engrenagem primeiro','warn');
+    document.getElementById('automacoes-cw-warn').classList.remove('hidden');
+    return;
+  }
+  toast('Buscando templates do Chatwoot…','warn');
+  try{
+    const tpls=await CW.listTemplates();
+    Automacoes.templates=tpls;
+    renderAutomacoesTemplates();
+    toast(`${tpls.length} template${tpls.length===1?'':'s'} encontrado${tpls.length===1?'':'s'}`);
+  }catch(e){
+    toast('Falha ao sincronizar: '+e.message,'error');
+  }
+}
+
+async function mapTemplateToStage(tplName){
+  const sel=document.querySelector(`.tpl-stage-sel[data-tpl="${CSS.escape(tplName)}"]`);
+  const autoCb=document.querySelector(`[data-tpl-auto="${CSS.escape(tplName)}"]`);
+  const stage=sel?.value;
+  if(!stage){toast('Escolha uma etapa','warn');return;}
+  const tpl=Automacoes.templates.find(t=>t.name===tplName);
+  if(!tpl){toast('Template não encontrado','error');return;}
+  const params={stage,template_name:tpl.name,template_body:tpl.body||null,language:tpl.language||'pt_BR',category:tpl.category||'MARKETING',enabled:true,auto_trigger:!!autoCb?.checked};
+  try{
+    const saved=await DB._call('upsert_stage_template',params);
+    const idx=Automacoes.mappings.findIndex(m=>m.stage===stage);
+    if(idx>=0) Automacoes.mappings[idx]=saved||params; else Automacoes.mappings.push(saved||params);
+    renderAutomacoesSummary();renderAutomacoesTemplates();
+    toast(`Vinculado a "${stage}"`);
+  }catch(e){toast('Erro: '+e.message,'error');}
+}
+
+async function unmapStage(stage){
+  if(!confirm(`Remover o template vinculado à etapa "${stage}"?`))return;
+  try{
+    await DB._call('delete_stage_template',{stage});
+    Automacoes.mappings=Automacoes.mappings.filter(m=>m.stage!==stage);
+    renderAutomacoesSummary();renderAutomacoesTemplates();
+    toast(`Etapa "${stage}" desvinculada`);
+  }catch(e){toast('Erro: '+e.message,'error');}
+}
+
+async function toggleStageAuto(stage){
+  const m=Automacoes.byStage(stage);if(!m)return;
+  const next=!m.auto_trigger;
+  try{
+    const saved=await DB._call('upsert_stage_template',{...m,auto_trigger:next});
+    Object.assign(m,saved||{auto_trigger:next});
+    renderAutomacoesSummary();
+    toast(next?`Auto ligado em "${stage}"`:`Auto desligado em "${stage}"`);
+  }catch(e){toast('Erro: '+e.message,'error');}
+}
+
+function scrollToTemplate(name){
+  const el=document.getElementById('tpl-row-'+name);
+  if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.transition='background .4s';el.style.background='rgba(59,130,246,0.08)';setTimeout(()=>el.style.background='',900);}
+}
+
+async function testDispatchTemplate(tplName){
+  if(!CW.ok){toast('Chatwoot incompleto — precisa URL, conta, inbox, token, template e corpo. Na engrenagem.','warn');return;}
+  const ids=[...selectedIds];
+  if(!ids.length){toast('Selecione ao menos um lead na tabela antes de testar','warn');return;}
+  const tpl=Automacoes.templates.find(t=>t.name===tplName);
+  if(!tpl){toast('Template não encontrado — sincronize','error');return;}
+  const lead=leads.find(l=>l.id===ids[0]);
+  if(!lead){toast('Lead inválido','error');return;}
+  if(!confirm(`Enviar o template "${tplName}" para ${lead.name} (${lead.phone})?`))return;
+  try{
+    const contact=(await CW.searchContact(lead.phone))||(await CW.createContact(lead.name,lead.phone));
+    const convId=await CW.getOrCreateConversation(contact.id);
+    await CW.sendTemplate(convId,lead.name,{name:tpl.name,body:tpl.body,language:tpl.language,category:tpl.category});
+    await DB.log(lead.id,'Template disparado',`${tpl.name} (teste)`,'—');
+    toast('Template enviado (teste)');
+  }catch(e){toast('Falha: '+e.message,'error');}
+}
+
+// Chamada após mudança de status: sugere dispar o template vinculado à nova etapa
+async function maybeSuggestTemplateOnStage(leadId,stage){
+  if(!stage||!Automacoes.mappings.length)return;
+  const m=Automacoes.byStage(stage);
+  if(!m||!m.enabled||!m.template_name)return;
+  const lead=leads.find(l=>l.id===leadId);if(!lead)return;
+  if(!CW.ok)return; // sem Chatwoot configurado não vale sugerir
+  const fire=async()=>{
+    try{
+      const contact=(await CW.searchContact(lead.phone))||(await CW.createContact(lead.name,lead.phone));
+      const convId=await CW.getOrCreateConversation(contact.id);
+      await CW.sendTemplate(convId,lead.name,{name:m.template_name,body:m.template_body,language:m.language,category:m.category});
+      await DB.log(lead.id,'Template disparado',`${m.template_name} (etapa ${stage})`,lead.responsible||'—');
+      toast(`Template "${m.template_name}" enviado`);
+    }catch(e){toast('Falha no disparo: '+e.message,'error');}
+  };
+  if(m.auto_trigger){await fire();return;}
+  // Sugere via toast com botão
+  const el=document.createElement('div');
+  el.className='anim-toast pointer-events-auto text-white text-sm font-medium px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3';
+  el.style.cssText='background:#27272a;border:1px solid rgba(255,255,255,.12);max-width:360px;';
+  el.innerHTML=`<span style="flex:1">Disparar template <b>${esc(m.template_name)}</b>?</span>`;
+  const btn=document.createElement('button');btn.textContent='Disparar';
+  btn.style.cssText='color:#6ee7b7;font-weight:600;font-size:.8rem;padding:4px 10px;border:1px solid rgba(34,197,94,.4);border-radius:6px;background:rgba(34,197,94,.12);cursor:pointer;';
+  btn.onclick=()=>{el.remove();fire();};
+  el.appendChild(btn);
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),8200);
+}
+
 // ── KANBAN ───────────────────────────────────────────────────
 function renderKanban(){
   const board=document.getElementById('kanban-board');
@@ -3062,7 +3338,13 @@ async function _applyStatusChange(id,newStatus){
   lead.stage_entered_at=today();lead.cadencia_step=0;
   const firstStep=CADENCIA_CFG[newStatus]?.[0];
   if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
-  try{const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');renderAll();toastUndo(`Status: ${old} → ${newStatus}`);}
+  try{
+    const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;
+    await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');
+    renderAll();toastUndo(`Status: ${old} → ${newStatus}`);
+    // Automação: sugere/dispara template vinculado à nova etapa
+    maybeSuggestTemplateOnStage(id,newStatus);
+  }
   catch(e){toast('Erro: '+e.message,'error');lead.status=old;lastStatusChange=null;}
 }
 
@@ -3232,10 +3514,11 @@ document.addEventListener('keydown',e=>{
   if(e.key==='k'||e.key==='K'){e.preventDefault();setMainTab('kanban');return;}
   if(e.key==='l'||e.key==='L'){e.preventDefault();setMainTab('leads');return;}
   if(e.key==='v'||e.key==='V'){e.preventDefault();setMainTab('evolucao');return;}
+  if(e.key==='a'||e.key==='A'){e.preventDefault();setMainTab('automacoes');return;}
   // z → desfazer último status
   if(e.key==='z'||e.key==='Z'){e.preventDefault();undoLastStatus();return;}
   // ? → mostra atalhos
-  if(e.key==='?'){e.preventDefault();toast('Atalhos: /=busca · N=novo · K=kanban · L=leads · V=evolução · Z=desfazer · Esc=fechar','warn');return;}
+  if(e.key==='?'){e.preventDefault();toast('Atalhos: /=busca · N=novo · L=leads · K=kanban · A=automações · V=evolução · Z=desfazer · Esc=fechar','warn');return;}
 });
 document.addEventListener('click',e=>{
   const menu=document.getElementById('status-menu');
@@ -3258,7 +3541,16 @@ document.getElementById('dispatch-modal').addEventListener('click',function(e){i
     leads=await DB.loadLeads();
     renderAll();
     renderFilterPresets();
+    // Pré-carrega mapeamentos etapa↔template para que a sugestão de disparo
+    // funcione mesmo sem abrir a aba Automações
+    if(DB.ok){
+      try{ Automacoes.mappings=(await DB._call('list_stage_templates'))||[]; Automacoes.loadedOnce=true; }
+      catch(e){ console.warn('list_stage_templates bootstrap:', e.message); }
+    }
     setTimeout(checkSlaNotifications,2000);
+    // Abre aba via hash (ex: /index.html#automacoes)
+    const h=(location.hash||'').replace('#','').trim();
+    if(h&&['leads','kanban','automacoes','evolucao'].includes(h))setMainTab(h);
   }
   catch(e){toast('Erro ao inicializar','error');renderAll();}
   finally{setLoading(false);}

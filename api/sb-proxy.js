@@ -103,6 +103,33 @@ const HANDLERS = {
     };
     await sbFetch('/crm_activity', { method: 'POST', body: entry, headers: { 'Prefer': 'return=minimal' } });
     return { ok: true };
+  },
+  async list_stage_templates() {
+    const data = await sbFetch('/crm_stage_templates?select=*&order=stage.asc');
+    return Array.isArray(data) ? data : [];
+  },
+  async upsert_stage_template({ stage, template_name, template_body = null, language = 'pt_BR', category = 'MARKETING', enabled = true, auto_trigger = false } = {}) {
+    if (!stage || !template_name) throw Object.assign(new Error('stage e template_name obrigatórios'), { statusCode: 400 });
+    const row = {
+      stage: String(stage),
+      template_name: String(template_name),
+      template_body: template_body == null ? null : String(template_body),
+      language: String(language || 'pt_BR'),
+      category: String(category || 'MARKETING'),
+      enabled: !!enabled,
+      auto_trigger: !!auto_trigger,
+      updated_at: new Date().toISOString()
+    };
+    const data = await sbFetch(
+      `/crm_stage_templates?on_conflict=stage&select=*`,
+      { method: 'POST', body: row, headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' } }
+    );
+    return Array.isArray(data) ? data[0] : data;
+  },
+  async delete_stage_template({ stage } = {}) {
+    if (!stage) throw Object.assign(new Error('stage obrigatório'), { statusCode: 400 });
+    await sbFetch(`/crm_stage_templates?stage=eq.${encodeURIComponent(stage)}`, { method: 'DELETE' });
+    return { ok: true };
   }
 };
 
