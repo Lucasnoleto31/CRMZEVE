@@ -146,6 +146,20 @@ const HANDLERS = {
     if (!stage) throw Object.assign(new Error('stage obrigatório'), { statusCode: 400 });
     await sbFetch(`/crm_stage_templates?stage=eq.${encodeURIComponent(stage)}`, { method: 'DELETE' });
     return { ok: true };
+  },
+
+  // ── USUÁRIOS ──
+  async list_users() {
+    const data = await sbFetch('/crm_users?select=id,email,name,role,active&active=eq.true&order=name.asc');
+    return Array.isArray(data) ? data : [];
+  },
+  async assign_lead({ lead_id, assigned_to } = {}) {
+    if (lead_id == null) throw Object.assign(new Error('lead_id obrigatório'), { statusCode: 400 });
+    const data = await sbFetch(
+      `/crm_leads?id=eq.${encodeURIComponent(lead_id)}&select=*`,
+      { method: 'PATCH', body: { assigned_to: assigned_to || null, updated_at: new Date().toISOString() }, headers: { 'Prefer': 'return=representation' } }
+    );
+    return Array.isArray(data) ? data[0] : data;
   }
 };
 

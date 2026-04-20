@@ -866,6 +866,7 @@
       </button>
     </div>
     <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div id="drawer-assignee-section"></div>
       <div id="drawer-score-section"></div>
       <div id="drawer-next-action-section"></div>
       <div id="drawer-cadencia-section"></div>
@@ -2299,6 +2300,33 @@ async function openDrawer(id){
     ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;">Motivo: ${esc(l.loss_reason)}</span>`:''}
   `;
 
+  // ── Responsável (assigned_to) ──
+  await Users.ensureLoaded();
+  const isAdmin = Auth.isAdmin();
+  const currentAssignee = Users.byId(l.assigned_to);
+  const assigneeSection = document.getElementById('drawer-assignee-section');
+  if (isAdmin) {
+    const opts = ['<option value="">— sem responsável —</option>']
+      .concat(Users.list.map(u => `<option value="${escAttr(u.id)}"${u.id===l.assigned_to?' selected':''}>${esc(u.name||u.email)} · ${esc(u.role)}</option>`))
+      .join('');
+    assigneeSection.innerHTML = `
+      <div class="rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
+        <p class="text-xs font-semibold uppercase tracking-wider mb-2" style="color:var(--t3)">Responsável (atribuído)</p>
+        <select id="drawer-assignee-select" onchange="assignLeadFromDrawer(${l.id}, this.value)"
+                class="w-full border rounded-lg px-3 py-2 text-sm"
+                style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);">
+          ${opts}
+        </select>
+      </div>`;
+  } else {
+    assigneeSection.innerHTML = currentAssignee
+      ? `<div class="rounded-xl p-3 flex items-center justify-between" style="background:var(--s2);border:1px solid var(--b1);">
+           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Responsável</span>
+           <span class="text-sm font-medium" style="color:var(--t1)">${esc(currentAssignee.name || currentAssignee.email)}</span>
+         </div>`
+      : '';
+  }
+
   // ── SLA ──
   const sla=getSlaStatus(l);
   document.getElementById('drawer-score-section').innerHTML=sla?`
@@ -3214,6 +3242,33 @@ function checkSlaNotifications(){
 function renderFunnelEv(){
   // renderiza o funil direto no container da aba Evolução (sem clonar HTML — evita listeners duplicados)
   renderFunnel('funnel-container-ev');
+}
+
+// ── USERS (cache de crm_users para dropdowns de atribuição) ─
+const Users = {
+  list: [],
+  byId(id){ return this.list.find(u=>u.id===id) || null; },
+  nameOf(id){ const u=this.byId(id); return u ? (u.name || u.email) : '—'; },
+  async ensureLoaded(){
+    if (this.list.length) return this.list;
+    try { this.list = (await DB._call('list_users')) || []; }
+    catch (e) { console.warn('list_users:', e.message); this.list = []; }
+    return this.list;
+  },
+};
+
+async function assignLeadFromDrawer(leadId, userId){
+  try{
+    const saved = await DB._call('assign_lead', { lead_id: leadId, assigned_to: userId || null });
+    const idx = leads.findIndex(l=>l.id===leadId);
+    if (idx !== -1 && saved) leads[idx] = saved;
+    const assigneeName = userId ? Users.nameOf(userId) : 'ninguém';
+    await DB.log(leadId, 'Responsável alterado', `Atribuído a ${assigneeName}`, Auth.user()?.name || '—');
+    renderAll();
+    toast(`Atribuído a ${assigneeName}`);
+  } catch(e){
+    toast('Erro ao atribuir: '+e.message, 'error');
+  }
 }
 
 // ── AUTOMAÇÕES (templates Chatwoot × etapa do funil) ────────
