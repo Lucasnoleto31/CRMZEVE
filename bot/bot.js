@@ -17,6 +17,8 @@ const client = new Client({
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    protocolTimeout: 300000,
+    timeout: 120000,
   },
 });
 
@@ -164,13 +166,42 @@ client.on('ready', async () => {
 
 // ─── Seleção de grupo ─────────────────────────────────────────────────────────
 
+async function carregarGruposDireto() {
+  // Fallback: lê grupos direto do window.Store (mais rápido que getChats())
+  return await client.pupPage.evaluate(() => {
+    const chats = window.Store.Chat?.getModelsArray?.() || [];
+    return chats
+      .filter(c => c.isGroup)
+      .map(c => ({
+        id: { _serialized: c.id._serialized },
+        name: c.name || c.formattedTitle || c.id.user,
+        isGroup: true,
+        participantsCount: c.groupMetadata?.participants?.length ?? null,
+      }));
+  });
+}
+
 async function selecionarGrupo() {
   console.log('⏳ Carregando grupos e comunidades...\n');
 
-  const chats = await client.getChats();
-  const grupos = chats
-    .filter(c => c.isGroup)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  let grupos;
+  try {
+    const chats = await client.getChats();
+    grupos = chats
+      .filter(c => c.isGroup)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        isGroup: true,
+        participantsCount: c.participants?.length ?? null,
+      }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  } catch (err) {
+    console.log(`⚠️  getChats() falhou (${err.message.split('\n')[0]}).`);
+    console.log('⏳ Tentando fallback direto via Store...\n');
+    grupos = (await carregarGruposDireto())
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
 
   if (grupos.length === 0) {
     console.log('❌ Nenhum grupo encontrado.');
@@ -181,7 +212,7 @@ async function selecionarGrupo() {
   console.log('  Selecione o grupo/comunidade para monitorar:');
   console.log('═══════════════════════════════════════════════════════');
   grupos.forEach((g, i) => {
-    const n = g.participants?.length ?? '?';
+    const n = g.participantsCount ?? '?';
     console.log(`  [${String(i + 1).padStart(2, ' ')}] ${g.name}  (${n} membros)`);
   });
   console.log('═══════════════════════════════════════════════════════\n');
@@ -314,7 +345,7 @@ async function importarMembrosExistentes(chat, rl) {
       const leadData = {
         name:       nome || 'Sem nome',
         phone:      formatarTelefone(p.number),
-        status:     'Novo',
+        status:     'Lead Novo',
         origin:     'WhatsApp',
         community:  targetGroupName,
         entry:      p.joinedAt
@@ -346,6 +377,123 @@ async function importarMembrosExistentes(chat, rl) {
   console.log(`\n\n✅ Importação concluída: ${salvos} cadastrados no CRM, ${pulados} ignorados (já existiam), ${erros} erros.\n`);
 }
 
+// ─── Chatwoot — disparo automático ───────────────────────────────────────────
+
+const CW_URL      = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
+const CW_ACCOUNT  = process.env.CHATWOOT_ACCOUNT_ID || '';
+const CW_TOKEN    = process.env.CHATWOOT_TOKEN || '';
+const CW_INBOX    = process.env.CHATWOOT_INBOX_ID || '';
+const CW_ATIVO    = process.env.CHATWOOT_AUTO_DISPARO !== 'false'; // default: ligado
+
+const CW_MENSAGEM = process.env.CHATWOOT_MENSAGEM ||
+`Oi! Aqui é o Artur, da equipe do Fabricio 👊
+
+Bem-vindo! Antes de te apresentar o que fazemos, me fala: como tá sua operação hoje?
+
+1️⃣ Começando
+2️⃣ Operando e querendo crescer
+3️⃣ Operando mas inconsistente`;
+
+// Converte "(11) 99999-9999" → "+5511999999999"
+function toE164(phone) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55')) return `+${digits}`;
+  return `+55${digits}`;
+}
+
+async function cwApi(path, method = 'GET', body = null) {
+  const url = `${CW_URL}/api/v1/accounts/${CW_ACCOUNT}${path}`;
+  const opts = {
+    method,
+    headers: { 'api_access_token': CW_TOKEN, 'Content-Type': 'application/json' },
+  };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch { json = { _raw: text }; }
+  if (!res.ok) throw new Error(`Chatwoot ${method} ${path} → ${res.status}: ${text.slice(0, 200)}`);
+  return json;
+}
+
+async function chatwootDisparar(lead, leadId) {
+  if (!CW_ATIVO || !CW_URL || !CW_ACCOUNT || !CW_TOKEN || !CW_INBOX) {
+    console.log('⚠️  Chatwoot não configurado — disparo automático ignorado.');
+    return false;
+  }
+
+  const phone = toE164(lead.phone);
+  console.log(`📤 Chatwoot: iniciando disparo para ${lead.name} (${phone})…`);
+
+  // 1. Busca contato existente
+  let contactId;
+  try {
+    const search = await cwApi(`/contacts/search?q=${encodeURIComponent(phone)}&page=1`);
+    const found = search?.payload?.find(c => {
+      const p = (c.phone_number || '').replace(/\D/g, '');
+      return p.endsWith(phone.replace(/\D/g, '').slice(-10));
+    });
+    if (found) {
+      contactId = found.id;
+      console.log(`   ↳ Contato existente: #${contactId}`);
+    }
+  } catch { /* segue para criar */ }
+
+  // 2. Cria contato se não encontrou
+  if (!contactId) {
+    try {
+      const created = await cwApi('/contacts', 'POST', {
+        name:         lead.name,
+        phone_number: phone,
+      });
+      contactId = created?.id || created?.contact?.id;
+      console.log(`   ↳ Contato criado: #${contactId}`);
+    } catch (e) {
+      console.error(`   ❌ Erro ao criar contato: ${e.message}`);
+      return false;
+    }
+  }
+
+  // 3. Cria conversa
+  let conversationId;
+  try {
+    const conv = await cwApi(`/contacts/${contactId}/conversations`, 'POST', {
+      inbox_id: parseInt(CW_INBOX, 10),
+    });
+    conversationId = conv?.id;
+    console.log(`   ↳ Conversa criada: #${conversationId}`);
+  } catch (e) {
+    console.error(`   ❌ Erro ao criar conversa: ${e.message}`);
+    return false;
+  }
+
+  // 4. Envia mensagem
+  try {
+    await cwApi(`/conversations/${conversationId}/messages`, 'POST', {
+      content:      CW_MENSAGEM,
+      message_type: 'outgoing',
+      private:      false,
+    });
+    console.log(`   ✅ Mensagem enviada!`);
+  } catch (e) {
+    console.error(`   ❌ Erro ao enviar mensagem: ${e.message}`);
+    return false;
+  }
+
+  // 5. Atualiza status no Supabase → IA Disparou
+  try {
+    await supabase
+      .from('crm_leads')
+      .update({ status: 'IA Disparou', updated_at: new Date().toISOString() })
+      .eq('id', leadId);
+    console.log(`   ↳ Status atualizado: IA Disparou`);
+  } catch (e) {
+    console.error(`   ⚠️  Erro ao atualizar status: ${e.message}`);
+  }
+
+  return true;
+}
+
 // ─── Monitoramento de novos membros ──────────────────────────────────────────
 
 client.on('group_join', async (notification) => {
@@ -364,7 +512,7 @@ client.on('group_join', async (notification) => {
         const phoneFormatado = formatarTelefone(contact.number || memberId.replace('@c.us', ''));
         const nome = contact.pushname || contact.name || 'Sem nome';
 
-        // Verifica duplicata pelo telefone
+        // Verifica duplicata
         const digits = phoneFormatado.replace(/\D/g, '').slice(-10);
         const { data: existente } = await supabase
           .from('crm_leads')
@@ -381,7 +529,7 @@ client.on('group_join', async (notification) => {
         const leadData = {
           name:       nome,
           phone:      phoneFormatado,
-          status:     'Novo',
+          status:     'Lead Novo',
           origin:     'WhatsApp',
           community:  targetGroupName,
           entry:      today.slice(0, 10),
@@ -391,14 +539,19 @@ client.on('group_join', async (notification) => {
 
         console.log(`\n👤 Novo lead: ${leadData.name} (${leadData.phone})`);
 
-        const { error } = await supabase
+        const { data: saved, error } = await supabase
           .from('crm_leads')
-          .insert(leadData);
+          .insert(leadData)
+          .select('id')
+          .single();
 
         if (error) {
           console.error(`❌ Erro ao salvar ${leadData.name}:`, error.message);
         } else {
-          console.log(`✅ Salvo no CRM: ${leadData.name}`);
+          console.log(`✅ Salvo no CRM: ${leadData.name} (#${saved.id})`);
+          // Disparo automático Chatwoot (aguarda 3s para não sobrecarregar)
+          await new Promise(r => setTimeout(r, 3000));
+          await chatwootDisparar(leadData, saved.id);
         }
       } catch (contactErr) {
         console.error(`⚠️  Erro ao buscar contato ${memberId}:`, contactErr.message);

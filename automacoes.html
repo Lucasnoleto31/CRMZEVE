@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Base de Automações - CRMZEVE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000;
+      --s1: #080808;
+      --s2: rgba(255,255,255,0.03);
+      --s3: rgba(255,255,255,0.06);
+      --b1: rgba(255,255,255,0.08);
+      --b2: rgba(255,255,255,0.13);
+      --t1: #fafafa;
+      --t2: rgba(255,255,255,0.55);
+      --t3: rgba(255,255,255,0.28);
+    }
+
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--t1); font-family: 'DM Sans',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; min-height:100vh; }
+
+    .glass {
+      background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.55) 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(40px);
+      transition: border-color .2s;
+    }
+    .glass:hover { border-color: rgba(255,255,255,0.14); }
+
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-active { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .badge-inactive { background: rgba(239,68,68,0.2); color: #ef4444; }
+
+    .btn { padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: white; border: 1px solid rgba(255,255,255,0.12); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: var(--s1); border: 1px solid var(--b2); border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; }
+
+    .input-field { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: var(--t1); margin-bottom: 12px; }
+    .input-field::placeholder { color: var(--t3); }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  </style>
+</head>
+<body class="p-4">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold">Base de Automações</h1>
+        <p class="text-sm text-[var(--t2)] mt-2">Gerencie e execute disparos do Chatwoot</p>
+      </div>
+      <div class="flex gap-3">
+        <button class="btn btn-secondary btn-sm" onclick="syncChatwoot()">
+          🔄 Sincronizar Chatwoot
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openNewAutomationModal()">
+          ➕ Nova Automação
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="glass p-4 rounded-lg">
+        <p class="text-xs text-[var(--t2)] mb-2">Total de Automações</p>
+        <p class="text-2xl font-bold" id="totalCount">0</p>
+      </div>
+      <div class="glass p-4 rounded-lg">
+        <p class="text-xs text-[var(--t2)] mb-2">Ativas</p>
+        <p class="text-2xl font-bold text-green-400" id="activeCount">0</p>
+      </div>
+      <div class="glass p-4 rounded-lg">
+        <p class="text-xs text-[var(--t2)] mb-2">Inativas</p>
+        <p class="text-2xl font-bold text-red-400" id="inactiveCount">0</p>
+      </div>
+      <div class="glass p-4 rounded-lg">
+        <p class="text-xs text-[var(--t2)] mb-2">Última Sincronização</p>
+        <p class="text-sm font-mono" id="lastSync">--</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-4 mb-6 border-b border-[var(--b2)]">
+      <button class="px-4 py-3 font-medium text-sm border-b-2 border-blue-500 tab-btn" data-tab="list" onclick="switchTab('list')">
+        📋 Lista de Automações
+      </button>
+      <button class="px-4 py-3 font-medium text-sm border-b-2 border-transparent text-[var(--t2)] tab-btn" data-tab="rules" onclick="switchTab('rules')">
+        ⚙️ Regras de Seleção
+      </button>
+      <button class="px-4 py-3 font-medium text-sm border-b-2 border-transparent text-[var(--t2)] tab-btn" data-tab="execution" onclick="switchTab('execution')">
+        ▶️ Execução Rápida
+      </button>
+    </div>
+
+    <!-- Tab 1: Lista de Automações -->
+    <div id="list-tab" class="tab-content">
+      <div class="space-y-4">
+        <div class="glass p-4 rounded-lg">
+          <input type="text" class="input-field" placeholder="Buscar automação..." id="searchAutomation" onkeyup="filterAutomations()">
+        </div>
+        <div id="automationsList" class="space-y-3">
+          <p class="text-[var(--t2)] text-center py-8">Carregando automações...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Regras de Seleção -->
+    <div id="rules-tab" class="tab-content hidden">
+      <div class="space-y-4">
+        <button class="btn btn-primary" onclick="openNewRuleModal()">➕ Nova Regra</button>
+        <div id="rulesList" class="space-y-3">
+          <p class="text-[var(--t2)] text-center py-8">Carregando regras...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Execução Rápida -->
+    <div id="execution-tab" class="tab-content hidden">
+      <div class="glass p-6 rounded-lg">
+        <h3 class="text-lg font-semibold mb-4">Seletor Inteligente de Automação</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="text-sm text-[var(--t2)] block mb-2">Canal</label>
+            <select class="input-field" id="executionChannel" onchange="updateSmartSelector()">
+              <option value="">Selecione um canal</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-[var(--t2)] block mb-2">Tipo de Mensagem</label>
+            <select class="input-field" id="executionType" onchange="updateSmartSelector()">
+              <option value="">Selecione um tipo</option>
+              <option value="boas_vindas">Boas-vindas</option>
+              <option value="confirmacao">Confirmação</option>
+              <option value="notificacao">Notificação</option>
+              <option value="suporte">Suporte</option>
+              <option value="marketing">Marketing</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="smartSuggestion" class="glass p-4 rounded-lg mb-6">
+          <p class="text-[var(--t2)] text-center">Preencha os campos acima para ver a sugestão</p>
+        </div>
+
+        <div class="flex gap-3">
+          <button class="btn btn-primary flex-1" onclick="executeSuggestedAutomation()">
+            ▶️ Executar Automação
+          </button>
+          <button class="btn btn-secondary" onclick="showAllAutomations()">
+            📋 Ver Todos
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nova Automação -->
+  <div class="modal" id="newAutomationModal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Nova Automação</h2>
+      
+      <input type="text" placeholder="Nome da automação" class="input-field" id="autoName">
+      <input type="text" placeholder="Descrição" class="input-field" id="autoDesc">
+      
+      <select class="input-field" id="autoChannel">
+        <option value="">Selecione um canal</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="email">Email</option>
+        <option value="sms">SMS</option>
+        <option value="facebook">Facebook</option>
+        <option value="instagram">Instagram</option>
+      </select>
+
+      <select class="input-field" id="autoType">
+        <option value="">Selecione um tipo</option>
+        <option value="boas_vindas">Boas-vindas</option>
+        <option value="confirmacao">Confirmação</option>
+        <option value="notificacao">Notificação</option>
+        <option value="suporte">Suporte</option>
+        <option value="marketing">Marketing</option>
+      </select>
+
+      <textarea placeholder="Corpo da mensagem" class="input-field" id="autoContent" rows="4"></textarea>
+
+      <label class="flex items-center gap-2 mb-4">
+        <input type="checkbox" id="autoActive" checked>
+        <span class="text-sm">Ativa</span>
+      </label>
+
+      <div class="flex gap-3">
+        <button class="btn btn-primary flex-1" onclick="saveNewAutomation()">Salvar</button>
+        <button class="btn btn-secondary flex-1" onclick="closeModal('newAutomationModal')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nova Regra -->
+  <div class="modal" id="newRuleModal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Nova Regra de Seleção</h2>
+      
+      <input type="text" placeholder="Nome da regra" class="input-field" id="ruleName">
+      
+      <select class="input-field" id="ruleCondition">
+        <option value="canal">Por Canal</option>
+        <option value="tipo">Por Tipo</option>
+        <option value="periodo">Por Período</option>
+        <option value="prioridade">Por Prioridade</option>
+      </select>
+
+      <select class="input-field" id="ruleValue">
+        <option value="">Selecione uma condição</option>
+      </select>
+
+      <select class="input-field" id="ruleAutomation">
+        <option value="">Selecione uma automação</option>
+      </select>
+
+      <div class="flex gap-3">
+        <button class="btn btn-primary flex-1" onclick="saveNewRule()">Salvar</button>
+        <button class="btn btn-secondary flex-1" onclick="closeModal('newRuleModal')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Detalhes -->
+  <div class="modal" id="detailsModal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4" id="detailsTitle"></h2>
+      <div id="detailsContent" class="mb-4"></div>
+      <div class="flex gap-3">
+        <button class="btn btn-primary flex-1" onclick="executeAutomation(currentAutomationId)">▶️ Executar</button>
+        <button class="btn btn-secondary flex-1" onclick="editAutomation(currentAutomationId)">✏️ Editar</button>
+        <button class="btn btn-secondary flex-1" onclick="closeModal('detailsModal')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_KEY';
+    const CHATWOOT_API = 'YOUR_CHATWOOT_API_URL';
+    const CHATWOOT_TOKEN = 'YOUR_CHATWOOT_TOKEN';
+
+    let supabase = null;
+    let automations = [];
+    let rules = [];
+    let currentAutomationId = null;
+
+    // Inicializar Supabase
+    async function initSupabase() {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      loadAutomations();
+      loadRules();
+    }
+
+    // Carregar automações
+    async function loadAutomations() {
+      try {
+        const { data, error } = await supabase
+          .from('automacoes')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        automations = data || [];
+        renderAutomations();
+        updateStats();
+      } catch (err) {
+        console.error('Erro ao carregar automações:', err);
+        document.getElementById('automationsList').innerHTML = '<p class="text-red-400">Erro ao carregar</p>';
+      }
+    }
+
+    // Carregar regras
+    async function loadRules() {
+      try {
+        const { data, error } = await supabase
+          .from('automacao_regras')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        rules = data || [];
+        renderRules();
+      } catch (err) {
+        console.error('Erro ao carregar regras:', err);
+      }
+    }
+
+    // Renderizar automações
+    function renderAutomations() {
+      const html = automations.map(auto => `
+        <div class="glass p-4 rounded-lg cursor-pointer hover:border-blue-400" onclick="showDetails(${auto.id})">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="font-semibold text-base">${auto.nome}</h3>
+              <p class="text-xs text-[var(--t2)] mt-1">${auto.descricao || 'Sem descrição'}</p>
+              <div class="flex gap-2 mt-3">
+                <span class="badge badge-${auto.ativa ? 'active' : 'inactive'}">${auto.ativa ? 'Ativa' : 'Inativa'}</span>
+                <span class="badge" style="background: rgba(100,150,200,0.2); color: #6496c8;">${auto.canal}</span>
+                <span class="badge" style="background: rgba(200,150,100,0.2); color: #c89664;">${auto.tipo}</span>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); executeAutomation(${auto.id})">
+              ▶️
+            </button>
+          </div>
+        </div>
+      `).join('');
+      
+      document.getElementById('automationsList').innerHTML = html || '<p class="text-[var(--t2)] text-center py-8">Nenhuma automação criada</p>';
+    }
+
+    // Renderizar regras
+    function renderRules() {
+      const html = rules.map(rule => `
+        <div class="glass p-4 rounded-lg">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="font-semibold">${rule.nome}</h3>
+              <p class="text-xs text-[var(--t2)] mt-1">Condição: ${rule.condicao} = ${rule.valor}</p>
+              <p class="text-xs text-[var(--t2)]">Automação: ${automations.find(a => a.id === rule.automacao_id)?.nome || 'N/A'}</p>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="deleteRule(${rule.id})">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+      
+      document.getElementById('rulesList').innerHTML = html || '<p class="text-[var(--t2)] text-center py-8">Nenhuma regra criada</p>';
+    }
+
+    // Atualizar stats
+    function updateStats() {
+      document.getElementById('totalCount').textContent = automations.length;
+      document.getElementById('activeCount').textContent = automations.filter(a => a.ativa).length;
+      document.getElementById('inactiveCount').textContent = automations.filter(a => !a.ativa).length;
+    }
+
+    // Sincronizar com Chatwoot
+    async function syncChatwoot() {
+      if (!CHATWOOT_API || CHATWOOT_API === 'YOUR_CHATWOOT_API_URL') {
+        alert('Configure CHATWOOT_API e CHATWOOT_TOKEN no código');
+        return;
+      }
+      
+      try {
+        console.log('Sincronizando com Chatwoot...');
+        const response = await fetch(`${CHATWOOT_API}/api/v1/automation_rules`, {
+          headers: { Authorization: `Bearer ${CHATWOOT_TOKEN}` }
+        });
+        
+        if (!response.ok) throw new Error('Erro na API do Chatwoot');
+        
+        const data = await response.json();
+        console.log('Automações do Chatwoot:', data);
+        
+        // Sincronizar para Supabase
+        for (const automation of data.automation_rules || []) {
+          const { data: existing } = await supabase
+            .from('automacoes')
+            .select('id')
+            .eq('chatwoot_id', automation.id)
+            .single();
+          
+          if (!existing) {
+            await supabase.from('automacoes').insert({
+              nome: automation.name,
+              descricao: automation.description,
+              canal: 'chatwoot',
+              tipo: 'sincronizado',
+              conteudo: JSON.stringify(automation),
+              chatwoot_id: automation.id,
+              ativa: automation.enabled
+            });
+          }
+        }
+        
+        document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('pt-BR');
+        loadAutomations();
+        alert('✅ Sincronização concluída!');
+      } catch (err) {
+        console.error('Erro ao sincronizar:', err);
+        alert('❌ Erro na sincronização: ' + err.message);
+      }
+    }
+
+    // Funções de modal
+    function openNewAutomationModal() {
+      document.getElementById('newAutomationModal').classList.add('active');
+    }
+
+    function openNewRuleModal() {
+      document.getElementById('newRuleModal').classList.add('active');
+      const select = document.getElementById('ruleAutomation');
+      select.innerHTML = automations.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    async function saveNewAutomation() {
+      const nome = document.getElementById('autoName').value;
+      const descricao = document.getElementById('autoDesc').value;
+      const canal = document.getElementById('autoChannel').value;
+      const tipo = document.getElementById('autoType').value;
+      const conteudo = document.getElementById('autoContent').value;
+      const ativa = document.getElementById('autoActive').checked;
+
+      if (!nome || !canal || !tipo || !conteudo) {
+        alert('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      try {
+        const { error } = await supabase.from('automacoes').insert({
+          nome, descricao, canal, tipo, conteudo, ativa
+        });
+
+        if (error) throw error;
+        
+        closeModal('newAutomationModal');
+        document.getElementById('autoName').value = '';
+        document.getElementById('autoDesc').value = '';
+        document.getElementById('autoContent').value = '';
+        loadAutomations();
+        alert('✅ Automação criada!');
+      } catch (err) {
+        alert('❌ Erro: ' + err.message);
+      }
+    }
+
+    async function saveNewRule() {
+      const nome = document.getElementById('ruleName').value;
+      const condicao = document.getElementById('ruleCondition').value;
+      const valor = document.getElementById('ruleValue').value;
+      const automacao_id = document.getElementById('ruleAutomation').value;
+
+      if (!nome || !condicao || !valor || !automacao_id) {
+        alert('Preencha todos os campos');
+        return;
+      }
+
+      try {
+        const { error } = await supabase.from('automacao_regras').insert({
+          nome, condicao, valor, automacao_id: parseInt(automacao_id)
+        });
+
+        if (error) throw error;
+        
+        closeModal('newRuleModal');
+        loadRules();
+        alert('✅ Regra criada!');
+      } catch (err) {
+        alert('❌ Erro: ' + err.message);
+      }
+    }
+
+    async function deleteRule(ruleId) {
+      if (!confirm('Deletar esta regra?')) return;
+      
+      try {
+        const { error } = await supabase.from('automacao_regras').delete().eq('id', ruleId);
+        if (error) throw error;
+        loadRules();
+      } catch (err) {
+        alert('❌ Erro: ' + err.message);
+      }
+    }
+
+    async function executeAutomation(autoId) {
+      const auto = automations.find(a => a.id === autoId);
+      if (!auto) return;
+
+      alert(`✅ Automação "${auto.nome}" será executada agora!\n\nCanal: ${auto.canal}\nTipo: ${auto.tipo}`);
+      console.log('Executando automação:', auto);
+    }
+
+    function showDetails(autoId) {
+      const auto = automations.find(a => a.id === autoId);
+      if (!auto) return;
+
+      currentAutomationId = autoId;
+      document.getElementById('detailsTitle').textContent = auto.nome;
+      document.getElementById('detailsContent').innerHTML = `
+        <div class="space-y-3">
+          <p><span class="text-[var(--t2)]">Descrição:</span> ${auto.descricao || '-'}</p>
+          <p><span class="text-[var(--t2)]">Canal:</span> ${auto.canal}</p>
+          <p><span class="text-[var(--t2)]">Tipo:</span> ${auto.tipo}</p>
+          <p><span class="text-[var(--t2)]">Status:</span> <span class="badge badge-${auto.ativa ? 'active' : 'inactive'}">${auto.ativa ? 'Ativa' : 'Inativa'}</span></p>
+          <p><span class="text-[var(--t2)]">Conteúdo:</span></p>
+          <div class="bg-[var(--s2)] p-2 rounded text-xs font-mono max-h-32 overflow-y-auto">${auto.conteudo}</div>
+        </div>
+      `;
+      document.getElementById('detailsModal').classList.add('active');
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('border-blue-500');
+        el.classList.add('text-[var(--t2)]', 'border-transparent');
+      });
+
+      document.getElementById(tabName + '-tab').classList.remove('hidden');
+      event.target.classList.add('border-blue-500');
+      event.target.classList.remove('text-[var(--t2)]', 'border-transparent');
+    }
+
+    function filterAutomations() {
+      const search = document.getElementById('searchAutomation').value.toLowerCase();
+      const filtered = automations.filter(a => 
+        a.nome.toLowerCase().includes(search) || 
+        a.descricao?.toLowerCase().includes(search)
+      );
+      
+      if (filtered.length === 0) {
+        document.getElementById('automationsList').innerHTML = '<p class="text-[var(--t2)] text-center py-8">Nenhuma automação encontrada</p>';
+      } else {
+        automations = filtered;
+        renderAutomations();
+        automations = automations;
+      }
+    }
+
+    function updateSmartSelector() {
+      const canal = document.getElementById('executionChannel').value;
+      const tipo = document.getElementById('executionType').value;
+
+      if (!canal || !tipo) return;
+
+      const match = automations.find(a => a.canal === canal && a.tipo === tipo && a.ativa);
+
+      if (match) {
+        document.getElementById('smartSuggestion').innerHTML = `
+          <div class="text-center">
+            <p class="text-sm text-[var(--t2)] mb-2">Automação sugerida:</p>
+            <h3 class="text-lg font-semibold text-green-400">${match.nome}</h3>
+            <p class="text-xs text-[var(--t2)] mt-2">${match.descricao || ''}</p>
+          </div>
+        `;
+      } else {
+        document.getElementById('smartSuggestion').innerHTML = '<p class="text-[var(--t2)] text-center">Nenhuma automação disponível para essa combinação</p>';
+      }
+    }
+
+    function executeSuggestedAutomation() {
+      const canal = document.getElementById('executionChannel').value;
+      const tipo = document.getElementById('executionType').value;
+      
+      if (!canal || !tipo) {
+        alert('Preencha os campos de seleção');
+        return;
+      }
+
+      const match = automations.find(a => a.canal === canal && a.tipo === tipo && a.ativa);
+      if (match) {
+        executeAutomation(match.id);
+      }
+    }
+
+    // Inicializar
+    initSupabase();
+  </script>
+</body>
+</html>

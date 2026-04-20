@@ -709,11 +709,11 @@
       <div class="space-y-3">
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Project URL</label>
-          <input id="s-url" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+          <input id="s-url" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono" readonly/>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Anon Key</label>
-          <input id="s-key" type="password" placeholder="eyJh…" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono"/>
+          <input id="s-key" type="password" placeholder="eyJh…" class="w-full border rounded-lg px-3 py-2.5 text-sm font-mono" readonly/>
         </div>
         <div class="flex gap-3">
           <button onclick="connectSupabase()" class="btn-blue flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all">Conectar</button>
@@ -938,6 +938,10 @@
 const STATUSES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido','Perdido'];
 const FUNNEL_STAGES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido'];
 
+// Supabase config
+const SUPABASE_URL = 'https://hnwmabibzqlsnvetpdpg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhud21hYmlienFsc252ZXRwZHBnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDg3OTc2MSwiZXhwIjoyMDkwNDU1NzYxfQ.AViURnCZOVg1aIhF9YzUNp4VxglQlCV8DiOtx4vVKSg';
+
 // Priority config
 const PRIORITY_CFG = {
   'Urgente': { clr:'#ef4444' },
@@ -1069,9 +1073,14 @@ create policy "allow_all" on crm_activity for all using (true) with check (true)
 const DB = {
   client: null, ok: false,
   async init() {
-    const url = localStorage.getItem('crm_sb_url');
-    const key = localStorage.getItem('crm_sb_key');
-    if(!url||!key){this.ok=false;return false;}
+    let url = localStorage.getItem('crm_sb_url');
+    let key = localStorage.getItem('crm_sb_key');
+    if(!url || !key){
+      url = SUPABASE_URL;
+      key = SUPABASE_ANON_KEY;
+      localStorage.setItem('crm_sb_url', url);
+      localStorage.setItem('crm_sb_key', key);
+    }
     try {
       this.client = window.supabase.createClient(url,key);
       const {error} = await this.client.from('crm_leads').select('id').limit(1);

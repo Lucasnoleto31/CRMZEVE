@@ -1,0 +1,191 @@
+# ============================================
+# BASE DE AUTOMAÇÕES - EXEMPLOS DE REQUISIÇÕES
+# ============================================
+# Cole essas requisições no Postman, Insomnia ou execute via cURL
+
+# Substituir valores:
+# {{BASE_URL}} = http://localhost:3001
+# {{TOKEN}} = seu-token-api
+
+# ============================================
+# SINCRONIZAÇÃO
+# ============================================
+
+### Sincronizar com Chatwoot
+POST {{BASE_URL}}/api/automacoes/sync
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+### Status da Sincronização
+GET {{BASE_URL}}/api/automacoes/sync/status
+Authorization: Bearer {{TOKEN}}
+
+# ============================================
+# LISTAR AUTOMAÇÕES
+# ============================================
+
+### Listar Todas
+GET {{BASE_URL}}/api/automacoes
+Content-Type: application/json
+
+### Filtrar por Canal
+GET {{BASE_URL}}/api/automacoes?canal=whatsapp
+Content-Type: application/json
+
+### Filtrar por Tipo
+GET {{BASE_URL}}/api/automacoes?tipo=boas_vindas
+Content-Type: application/json
+
+### Filtrar por Status
+GET {{BASE_URL}}/api/automacoes?ativa=true
+Content-Type: application/json
+
+### Obter Automação Específica
+GET {{BASE_URL}}/api/automacoes/1
+Content-Type: application/json
+
+# ============================================
+# CRIAR AUTOMAÇÃO
+# ============================================
+
+POST {{BASE_URL}}/api/automacoes
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "nome": "Boas-vindas WhatsApp",
+  "descricao": "Mensagem automática de boas-vindas via WhatsApp",
+  "canal": "whatsapp",
+  "tipo": "boas_vindas",
+  "conteudo": "Olá {{nome}}! 👋\n\nBem-vindo! Como podemos ajudá-lo?",
+  "ativa": true
+}
+
+# ============================================
+# ATUALIZAR AUTOMAÇÃO
+# ============================================
+
+PUT {{BASE_URL}}/api/automacoes/1
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "nome": "Boas-vindas WhatsApp (Atualizada)",
+  "descricao": "Versão melhorada",
+  "ativa": true
+}
+
+# ============================================
+# DELETAR AUTOMAÇÃO
+# ============================================
+
+DELETE {{BASE_URL}}/api/automacoes/1
+Authorization: Bearer {{TOKEN}}
+
+# ============================================
+# EXECUTAR AUTOMAÇÕES
+# ============================================
+
+### Executar Automação Específica
+POST {{BASE_URL}}/api/automacoes/1/execute
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "contact": {
+    "id": "contact_123",
+    "nome": "João Silva",
+    "email": "joao@exemplo.com",
+    "phone": "+5511999999999"
+  }
+}
+
+### Seleção Inteligente
+POST {{BASE_URL}}/api/automacoes/execute/smart
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "canal": "whatsapp",
+  "tipo": "boas_vindas",
+  "contact": {
+    "id": "contact_456",
+    "nome": "Maria",
+    "phone": "+5511888888888"
+  }
+}
+
+# ============================================
+# REGRAS DE SELEÇÃO
+# ============================================
+
+### Listar Todas as Regras
+GET {{BASE_URL}}/api/automacoes/regras
+Content-Type: application/json
+
+### Criar Regra
+POST {{BASE_URL}}/api/automacoes/regras
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "nome": "WhatsApp sempre",
+  "condicao": "canal",
+  "valor": "whatsapp",
+  "automacao_id": 1,
+  "prioridade": 10
+}
+
+### Deletar Regra
+DELETE {{BASE_URL}}/api/automacoes/regras/1
+Authorization: Bearer {{TOKEN}}
+
+# ============================================
+# ESTATÍSTICAS
+# ============================================
+
+GET {{BASE_URL}}/api/automacoes/stats
+Content-Type: application/json
+
+# ============================================
+# HEALTH CHECK
+# ============================================
+
+GET {{BASE_URL}}/health
+Content-Type: application/json
+
+# ============================================
+# EXEMPLOS COM cURL
+# ============================================
+
+# Sincronizar
+# curl -X POST http://localhost:3001/api/automacoes/sync \
+#   -H "Authorization: Bearer seu-token" \
+#   -H "Content-Type: application/json"
+
+# Listar
+# curl http://localhost:3001/api/automacoes
+
+# Criar
+# curl -X POST http://localhost:3001/api/automacoes \
+#   -H "Authorization: Bearer seu-token" \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "nome": "Test",
+#     "canal": "email",
+#     "tipo": "geral",
+#     "conteudo": "Test content",
+#     "ativa": true
+#   }'
+
+# Executar
+# curl -X POST http://localhost:3001/api/automacoes/1/execute \
+#   -H "Authorization: Bearer seu-token" \
+#   -H "Content-Type: application/json" \
+#   -d '{"contact": {"id": "123", "nome": "João"}}'
+
+# Seleção Inteligente
+# curl -X POST http://localhost:3001/api/automacoes/execute/smart \
+#   -H "Authorization: Bearer seu-token" \
+#   -H "Content-Type: application/json" \
+#   -d '{"canal": "whatsapp", "tipo": "boas_vindas"}'
