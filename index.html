@@ -211,15 +211,18 @@
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: rgba(255,255,255,0.025) !important; }
 
-    /* Status pill filter */
+    /* Status pill filter — mapeia pro novo .pill do handoff */
     .spill {
       display:inline-flex; align-items:center; gap:6px;
-      padding:5px 14px; border-radius:99px; font-size:.75rem; font-weight:600;
-      border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);
-      color:rgba(255,255,255,0.45); cursor:pointer; transition:all .15s; white-space:nowrap;
+      height:30px; padding:0 12px; border-radius:99px;
+      font-size:12px; font-weight:500; color:var(--t2);
+      background:rgba(255,255,255,0.03); border:1px solid var(--line);
+      transition:all .15s; cursor:pointer; white-space:nowrap;
     }
-    .spill:hover { border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.75); }
-    .spill.active-pill { background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.4); color:#93c5fd; }
+    .spill:hover { color:var(--t1); border-color:var(--line-2); }
+    .spill.active-pill { background:var(--accent-soft); border-color:var(--accent-line); color:#bfd3ff; }
+    .spill .spill-count { font-family:'JetBrains Mono'; font-feature-settings:"tnum"; font-size:10.5px; color:var(--t3); margin-left:2px; }
+    .spill.active-pill .spill-count { color:#bfd3ff; opacity:.85; }
 
     /* Hero KPI card */
     .kpi-hero { padding:24px; }
@@ -578,137 +581,115 @@
     </div>
   </details>
 
+  <!-- STATUS PILLS (strip horizontal) -->
+  <div class="flex items-center gap-1.5 mb-3 overflow-x-auto" style="scrollbar-width:none;">
+    <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
+      <option value=""></option>
+      <option value="Lead Novo">Lead Novo</option>
+      <option value="IA Disparou">IA Disparou</option>
+      <option value="Qualificado">Qualificado</option>
+      <option value="AIKON em Ação">AIKON em Ação</option>
+      <option value="Reunião Agendada">Reunião Agendada</option>
+      <option value="Em Abertura">Em Abertura</option>
+      <option value="Convertido">Convertido</option>
+      <option value="Perdido">Perdido</option>
+    </select>
+    <!-- toggle ativos/arquivados -->
+    <div class="seg flex-shrink-0 mr-1">
+      <button id="tab-ativos" onclick="setShowArchived(false)" class="active">Ativos</button>
+      <button id="tab-arquivados" onclick="setShowArchived(true)">Arquivados</button>
+    </div>
+    <button class="spill active-pill flex-shrink-0" id="spill-" onclick="setStatusPill('')">Todos <span class="spill-count" id="count-"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span class="dot" style="background:#a1a1aa"></span>Lead Novo <span class="spill-count" id="count-Lead Novo"></span></button>
+    <button class="spill flex-shrink-0" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span class="dot" style="background:oklch(78% 0.14 200)"></span>IA Disparou <span class="spill-count" id="count-IA Disparou"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span class="dot" style="background:oklch(70% 0.16 250)"></span>Qualificado <span class="spill-count" id="count-Qualificado"></span></button>
+    <button class="spill flex-shrink-0" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span class="dot" style="background:oklch(80% 0.15 75)"></span>AIKON <span class="spill-count" id="count-AIKON em Ação"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span class="dot" style="background:oklch(70% 0.16 290)"></span>Reunião <span class="spill-count" id="count-Reunião Agendada"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span class="dot" style="background:oklch(75% 0.15 45)"></span>Abertura <span class="spill-count" id="count-Em Abertura"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span class="dot" style="background:oklch(80% 0.16 140)"></span>Convertido <span class="spill-count" id="count-Convertido"></span></button>
+    <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span class="dot" style="background:oklch(72% 0.16 20)"></span>Perdido <span class="spill-count" id="count-Perdido"></span></button>
+    <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span class="dot" style="background:var(--rose)"></span>⚠️ Vencidos</button>
+    <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span class="dot" style="background:var(--cyan)"></span><span id="spill-ia-label">Todos os contatos</span></button>
+  </div>
+
   <!-- FILTERS -->
-  <div class="rounded-2xl" style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);overflow:visible;position:relative;z-index:20;">
-    <!-- Linha 1: busca + ações rápidas -->
-    <div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom:1px solid rgba(255,255,255,0.05);">
+  <div class="panel mb-3" style="overflow:visible;position:relative;z-index:20;">
+    <div class="flex items-center gap-2 p-3">
       <div class="relative flex-1">
-        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input id="f-search" type="text" placeholder="Buscar por nome, telefone ou notas (Ctrl+/)" oninput="debouncedRender()"
-          class="w-full border rounded-xl pl-9 pr-3 py-2.5 text-sm"/>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--t3);"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+        <input id="f-search" type="text" placeholder="Buscar por nome, telefone ou notas…" oninput="debouncedRender()"
+          class="w-full rounded-lg" style="height:34px;padding:0 12px 0 36px;font-size:12.5px;"/>
       </div>
-      <select id="f-responsible" onchange="renderTable()" class="border rounded-xl px-3 py-2.5 text-sm" style="min-width:140px;"><option value="">Responsável</option></select>
-      <select id="f-origin" onchange="renderTable()" class="border rounded-xl px-3 py-2.5 text-sm" style="min-width:120px;"><option value="">Origem</option></select>
-      <!-- TAG MULTI-SELECT -->
+      <select id="f-responsible" onchange="renderTable()" class="rounded-lg" style="height:34px;padding:0 10px;font-size:12px;min-width:140px;"><option value="">Responsável: todos</option></select>
+      <select id="f-origin" onchange="renderTable()" class="rounded-lg" style="height:34px;padding:0 10px;font-size:12px;min-width:140px;"><option value="">Origem: todas</option></select>
       <div style="position:relative;z-index:100;">
         <button type="button" id="tag-filter-btn" onclick="toggleTagDropdown(event)"
-          class="border rounded-xl px-3 py-2.5 text-sm flex items-center gap-2 transition-all"
-          style="min-width:110px;background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);">
+          class="rounded-lg flex items-center gap-2 transition-all"
+          style="height:34px;padding:0 12px;font-size:12px;min-width:110px;background:rgba(255,255,255,0.03);border:1px solid var(--line);color:var(--t1);">
           <span id="tag-filter-label" class="flex-1 text-left truncate" style="color:var(--t3)">Tags</span>
-          <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg width="13" height="13" style="color:var(--t3)" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <div id="tag-dropdown" class="hidden absolute left-0 mt-1 rounded-xl shadow-2xl"
-          style="min-width:200px;max-height:260px;overflow-y:auto;background:#18181b;border:1px solid rgba(255,255,255,0.12);z-index:9999;position:absolute;">
+        <div id="tag-dropdown" class="hidden absolute left-0 mt-1 rounded-xl shadow-2xl panel"
+          style="min-width:200px;max-height:260px;overflow-y:auto;z-index:9999;position:absolute;">
           <div id="tag-dropdown-list" class="py-1"></div>
         </div>
       </div>
-      <button onclick="clearFilters()" class="px-3 py-2.5 text-sm rounded-xl flex-shrink-0 transition-all"
-        style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);"
-        onmouseover="this.style.borderColor='rgba(255,255,255,0.18)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">Limpar</button>
-      <span id="result-count" class="text-xs flex-shrink-0" style="color:var(--t3)"></span>
-    </div>
-    <!-- Linha 2: status pills -->
-    <div class="flex items-center gap-1.5 px-4 py-2.5 overflow-x-auto" style="border-bottom:1px solid rgba(255,255,255,0.04);scrollbar-width:none;">
-      <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
-        <option value=""></option>
-        <option value="Lead Novo">Lead Novo</option>
-        <option value="IA Disparou">IA Disparou</option>
-        <option value="Qualificado">Qualificado</option>
-        <option value="AIKON em Ação">AIKON em Ação</option>
-        <option value="Reunião Agendada">Reunião Agendada</option>
-        <option value="Em Abertura">Em Abertura</option>
-        <option value="Convertido">Convertido</option>
-        <option value="Perdido">Perdido</option>
-      </select>
-      <!-- toggle ativos/arquivados -->
-      <div class="flex rounded-lg overflow-hidden flex-shrink-0 mr-1" style="border:1px solid rgba(255,255,255,0.08);">
-        <button id="tab-ativos" onclick="setShowArchived(false)" class="px-3 py-1.5 text-xs font-semibold transition-all flex-shrink-0" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-right:1px solid rgba(255,255,255,0.08);">Ativos</button>
-        <button id="tab-arquivados" onclick="setShowArchived(true)" class="px-3 py-1.5 text-xs font-semibold transition-all flex-shrink-0" style="background:transparent;color:rgba(255,255,255,0.28);">Arquivados</button>
-      </div>
-      <button class="spill active-pill flex-shrink-0" id="spill-" onclick="setStatusPill('')">Todos</button>
-      <button class="spill flex-shrink-0" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span style="width:6px;height:6px;border-radius:50%;background:#a1a1aa;flex-shrink:0;display:inline-block;"></span>Lead Novo</button>
-      <button class="spill flex-shrink-0" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span>IA Disparou</button>
-      <button class="spill flex-shrink-0" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span style="width:6px;height:6px;border-radius:50%;background:#93c5fd;flex-shrink:0;display:inline-block;"></span>Qualificado</button>
-      <button class="spill flex-shrink-0" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span style="width:6px;height:6px;border-radius:50%;background:#fcd34d;flex-shrink:0;display:inline-block;"></span>AIKON</button>
-      <button class="spill flex-shrink-0" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span style="width:6px;height:6px;border-radius:50%;background:#c4b5fd;flex-shrink:0;display:inline-block;"></span>Reunião</button>
-      <button class="spill flex-shrink-0" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span style="width:6px;height:6px;border-radius:50%;background:#fdba74;flex-shrink:0;display:inline-block;"></span>Abertura</button>
-      <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span style="width:6px;height:6px;border-radius:50%;background:#6ee7b7;flex-shrink:0;display:inline-block;"></span>Convertido</button>
-      <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span style="width:6px;height:6px;border-radius:50%;background:#fca5a5;flex-shrink:0;display:inline-block;"></span>Perdido</button>
-      <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0;display:inline-block;"></span>⚠️ Vencidos</button>
-      <!-- Filtro IA: alterna Todos → Só IA → Sem IA → Todos -->
-      <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span style="width:6px;height:6px;border-radius:50%;background:#67e8f9;flex-shrink:0;display:inline-block;"></span><span id="spill-ia-label">Todos os contatos</span></button>
+      <button onclick="clearFilters()" class="pill" style="height:34px;">Limpar</button>
+      <span id="result-count" class="mono text-[11px] flex-shrink-0" style="color:var(--t3)"></span>
     </div>
     <!-- Linhas 3 e 4 (datas + presets) colapsadas atrás de "Filtros avançados" -->
-    <details class="filters-advanced">
-      <summary class="flex items-center gap-2 px-4 py-2 cursor-pointer select-none list-none text-xs"
-        style="color:var(--t3);border-top:1px solid rgba(255,255,255,0.04);">
+    <details class="filters-advanced" style="border-top:1px solid var(--line);">
+      <summary class="flex items-center gap-2 px-4 py-2 cursor-pointer select-none list-none ov">
         <span>Filtros avançados</span>
-        <svg class="w-3 h-3 transition-transform" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <svg width="11" height="11" class="transition-transform" style="color:var(--t3)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         <button onclick="event.preventDefault();event.stopPropagation();clearFilters();" class="ml-auto transition-colors" style="color:var(--t3)" title="Limpar todos os filtros">✕ Limpar filtros</button>
       </summary>
       <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap">
         <div class="flex gap-1 items-center">
-          <input id="f-date-add" type="date" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);"/>
-          <button type="button" onclick="addDateChip()" class="btn-blue text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all flex-shrink-0" title="Adicionar data">+</button>
+          <input id="f-date-add" type="date" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11px;"/>
+          <button type="button" onclick="addDateChip()" class="pill pill-accent active" style="height:28px;padding:0 10px;font-size:11px;" title="Adicionar data">+</button>
         </div>
         <div id="date-chips" class="flex flex-wrap gap-1"></div>
-        <input id="f-date-from" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="De"/>
-        <span class="text-xs" style="color:var(--t3)">→</span>
-        <input id="f-date-to" type="date" onchange="renderTable()" class="border rounded-lg px-2 py-1.5 text-xs" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:var(--t1);" title="Até"/>
+        <input id="f-date-from" type="date" onchange="renderTable()" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11px;" title="De"/>
+        <span class="text-[11px]" style="color:var(--t3)">→</span>
+        <input id="f-date-to"   type="date" onchange="renderTable()" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11px;" title="Até"/>
       </div>
-      <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap" style="border-top:1px solid rgba(255,255,255,0.04);">
-        <span class="text-xs font-semibold" style="color:var(--t3)">Filtros salvos:</span>
+      <div class="flex items-center gap-2 px-4 py-2.5 flex-wrap" style="border-top:1px solid var(--line);">
+        <span class="ov">Filtros salvos:</span>
         <div id="filter-presets" class="flex items-center gap-1 flex-wrap"></div>
-        <button onclick="saveCurrentFilter()" class="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#93c5fd;" title="Salvar filtros atuais como preset">+ Salvar atual</button>
+        <button onclick="saveCurrentFilter()" class="pill" style="height:26px;padding:0 10px;font-size:11px;" title="Salvar filtros atuais como preset">+ Salvar atual</button>
       </div>
     </details>
   </div>
-      <!-- TAG MULTI-SELECT -->
-      <div style="position:relative; z-index:100;">
-        <label class="block text-xs font-medium mb-1.5" style="color:var(--t3)">Tags</label>
-        <button type="button" id="tag-filter-btn" onclick="toggleTagDropdown(event)"
-          class="border rounded-lg px-3 py-2 text-sm flex items-center gap-2 transition-all"
-          style="min-width:140px; max-width:220px; background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); color:var(--t1);">
-          <span id="tag-filter-label" class="flex-1 text-left truncate" style="color:var(--t3)">Todas as tags</span>
-          <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        </button>
-        <div id="tag-dropdown" class="hidden absolute left-0 mt-1 rounded-xl shadow-2xl"
-          style="min-width:210px; max-height:280px; overflow-y:auto; background:#18181b; border:1px solid rgba(255,255,255,0.12); z-index:9999; position:absolute;">
-          <div id="tag-dropdown-list" class="py-1"></div>
-        </div>
-      </div>
-
-      <!-- MULTI-DATE ENTRADA -->
-
   <!-- BULK BAR -->
-  <div id="bulk-bar" class="hidden rounded-xl px-5 py-3 flex items-center gap-3 flex-wrap"
-    style="background:rgba(37,99,235,.15); border:1px solid rgba(59,130,246,.3);">
-    <span id="bulk-count" class="text-sm font-semibold" style="color:#93c5fd"></span>
-    <select id="bulk-status-sel" class="border rounded-lg px-3 py-1.5 text-sm">
+  <div id="bulk-bar" class="hidden rounded-xl px-4 py-3 flex items-center gap-2 flex-wrap"
+    style="background:var(--accent-soft); border:1px solid var(--accent-line);">
+    <span id="bulk-count" class="text-[12.5px] font-semibold" style="color:#bfd3ff"></span>
+    <select id="bulk-status-sel" class="rounded-lg" style="height:30px;padding:0 10px;font-size:12px;">
       <option value="">Mudar status para…</option>
       <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
     </select>
-    <button onclick="bulkChangeStatus()" class="btn-blue text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Aplicar</button>
+    <button onclick="bulkChangeStatus()" class="pill pill-accent active" style="height:30px;padding:0 12px;font-size:11.5px;">Aplicar</button>
 
     <!-- Bulk edit: responsável/origem -->
-    <div class="flex items-center gap-1" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
-      <input id="bulk-resp-input" type="text" placeholder="Responsável…" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:110px;"/>
-      <button onclick="bulkSetField('responsible', document.getElementById('bulk-resp-input').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" title="Atribuir responsável">↵</button>
+    <div class="flex items-center gap-1" style="border-left:1px solid var(--line-2);padding-left:8px;">
+      <input id="bulk-resp-input" type="text" placeholder="Responsável…" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11.5px;min-width:110px;"/>
+      <button onclick="bulkSetField('responsible', document.getElementById('bulk-resp-input').value)" class="pill" style="height:28px;padding:0 8px;font-size:11.5px;" title="Atribuir responsável">↵</button>
     </div>
     <div class="flex items-center gap-1">
-      <input id="bulk-origin-input" type="text" placeholder="Origem…" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:100px;"/>
-      <button onclick="bulkSetField('origin', document.getElementById('bulk-origin-input').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" title="Definir origem">↵</button>
+      <input id="bulk-origin-input" type="text" placeholder="Origem…" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11.5px;min-width:100px;"/>
+      <button onclick="bulkSetField('origin', document.getElementById('bulk-origin-input').value)" class="pill" style="height:28px;padding:0 8px;font-size:11.5px;" title="Definir origem">↵</button>
     </div>
 
-    <div id="bulk-assign-wrap" class="hidden flex items-center gap-1" style="border-left:1px solid rgba(255,255,255,0.1);padding-left:10px;">
-      <select id="bulk-assign-sel" class="border rounded-lg px-2 py-1.5 text-xs" style="min-width:140px;">
+    <div id="bulk-assign-wrap" class="hidden flex items-center gap-1" style="border-left:1px solid var(--line-2);padding-left:8px;">
+      <select id="bulk-assign-sel" class="rounded-lg" style="height:28px;padding:0 8px;font-size:11.5px;min-width:140px;">
         <option value="">Atribuir a…</option>
       </select>
-      <button onclick="bulkAssign(document.getElementById('bulk-assign-sel').value)" class="text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all" style="background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#93c5fd;" title="Atribuir responsáveis">↵</button>
+      <button onclick="bulkAssign(document.getElementById('bulk-assign-sel').value)" class="pill pill-accent active" style="height:28px;padding:0 10px;font-size:11.5px;" title="Atribuir responsáveis">↵</button>
     </div>
 
-    <button id="bulk-archive-btn" onclick="bulkArchive()" class="text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Arquivar</button>
-    <button onclick="bulkDelete()" class="btn-red text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all">Excluir</button>
+    <button id="bulk-archive-btn" onclick="bulkArchive()" class="pill" style="height:28px;padding:0 10px;font-size:11.5px;">Arquivar</button>
+    <button onclick="bulkDelete()" class="pill" style="height:28px;padding:0 10px;font-size:11.5px;color:oklch(85% 0.12 20);border-color:oklch(72% 0.16 20 / .3);background:oklch(72% 0.16 20 / .1);">Excluir</button>
     <button onclick="openDispatchModal('selected')"
       class="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
       style="background:#16a34a" onmouseover="this.style.background='#22c55e'" onmouseout="this.style.background='#16a34a'">
@@ -719,29 +700,28 @@
   </div>
 
   <!-- TABLE -->
-  <div class="glass rounded-2xl overflow-hidden">
+  <div class="panel overflow-hidden">
     <div id="loading-state" class="hidden py-20 text-center">
-      <svg class="spin w-7 h-7 mx-auto mb-3" style="color:#3b82f6" fill="none" viewBox="0 0 24 24">
+      <svg class="spin w-7 h-7 mx-auto mb-3" style="color:var(--accent)" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
       </svg>
       <p class="text-sm" style="color:var(--t3)">Carregando…</p>
     </div>
     <div id="table-wrap" class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead style="background:rgba(255,255,255,0.04); border-bottom:1px solid rgba(255,255,255,0.08);">
-
-          <tr>
-            <th class="px-5 py-4 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('name')">Lead <span class="sort-icon text-blue-400" data-col="name"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Contato</th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('status')">Status <span class="sort-icon text-blue-400" data-col="status"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('next_action_date')">Próxima Ação <span class="sort-icon text-blue-400" data-col="next_action_date"></span></th>
-            <th class="text-left px-5 py-4 text-xs uppercase tracking-wider sortable font-semibold" style="color:var(--t3)" onclick="sortBy('responsible')">Responsável <span class="sort-icon text-blue-400" data-col="responsible"></span></th>
-            <th class="px-5 py-4 text-xs uppercase tracking-wider font-semibold" style="color:var(--t3)">Ações</th>
+      <table class="w-full">
+        <thead>
+          <tr class="text-left ov" style="border-bottom:1px solid var(--line);background:rgba(255,255,255,0.015);">
+            <th class="py-3 px-4 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
+            <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('name')">Nome <span class="sort-icon mono" data-col="name"></span></th>
+            <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('status')">Status <span class="sort-icon mono" data-col="status"></span></th>
+            <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('responsible')">Responsável <span class="sort-icon mono" data-col="responsible"></span></th>
+            <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('entry')">Entrada <span class="sort-icon mono" data-col="entry"></span></th>
+            <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('next_action_date')">Próxima ação <span class="sort-icon mono" data-col="next_action_date"></span></th>
+            <th class="py-3 px-2 font-semibold text-right">Ações</th>
           </tr>
         </thead>
-        <tbody id="leads-tbody" style="border-top:1px solid var(--b1);"></tbody>
+        <tbody id="leads-tbody"></tbody>
       </table>
       <div id="empty-state" class="hidden py-20 text-center">
         <div class="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center" style="background:var(--s2);">
@@ -1728,6 +1708,37 @@ function toastUndo(msg){
 
 // Debounce da busca (evita refiltro a cada tecla)
 const debouncedRender=debounce(()=>renderTable(),180);
+
+// Status → classe .sb-* (design handoff)
+const SB_CLASS = {
+  'Lead Novo':'sb-novo','IA Disparou':'sb-ia','Qualificado':'sb-qual',
+  'AIKON em Ação':'sb-aikon','Reunião Agendada':'sb-reun','Em Abertura':'sb-aber',
+  'Convertido':'sb-conv','Perdido':'sb-perd',
+};
+// Medalha emoji a partir da categoria (usado na coluna Nome)
+const CATEGORIA_MEDAL = {
+  'Aumentar Lotes':'🥇','Inconsistente':'🥈','Começando':'🥉',
+};
+// Avatar gradiente por responsável/atribuído — determinístico por id do user.
+// Usa paleta fixa que fica bonita em cima do --panel.
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#6366f1,#a855f7)',
+  'linear-gradient(135deg,#06b6d4,#2563eb)',
+  'linear-gradient(135deg,#f59e0b,#dc2626)',
+  'linear-gradient(135deg,#10b981,#06b6d4)',
+  'linear-gradient(135deg,#ec4899,#8b5cf6)',
+  'linear-gradient(135deg,#22c55e,#0ea5e9)',
+];
+function avatarFor(id){
+  if (!id) return AVATAR_GRADIENTS[0];
+  let h = 0; const s = String(id);
+  for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+}
+// Iniciais a partir de um nome
+function initialsOf(name){
+  return (name||'?').trim().split(/\s+/).map(p=>p[0]||'').slice(0,2).join('').toUpperCase();
+}
 // Atalho do botão CmdK na topbar: vai pra aba Leads e foca o campo de busca.
 function focusSearch(){
   setMainTab('leads');
@@ -2066,6 +2077,15 @@ function syncStatusPills(){
     const id=btn.id.replace('spill-','');
     btn.classList.toggle('active-pill',id===val);
   });
+  // Atualiza contadores (inclui filtros ativos ligados a responsável/origem/tags/arquivados)
+  const pool = leads.filter(l => (showArchived ? l.archived : !l.archived));
+  const countAll = pool.length;
+  const setCount = (status, n) => {
+    const el = document.getElementById('count-'+status);
+    if (el) el.textContent = n;
+  };
+  setCount('', countAll);
+  STATUSES.forEach(s => setCount(s, pool.filter(l => l.status === s).length));
 }
 
 function clearFilters(){
@@ -2152,6 +2172,14 @@ function renderTable(){
   filteredLeads=getSorted(getFiltered());
   const cnt=filteredLeads.length;
   document.getElementById('result-count').textContent=cnt===leads.length?`${cnt} leads`:`${cnt} de ${leads.length} leads`;
+  // Subtítulo da aba Leads
+  const sub = document.getElementById('leads-page-sub');
+  if (sub) {
+    const conv = leads.filter(l => !l.archived && l.status === 'Convertido').length;
+    const ov = document.getElementById('leads-page-overline');
+    if (ov) ov.textContent = showArchived ? 'PIPELINE · ARQUIVADOS' : 'PIPELINE · ATIVOS';
+    sub.textContent = `${cnt} lead${cnt===1?'':'s'} ${showArchived?'arquivado':'no pipeline'}${cnt===1?'':'s'} · ${conv} convertido${conv===1?'':'s'}`;
+  }
   document.querySelectorAll('.sort-icon').forEach(el=>el.textContent=el.dataset.col===sortCol?(sortDir==='asc'?'↑':'↓'):'');
 
   const tbody=document.getElementById('leads-tbody');
@@ -2164,116 +2192,72 @@ function renderTable(){
   const cb=document.getElementById('sel-all');cb.checked=allSel;cb.indeterminate=!allSel&&someSel;
 
   tbody.innerHTML=filteredLeads.map(l=>{
-    const sc=SC[l.status]||SC['Lead Novo'];
-    const fuc=fuClass(l.followup,l.status);
-    const tags=(l.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
-    const tagsHTML=tags.map(t=>`<span class="lead-tag text-xs px-2 py-0.5 rounded-full transition-all" data-tag="${escAttr(t)}" style="background:${selectedTags.has(t)?'rgba(59,130,246,0.25)':'var(--s3)'};color:${selectedTags.has(t)?'#93c5fd':'var(--t2)'};cursor:pointer;border:1px solid ${selectedTags.has(t)?'rgba(59,130,246,0.4)':'transparent'};" title="Filtrar por '${esc(t)}'">${esc(t)}</span>`).join('');
+    const sbClass=SB_CLASS[l.status]||'sb-novo';
     const isSel=selectedIds.has(l.id);
     const prio=PRIORITY_CFG[l.priority]||null;
-    const lvl=LEVEL_CFG[l.level]||null;
     const sla=getSlaStatus(l);
     const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
     const iaFlag = iaTouched(l);
-    return`<tr class="${iaFlag?'has-ia':''}" style="${isSel?'background:rgba(37,99,235,.07);':''}" id="row-${l.id}">
-      <td class="px-5 py-4 w-8"><input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/></td>
-
-      <!-- Lead -->
-      <td class="px-5 py-4" style="min-width:200px;max-width:240px;">
-        <div class="flex items-start gap-2.5">
-          ${prio?`<span title="${esc(l.priority)}" style="width:7px;height:7px;border-radius:50%;background:${prio.clr};flex-shrink:0;margin-top:5px;box-shadow:0 0 6px ${prio.clr}88;"></span>`:'<span style="width:7px;flex-shrink:0;"></span>'}
-          <div class="min-w-0">
-            <div class="flex items-center min-w-0">
+    const medal = l.categoria_ia ? CATEGORIA_MEDAL[l.categoria_ia] : null;
+    const assignee = Users.byId(l.assigned_to);
+    const assigneeName = assignee ? (assignee.name || assignee.email) : (l.responsible || '');
+    const assigneeId = assignee ? assignee.id : (l.responsible || '');
+    const avatarBg = avatarFor(assigneeId);
+    const assigneeInitials = initialsOf(assigneeName || '—');
+    const firstName = (assigneeName || '').split(' ')[0] || '—';
+    return `<tr class="row ${iaFlag?'has-ia':''} cursor-pointer" id="row-${l.id}" style="${isSel?'background:var(--accent-soft);':''}">
+      <td class="py-3 px-4" onclick="event.stopPropagation()">
+        <input type="checkbox"${isSel?' checked':''} onchange="toggleRow(${l.id},this)"/>
+      </td>
+      <!-- Nome + telefone + qualificação -->
+      <td class="py-3 px-2" onclick="openDrawer(${l.id})" style="min-width:220px;max-width:260px;">
+        <div class="flex items-center gap-2.5">
+          ${prio?`<span title="${esc(l.priority)}" style="width:6px;height:6px;border-radius:50%;background:${prio.clr};flex-shrink:0;box-shadow:0 0 6px ${prio.clr}88;"></span>`:''}
+          ${medal?`<span title="${esc(l.categoria_ia)}" style="font-size:14px;flex-shrink:0">${medal}</span>`:'<span style="width:16px;flex-shrink:0"></span>'}
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 min-w-0">
               ${iaChip(l)}
-              <button onclick="openDrawer(${l.id})" class="text-left text-sm font-semibold block truncate transition-colors" style="color:var(--t1);min-width:0;" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t1)'" title="${esc(l.name)}">${esc(l.name)}</button>
+              <span class="text-[12.5px] font-medium truncate" style="color:var(--t1)" title="${esc(l.name)}">${esc(l.name)}</span>
             </div>
-            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-              ${(()=>{const cat=CATEGORIA_CFG[l.categoria_ia];return cat?`<button onclick="event.stopPropagation();openCategoriaMenu(${l.id},this)" title="Alterar qualificação" style="font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:4px;background:${cat.bg};color:${cat.clr};border:1px solid ${cat.border};white-space:nowrap;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">${cat.medal} ${cat.label}</button>`:`<button onclick="event.stopPropagation();openCategoriaMenu(${l.id},this)" title="Qualificar lead" style="font-size:.6rem;font-weight:600;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);cursor:pointer;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='rgba(251,191,36,.12)';this.style.color='#fbbf24'" onmouseout="this.style.background='rgba(255,255,255,.05)';this.style.color='rgba(255,255,255,.3)'">+ qualificar</button>`;})()}
-              ${l.produto_alvo?(l.produto_alvo.split(',').map(p=>`<span style="font-size:.6rem;color:rgba(255,255,255,0.38);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:3px;">${esc(p.trim())}</span>`).join(''))  :''}
-              ${l.origin?`<span style="font-size:.6rem;color:rgba(255,255,255,0.28);">${esc(l.origin)}</span>`:''}
-            </div>
+            <div class="mono text-[10.5px] mt-0.5" style="color:var(--t3)">${esc(l.phone||'—')}</div>
           </div>
         </div>
       </td>
-
-      <!-- Contato -->
-      <td class="px-5 py-4 whitespace-nowrap">
-        <div class="flex items-center gap-2">
-          <span class="text-sm" style="color:var(--t2);font-variant-numeric:tabular-nums;">${esc(l.phone)}</span>
-          <a href="${toWA(l.phone)}" target="_blank" title="Abrir WhatsApp"
-            style="background:#16a34a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;"
-            onmouseover="this.style.background='#22c55e';this.style.boxShadow='0 0 10px rgba(34,197,94,.4)'" onmouseout="this.style.background='#16a34a';this.style.boxShadow='none'">
-            <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-          </a>
-        </div>
-      </td>
-
       <!-- Status -->
-      <td class="px-5 py-4" style="min-width:160px;">
-        <div class="flex flex-col gap-1.5">
-          <button onclick="openStatusMenu(${l.id},event)" class="badge ${sc.badge}" style="width:fit-content;">
-            <span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}
-          </button>
-          ${sla&&sla.overdue?`<span class="text-xs font-semibold" style="color:#f87171;">⚠️ ${sla.days}d parado</span>`:''}
-          ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:rgba(248,113,113,0.6);">↳ ${esc(l.loss_reason)}</span>`:''}
-        </div>
+      <td class="py-3 px-2" onclick="event.stopPropagation();openStatusMenu(${l.id},event)" style="min-width:150px;">
+        <button class="sb ${sbClass}" style="cursor:pointer">${esc(l.status)}</button>
+        ${sla&&sla.overdue?`<div class="mono text-[10px] mt-1" style="color:var(--rose)">⚠ ${sla.days}d parado</div>`:''}
+        ${l.status==='Perdido'&&l.loss_reason?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc(l.loss_reason)}</div>`:''}
       </td>
-
-      <!-- Próxima Ação -->
-      <td class="px-5 py-4" style="min-width:180px;max-width:220px;">
-        ${l.next_action?`
-          <div class="flex flex-col gap-0.5">
-            <span class="text-xs font-medium clamp2" style="color:${naOverdue?'#f87171':'var(--t1)'};" title="${esc(l.next_action)}">${esc(l.next_action)}</span>
-            ${l.next_action_date?`<span class="text-xs" style="color:${naOverdue?'#f87171':'rgba(255,255,255,0.3)'};">${naOverdue?'⚠️ venceu ':''}${toDateBR(l.next_action_date)}</span>`:''}
-          </div>
-        `:`<button onclick="openModal(${l.id})" class="text-xs transition-colors" style="color:rgba(255,255,255,0.25);" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">+ Definir ação</button>`}
-      </td>
-
       <!-- Responsável -->
-      <td class="px-5 py-4 whitespace-nowrap">
-        ${l.responsible
-          ?`<span class="text-xs font-medium px-2.5 py-1 rounded-full" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);">${esc(l.responsible)}</span>`
-          :`<span class="text-xs" style="color:rgba(255,255,255,0.2)">—</span>`}
+      <td class="py-3 px-2 whitespace-nowrap" onclick="openDrawer(${l.id})">
+        ${assignee || l.responsible ?
+          `<div class="flex items-center gap-2"><div class="av av-6" style="background:${avatarBg}">${assigneeInitials}</div><span class="text-[12px]">${esc(firstName)}</span></div>`
+          : '<span class="text-[11px]" style="color:var(--t4)">—</span>'}
       </td>
-
+      <!-- Entrada -->
+      <td class="py-3 px-2 mono text-[11px] whitespace-nowrap" style="color:var(--t2)" onclick="openDrawer(${l.id})">
+        ${l.entry ? toDateBR(l.entry) : '—'}
+      </td>
+      <!-- Próxima ação -->
+      <td class="py-3 px-2" onclick="openDrawer(${l.id})" style="min-width:180px;max-width:220px;">
+        ${l.next_action?`
+          <div class="text-[11.5px] font-medium truncate" style="color:${naOverdue?'var(--rose)':'var(--t1)'};" title="${esc(l.next_action)}">${esc(l.next_action)}</div>
+          ${l.next_action_date?`<div class="mono text-[10px] mt-0.5" style="color:${naOverdue?'var(--rose)':'var(--t3)'};font-weight:${naOverdue?'600':'400'}">${naOverdue?'⚠ venceu ':''}${toDateBR(l.next_action_date)}</div>`:''}
+        `:`<button onclick="event.stopPropagation();openModal(${l.id})" class="text-[11px] transition-colors" style="color:var(--t4);">+ Definir ação</button>`}
+      </td>
       <!-- Ações -->
-      <td class="px-5 py-4">
-        <div class="flex gap-1.5 items-center">
-          ${l.status==='Perdido'?`
-          <button onclick="reativarLead(${l.id})" title="Reativar"
-            class="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all"
-            style="background:rgba(168,85,247,.15);color:#c4b5fd;border:1px solid rgba(168,85,247,.25);"
-            onmouseover="this.style.background='rgba(168,85,247,.3)'" onmouseout="this.style.background='rgba(168,85,247,.15)'">↺</button>
-          `:''}
-          <button onclick="openModal(${l.id})" title="Editar"
-            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-            style="background:rgba(59,130,246,.08);color:#60a5fa;"
-            onmouseover="this.style.background='rgba(59,130,246,.2)'" onmouseout="this.style.background='rgba(59,130,246,.08)'">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          </button>
-          <button onclick="openDrawer(${l.id})" title="Ver detalhes e cadência"
-            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-            style="background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.4);"
-            onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--t1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='rgba(255,255,255,0.4)'">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <td class="py-3 px-2 text-right" onclick="event.stopPropagation()">
+        <div class="inline-flex gap-1 items-center">
+          ${l.status==='Perdido'?`<button onclick="reativarLead(${l.id})" title="Reativar" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:oklch(70% 0.16 290 / .1);color:oklch(85% 0.12 290);border:1px solid oklch(70% 0.16 290 / .25);">↺</button>`:''}
+          <button onclick="openModal(${l.id})" title="Editar" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="background:rgba(255,255,255,0.03);color:var(--t2);border:1px solid var(--line);">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
           ${showArchived
-            ? `<button onclick="unarchiveLead(${l.id})" title="Desarquivar"
-                class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                style="background:rgba(34,197,94,.08);color:#6ee7b7;"
-                onmouseover="this.style.background='rgba(34,197,94,.2)'" onmouseout="this.style.background='rgba(34,197,94,.08)'">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12v4m4-4v4"/></svg>
-              </button>`
-            : `<button onclick="archiveLead(${l.id})" title="Arquivar"
-                class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                style="background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.3);"
-                onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='rgba(255,255,255,0.3)'">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/></svg>
-              </button>`}
-          <button onclick="openDeleteModal(${l.id})" title="Excluir"
-            class="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-            style="background:rgba(239,68,68,.08);color:#f87171;"
-            onmouseover="this.style.background='rgba(239,68,68,.2)'" onmouseout="this.style.background='rgba(239,68,68,.08)'">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            ? `<button onclick="unarchiveLead(${l.id})" title="Desarquivar" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:oklch(80% 0.16 140 / .08);color:oklch(85% 0.14 140);border:1px solid oklch(80% 0.16 140 / .25);"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>`
+            : `<button onclick="archiveLead(${l.id})" title="Arquivar" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="background:rgba(255,255,255,0.03);color:var(--t2);border:1px solid var(--line);"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>`}
+          <button onclick="openDeleteModal(${l.id})" title="Excluir" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:oklch(72% 0.16 20 / .08);color:oklch(85% 0.12 20);border:1px solid oklch(72% 0.16 20 / .25);">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
           </button>
         </div>
       </td>
@@ -2357,8 +2341,8 @@ function setShowArchived(val){
   showArchived=val;
   const tabA=document.getElementById('tab-ativos');
   const tabB=document.getElementById('tab-arquivados');
-  if(tabA){tabA.style.background=val?'transparent':'rgba(59,130,246,0.2)';tabA.style.color=val?'rgba(255,255,255,0.28)':'#93c5fd';}
-  if(tabB){tabB.style.background=val?'rgba(59,130,246,0.2)':'transparent';tabB.style.color=val?'#93c5fd':'rgba(255,255,255,0.28)';}
+  if(tabA) tabA.classList.toggle('active', !val);
+  if(tabB) tabB.classList.toggle('active', val);
   // na aba arquivados, limpa filtro de status e overdue
   if(val){overdueFilter=false;syncOverduePill();document.getElementById('f-status').value='';syncStatusPills();}
   const bulkBtn=document.getElementById('bulk-archive-btn');
