@@ -1182,35 +1182,57 @@
 
 <!-- ━━━━━━━━━━━━━━━━━━━━ ACTIVITY DRAWER ━━━━━━━━━━━━━━━━━━━━ -->
 <div id="activity-drawer" class="hidden fixed inset-0 z-50 flex justify-end">
-  <div class="flex-1 backdrop cursor-pointer" onclick="closeDrawer()"></div>
-  <div class="anim-slide w-full max-w-sm flex flex-col shadow-2xl" style="background:rgba(4,4,4,0.95); border-left:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(40px);">
-    <div class="px-5 py-4 flex items-start justify-between flex-shrink-0" style="border-bottom:1px solid var(--b1);">
-      <div>
-        <h2 id="drawer-name" class="font-semibold text-base" style="color:var(--t1)"></h2>
-        <div id="drawer-meta" class="flex flex-wrap items-center gap-2 mt-1.5"></div>
+  <div class="flex-1 cursor-pointer" onclick="closeDrawer()" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px);"></div>
+  <div class="anim-slide w-full flex flex-col shadow-2xl" style="max-width:520px;background:var(--panel-2);border-left:1px solid var(--line);overflow-y:auto;">
+    <!-- Hero sticky -->
+    <div class="sticky top-0 z-10 flex-shrink-0" style="background:rgba(15,15,18,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);">
+      <div class="flex items-center justify-between p-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="av av-9" id="drawer-avatar" style="background:linear-gradient(135deg, oklch(70% 0.16 250), oklch(70% 0.16 290));">?</div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 id="drawer-name" class="text-[15px] font-semibold truncate" style="color:var(--t1)"></h3>
+              <span id="drawer-status-badge"></span>
+            </div>
+            <div id="drawer-meta-line" class="mono text-[11.5px] mt-1" style="color:var(--t3)"></div>
+          </div>
+        </div>
+        <button onclick="closeDrawer()" class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ml-2" style="color:var(--t2);background:rgba(255,255,255,.03);border:1px solid var(--line);">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-      <button onclick="closeDrawer()" class="w-7 h-7 rounded-lg flex items-center justify-center ml-3 mt-0.5" style="color:var(--t3)" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='transparent'">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <!-- Abas internas do drawer -->
-    <div class="px-5 pt-3 flex-shrink-0" style="border-bottom:1px solid rgba(255,255,255,0.05);">
-      <div class="flex gap-1 text-xs font-semibold">
-        <button id="drawer-tab-resumo" onclick="setDrawerTab('resumo')" class="px-3 py-2 transition-all" style="color:var(--t1);border-bottom:2px solid #3b82f6;">Resumo</button>
-        <button id="drawer-tab-cadencia" onclick="setDrawerTab('cadencia')" class="px-3 py-2 transition-all" style="color:var(--t3);border-bottom:2px solid transparent;">Cadência</button>
-        <button id="drawer-tab-historico" onclick="setDrawerTab('historico')" class="px-3 py-2 transition-all" style="color:var(--t3);border-bottom:2px solid transparent;">Histórico</button>
+      <!-- Action bar -->
+      <div class="flex items-center gap-2 px-4 pb-3 flex-wrap">
+        <button onclick="openStatusMenuFromDrawer(event)" class="pill pill-accent active" style="height:32px;font-weight:600">Avançar etapa</button>
+        <a id="drawer-wa-link" href="#" target="_blank" class="pill" style="height:32px">
+          <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+          WhatsApp
+        </a>
+        <button onclick="openReunianoModalFromDrawer()" class="pill" style="height:32px">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Reunião
+        </button>
+        <button id="drawer-edit-btn" class="pill ml-auto" style="height:32px;padding:0 10px" title="Editar lead">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </button>
+      </div>
+      <!-- Abas internas -->
+      <div class="flex items-center gap-1 px-4" style="border-top:1px solid var(--line);">
+        <button id="drawer-tab-resumo"    onclick="setDrawerTab('resumo')"    class="maintab active" style="padding:10px 12px;font-size:12px">Resumo</button>
+        <button id="drawer-tab-cadencia"  onclick="setDrawerTab('cadencia')"  class="maintab"        style="padding:10px 12px;font-size:12px">Cadência</button>
+        <button id="drawer-tab-historico" onclick="setDrawerTab('historico')" class="maintab"        style="padding:10px 12px;font-size:12px">Histórico</button>
       </div>
     </div>
-    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+    <div class="flex-1 px-4 py-4 space-y-3">
       <!-- TAB RESUMO -->
-      <div id="drawer-pane-resumo" class="space-y-4">
+      <div id="drawer-pane-resumo" class="space-y-3">
         <div id="drawer-assignee-section"></div>
         <div id="drawer-score-section"></div>
         <div id="drawer-next-action-section"></div>
         <div id="drawer-reactivate-section"></div>
       </div>
       <!-- TAB CADÊNCIA -->
-      <div id="drawer-pane-cadencia" class="hidden space-y-4">
+      <div id="drawer-pane-cadencia" class="hidden space-y-3">
         <div id="drawer-cadencia-section"></div>
       </div>
       <!-- TAB HISTÓRICO -->
@@ -2664,6 +2686,18 @@ function closeDeleteModal(){document.getElementById('delete-modal').classList.ad
 async function confirmDelete(){if(pendingDeleteId===null)return;try{await DB.delete(pendingDeleteId);leads=leads.filter(l=>l.id!==pendingDeleteId);closeDeleteModal();renderAll();toast('Lead excluído');}catch(e){toast('Erro: '+e.message,'error');}}
 
 // ── ACTIVITY DRAWER ──────────────────────────────────────────
+let _drawerLeadId = null;
+// Abre o menu de status sob o botão "Avançar etapa" do drawer
+function openStatusMenuFromDrawer(ev){
+  if (_drawerLeadId == null) return;
+  try { openStatusMenu(_drawerLeadId, ev); } catch {}
+}
+// Move o lead para "Reunião Agendada" e vai pra aba Reuniões
+function openReunianoModalFromDrawer(){
+  if (_drawerLeadId == null) return;
+  _applyStatusChange(_drawerLeadId, 'Reunião Agendada').then(()=>{ setMainTab('reunioes'); });
+}
+
 function setDrawerTab(tab){
   const panes=[['resumo','drawer-pane-resumo'],['cadencia','drawer-pane-cadencia'],['historico','drawer-pane-historico']];
   panes.forEach(([k,pid])=>{
@@ -2678,24 +2712,31 @@ function setDrawerTab(tab){
 
 async function openDrawer(id){
   const l=leads.find(l=>l.id===id);if(!l)return;
+  _drawerLeadId = l.id; // usado por atalhos da action bar
   document.getElementById('activity-drawer').classList.remove('hidden');
   setDrawerTab('resumo');
-  document.getElementById('drawer-name').textContent=l.name;
-  const sc=SC[l.status]||SC['Lead Novo'];
-  const prio=PRIORITY_CFG[l.priority]||null;
-  const lvl=LEVEL_CFG[l.level]||null;
-  document.getElementById('drawer-meta').innerHTML=`
-    <span class="badge ${sc.badge}"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
-    ${iaChip(l,'lg')}
-    ${l.responsible?`<span class="text-xs" style="color:var(--t3)">· ${esc(l.responsible)}</span>`:''}
-    ${l.value?`<span class="text-xs font-semibold" style="color:#6ee7b7">· ${toCur(l.value)}</span>`:''}
-    ${l.capital?`<span class="text-xs font-semibold" style="color:#a78bfa">Cap: ${toCur(l.capital)}</span>`:''}
-    ${prio?`<span class="text-xs font-semibold" style="color:${prio.clr};">● ${esc(l.priority)}</span>`:''}
-    ${lvl?`<span class="text-xs font-semibold" style="color:${lvl.clr};">${esc(l.level)}</span>`:''}
-    ${l.community?`<span class="text-xs" style="color:var(--t3);" title="Comunidade">📌 ${esc(l.community)}</span>`:''}
-    ${l.first_contact?`<span class="text-xs" style="color:var(--t3);">1ºContato: ${toDateBR(l.first_contact)}</span>`:''}
-    ${l.status==='Perdido'&&l.loss_reason?`<span class="text-xs" style="color:#f87171;">Motivo: ${esc(l.loss_reason)}</span>`:''}
-  `;
+  document.getElementById('drawer-name').textContent = l.name;
+  // Avatar com iniciais + gradiente determinístico (baseado em id do lead)
+  const av = document.getElementById('drawer-avatar');
+  if (av) { av.textContent = initialsOf(l.name); av.style.background = avatarFor(l.id); }
+  // Status badge usando .sb-*
+  const sbClass = SB_CLASS[l.status] || 'sb-novo';
+  document.getElementById('drawer-status-badge').innerHTML = `<span class="sb ${sbClass}">${esc(l.status)}</span>`;
+  // Meta line: telefone · "há Nd" · IA chip · valor/prioridade (mono)
+  const days = l.entry ? diffDays(l.entry) : null;
+  const prio = PRIORITY_CFG[l.priority] || null;
+  const meta = [];
+  if (l.phone) meta.push(esc(l.phone));
+  if (days != null) meta.push(`há ${days}d`);
+  if (l.value) meta.push(`<span style="color:oklch(85% 0.14 140)">${toCur(l.value)}</span>`);
+  if (prio) meta.push(`<span style="color:${prio.clr}">● ${esc(l.priority)}</span>`);
+  if (l.status==='Perdido' && l.loss_reason) meta.push(`<span style="color:oklch(85% 0.12 20)">motivo: ${esc(l.loss_reason)}</span>`);
+  document.getElementById('drawer-meta-line').innerHTML = meta.join(' · ');
+  // Atalhos do action bar
+  const wa = document.getElementById('drawer-wa-link');
+  if (wa) wa.href = toWA(l.phone);
+  const editBtn = document.getElementById('drawer-edit-btn');
+  if (editBtn) editBtn.onclick = () => openModal(l.id);
 
   // ── Responsável (assigned_to) ──
   await Users.ensureLoaded();
