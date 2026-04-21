@@ -805,41 +805,53 @@
   </div><!-- /tabpanel-kanban -->
 
   <!-- ══ TAB: AUTOMAÇÕES ══ -->
-  <div id="tabpanel-automacoes" class="hidden space-y-5">
-    <div class="flex items-start justify-between gap-4 flex-wrap">
+  <div id="tabpanel-automacoes" class="hidden space-y-4 anim-up">
+    <!-- Header da aba -->
+    <div class="flex items-end justify-between gap-6">
       <div>
-        <h2 class="text-base font-semibold" style="color:var(--t1)">Automações — disparo por etapa</h2>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Sincronize templates do Chatwoot e vincule cada um a uma etapa do funil. Quando um lead muda de status, você recebe a sugestão de disparo.</p>
+        <div class="ov mb-2">DISPAROS · CHATWOOT</div>
+        <h1 class="text-[28px] font-semibold leading-none" style="letter-spacing:-0.025em;color:var(--t1)">Automações</h1>
+        <p class="text-[13px] mt-2" style="color:var(--t2)" id="automacoes-header-sub">Vincule templates às etapas · quando o lead muda de status, dispara automaticamente.</p>
       </div>
       <div class="flex items-center gap-2">
-        <button onclick="syncChatwootTemplates()" class="text-xs font-semibold px-3 py-2 rounded-lg transition-all" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">🔄 Sincronizar templates</button>
+        <button onclick="syncChatwootTemplates()" class="pill">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Sincronizar
+        </button>
       </div>
     </div>
 
     <!-- Aviso config Chatwoot -->
-    <div id="automacoes-cw-warn" class="hidden rounded-xl px-4 py-3 text-sm" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;">
-      ⚠️ Configure a conexão do Chatwoot (URL, Account ID, Inbox ID, Token) na engrenagem antes de sincronizar.
+    <div id="automacoes-cw-warn" class="hidden rounded-xl px-4 py-3 text-[12px] flex items-center gap-2" style="background:oklch(80% 0.15 75 / .1);border:1px solid oklch(80% 0.15 75 / .3);color:oklch(88% 0.12 75);">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Configure Chatwoot (URL, Account ID, Inbox ID, Token) na engrenagem antes de sincronizar.
     </div>
 
-    <!-- Resumo por etapa -->
-    <div class="glass rounded-2xl p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold" style="color:var(--t1)">Mapa por etapa</h3>
-        <span id="automacoes-summary-count" class="text-xs" style="color:var(--t3)"></span>
+    <!-- Mapa por etapa -->
+    <div class="panel">
+      <div class="panel-hd">
+        <div>
+          <div class="panel-title">Mapa por etapa</div>
+          <div class="panel-sub">Template vinculado a cada etapa do funil</div>
+        </div>
+        <span id="automacoes-summary-count" class="mono text-[11px]" style="color:var(--t3)"></span>
       </div>
-      <div id="automacoes-stage-map" class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));"></div>
+      <div id="automacoes-stage-map" class="p-5 grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));"></div>
     </div>
 
     <!-- Lista de templates -->
-    <div class="glass rounded-2xl overflow-hidden">
-      <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div class="panel">
+      <div class="panel-hd">
         <div>
-          <h3 class="text-sm font-semibold" style="color:var(--t1)">Templates disponíveis no Chatwoot</h3>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Escolha a etapa em que cada template deve ser sugerido ou disparado.</p>
+          <div class="panel-title">Templates disponíveis no Chatwoot</div>
+          <div class="panel-sub">Escolha a etapa onde cada template deve disparar</div>
         </div>
-        <input id="automacoes-search" type="text" placeholder="Filtrar por nome…" oninput="renderAutomacoesTemplates()" class="border rounded-lg px-3 py-1.5 text-xs" style="min-width:180px;"/>
+        <div class="relative">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+          <input id="automacoes-search" type="text" placeholder="Filtrar por nome…" oninput="renderAutomacoesTemplates()" class="rounded-lg" style="height:30px;padding:0 12px 0 30px;font-size:12px;width:220px;"/>
+        </div>
       </div>
-      <div id="automacoes-templates" class="divide-y" style="--tw-divide-opacity:.06;"></div>
+      <div id="automacoes-templates"></div>
     </div>
   </div><!-- /tabpanel-automacoes -->
 
@@ -4321,23 +4333,35 @@ function renderAutomacoesSummary(){
   const wrap=document.getElementById('automacoes-stage-map');
   const count=document.getElementById('automacoes-summary-count');
   const mappedStages=new Set(Automacoes.mappings.filter(m=>m.enabled).map(m=>m.stage));
-  count.textContent=`${mappedStages.size} de ${STATUSES.length} etapas com template`;
-  wrap.innerHTML=STATUSES.map(stage=>{
-    const m=Automacoes.byStage(stage);
-    const sc=SC[stage]||SC['Lead Novo'];
-    const hasT=m&&m.enabled&&m.template_name;
-    return`<div class="rounded-xl p-3" style="background:rgba(255,255,255,0.03);border:1px solid ${hasT?sc.clr+'33':'rgba(255,255,255,0.06)'};">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold" style="color:${sc.clr};">● ${esc(stage)}</span>
-        ${hasT?`<span class="text-xs" style="color:var(--t3)">${m.auto_trigger?'⚡ auto':'sugerido'}</span>`:''}
-      </div>
-      <p class="text-sm mt-1.5 font-mono" style="color:${hasT?'var(--t1)':'var(--t3)'};">${hasT?esc(m.template_name):'— sem template —'}</p>
-      ${hasT?`<div class="flex gap-2 mt-2">
-        <button onclick="scrollToTemplate('${escAttr(m.template_name)}')" class="text-xs transition-colors" style="color:#60a5fa;">ver</button>
-        <button onclick="toggleStageAuto('${escAttr(stage)}')" class="text-xs transition-colors" style="color:var(--t3)" title="Alternar auto">${m.auto_trigger?'parar auto':'ativar auto'}</button>
-        <button onclick="unmapStage('${escAttr(stage)}')" class="text-xs transition-colors" style="color:#f87171;">remover</button>
-      </div>`:''}
-    </div>`;
+  if (count) count.textContent=`${mappedStages.size} / ${STATUSES.length} etapas com template`;
+  // Sub do header (dinâmico)
+  const sub = document.getElementById('automacoes-header-sub');
+  if (sub) sub.textContent = `${mappedStages.size} etapa${mappedStages.size===1?'':'s'} com template ativo · ${Automacoes.templates.length} template${Automacoes.templates.length===1?'':'s'} sincronizado${Automacoes.templates.length===1?'':'s'}`;
+
+  wrap.innerHTML=STATUSES.map(stage => {
+    const m = Automacoes.byStage(stage);
+    const hasT = m && m.enabled && m.template_name;
+    const dot = KB_DOT[stage] || '#71717a';
+    return `
+      <div class="rounded-xl p-3 transition-all" style="background:rgba(255,255,255,0.02);border:1px solid ${hasT?'var(--accent-line)':'var(--line)'};">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="dot" style="background:${dot};width:7px;height:7px"></span>
+            <span class="text-[11px] font-semibold uppercase" style="letter-spacing:.08em;color:var(--t1)">${esc(stage)}</span>
+          </div>
+          ${hasT
+            ? `<span class="chip" style="background:${m.auto_trigger?'var(--accent-soft)':'rgba(255,255,255,.04)'};border-color:${m.auto_trigger?'var(--accent-line)':'var(--line)'};color:${m.auto_trigger?'#bfd3ff':'var(--t3)'}">${m.auto_trigger?'⚡ auto':'sugerido'}</span>`
+            : ''}
+        </div>
+        <p class="mono text-[12px]" style="color:${hasT?'var(--t1)':'var(--t4)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${hasT?esc(m.template_name):'— sem template —'}</p>
+        ${hasT
+          ? `<div class="flex items-center gap-3 mt-2 text-[11px]">
+               <button onclick="scrollToTemplate('${escAttr(m.template_name)}')" style="color:var(--accent)">ver</button>
+               <button onclick="toggleStageAuto('${escAttr(stage)}')" style="color:var(--t3)" title="Alternar auto">${m.auto_trigger?'parar auto':'ativar auto'}</button>
+               <button onclick="unmapStage('${escAttr(stage)}')" style="color:oklch(85% 0.12 20)">remover</button>
+             </div>`
+          : ''}
+      </div>`;
   }).join('');
 }
 
@@ -4347,44 +4371,45 @@ function renderAutomacoesTemplates(){
   const list=Automacoes.templates.filter(t=>!q||t.name.toLowerCase().includes(q)||(t.body||'').toLowerCase().includes(q));
   if(!Automacoes.templates.length){
     wrap.innerHTML=`<div class="px-5 py-10 text-center">
-      <p class="text-sm" style="color:var(--t2)">Nenhum template sincronizado ainda.</p>
-      <p class="text-xs mt-1" style="color:var(--t3)">Clique em "Sincronizar templates" acima para buscar do Chatwoot.</p>
+      <p class="text-[13px]" style="color:var(--t2)">Nenhum template sincronizado ainda.</p>
+      <p class="text-[11px] mt-1" style="color:var(--t3)">Clique em <strong>Sincronizar</strong> acima para buscar do Chatwoot.</p>
     </div>`;
     return;
   }
   if(!list.length){
-    wrap.innerHTML=`<div class="px-5 py-8 text-center text-sm" style="color:var(--t3)">Nada encontrado para "${esc(q)}"</div>`;
+    wrap.innerHTML=`<div class="px-5 py-8 text-center text-[12px]" style="color:var(--t3)">Nada encontrado para "${esc(q)}"</div>`;
     return;
   }
-  wrap.innerHTML=list.map(tpl=>{
-    const mapped=Automacoes.byTemplate(tpl.name);
-    const stageOpts=['<option value="">— escolher etapa —</option>']
-      .concat(STATUSES.map(s=>`<option value="${escAttr(s)}">${esc(s)}</option>`))
+  wrap.innerHTML=list.map(tpl => {
+    const mapped = Automacoes.byTemplate(tpl.name);
+    const stageOpts = ['<option value="">— escolher etapa —</option>']
+      .concat(STATUSES.map(s => `<option value="${escAttr(s)}">${esc(s)}</option>`))
       .join('');
-    return`<div class="px-5 py-4" id="tpl-row-${escAttr(tpl.name)}" style="border-top:1px solid rgba(255,255,255,0.06);">
+    const approved = tpl.status && /approved/i.test(tpl.status);
+    return `<div class="px-5 py-4" id="tpl-row-${escAttr(tpl.name)}" style="border-top:1px solid var(--line);">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-semibold font-mono" style="color:var(--t1)">${esc(tpl.name)}</span>
-            <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2);">${esc(tpl.language||'pt_BR')}</span>
-            <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(168,85,247,.1);color:#c4b5fd;border:1px solid rgba(168,85,247,.2);">${esc(tpl.category||'MARKETING')}</span>
-            ${tpl.status?`<span class="text-xs" style="color:${/approved/i.test(tpl.status)?'#6ee7b7':'#fcd34d'};">● ${esc(tpl.status)}</span>`:''}
+            <span class="mono text-[12.5px] font-semibold" style="color:var(--t1)">${esc(tpl.name)}</span>
+            <span class="chip" style="background:oklch(70% 0.16 250 / .12);border-color:oklch(70% 0.16 250 / .3);color:#bfd3ff">${esc(tpl.language||'pt_BR')}</span>
+            <span class="chip" style="background:oklch(70% 0.16 290 / .12);border-color:oklch(70% 0.16 290 / .3);color:oklch(85% 0.12 290)">${esc(tpl.category||'MARKETING')}</span>
+            ${tpl.status?`<span class="chip" style="background:${approved?'oklch(80% 0.16 140 / .12)':'oklch(80% 0.15 75 / .12)'};border-color:${approved?'oklch(80% 0.16 140 / .3)':'oklch(80% 0.15 75 / .3)'};color:${approved?'oklch(88% 0.14 140)':'oklch(88% 0.12 75)'}">${approved?'●':'○'} ${esc(tpl.status)}</span>`:''}
           </div>
-          ${tpl.body?`<pre class="text-xs mt-2 whitespace-pre-wrap" style="color:var(--t2);background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);">${esc(tpl.body)}</pre>`:''}
+          ${tpl.body?`<pre class="mono text-[11.5px] mt-2 whitespace-pre-wrap" style="color:var(--t2);background:rgba(255,255,255,0.02);padding:10px 12px;border-radius:8px;border:1px solid var(--line);">${esc(tpl.body)}</pre>`:''}
           ${mapped.length?`<div class="mt-2 flex flex-wrap gap-1.5">
-            ${mapped.map(m=>`<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#6ee7b7;">vinculado: ${esc(m.stage)}${m.auto_trigger?' ⚡':''}</span>`).join('')}
+            ${mapped.map(m=>`<span class="chip" style="background:oklch(80% 0.16 140 / .08);border-color:oklch(80% 0.16 140 / .25);color:oklch(88% 0.14 140)">vinculado · ${esc(m.stage)}${m.auto_trigger?' ⚡':''}</span>`).join('')}
           </div>`:''}
         </div>
         <div class="flex items-end gap-2 flex-wrap">
           <div>
-            <label class="block text-xs mb-1" style="color:var(--t3)">Vincular à etapa</label>
-            <select data-tpl="${escAttr(tpl.name)}" class="tpl-stage-sel border rounded-lg px-2 py-1.5 text-xs" style="min-width:170px;">${stageOpts}</select>
+            <label class="ov block mb-1.5">Vincular à etapa</label>
+            <select data-tpl="${escAttr(tpl.name)}" class="tpl-stage-sel rounded-lg" style="height:30px;padding:0 10px;font-size:12px;min-width:170px;">${stageOpts}</select>
           </div>
-          <label class="flex items-center gap-1 text-xs" style="color:var(--t3)" title="Dispara sem pedir confirmação quando um lead entra na etapa">
+          <label class="flex items-center gap-1.5 text-[11px] pill cursor-pointer" style="height:30px" title="Dispara sem pedir confirmação quando um lead entra na etapa">
             <input type="checkbox" data-tpl-auto="${escAttr(tpl.name)}" checked/> auto
           </label>
-          <button onclick="mapTemplateToStage('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:#93c5fd;">Vincular</button>
-          <button onclick="testDispatchTemplate('${escAttr(tpl.name)}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#6ee7b7;" title="Enviar para o primeiro lead selecionado">Testar</button>
+          <button onclick="mapTemplateToStage('${escAttr(tpl.name)}')" class="pill pill-accent active" style="height:30px;font-weight:600">Vincular</button>
+          <button onclick="testDispatchTemplate('${escAttr(tpl.name)}')" class="pill" style="height:30px;background:oklch(80% 0.16 140 / .08);border-color:oklch(80% 0.16 140 / .25);color:oklch(88% 0.14 140)" title="Enviar para o primeiro lead selecionado">Testar</button>
         </div>
       </div>
     </div>`;
