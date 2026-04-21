@@ -9,67 +9,194 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #000;
-      --s1: #080808;
-      --s2: rgba(255,255,255,0.03);
-      --s3: rgba(255,255,255,0.06);
-      --b1: rgba(255,255,255,0.08);
-      --b2: rgba(255,255,255,0.13);
-      --t1: #fafafa;
-      --t2: rgba(255,255,255,0.55);
-      --t3: rgba(255,255,255,0.28);
+      /* ── Design handoff tokens (OKLCH) ── */
+      --bg:#060607;
+      --panel:#0b0b0d;
+      --panel-2:#0f0f12;
+      --line:rgba(255,255,255,0.06);
+      --line-2:rgba(255,255,255,0.11);
+      --t1:#f5f5f7;
+      --t2:rgba(245,245,247,0.58);
+      --t3:rgba(245,245,247,0.32);
+      --t4:rgba(245,245,247,0.18);
+
+      /* Accent (tweakable) */
+      --accent:oklch(70% 0.16 250);
+      --accent-soft:oklch(70% 0.16 250 / .14);
+      --accent-line:oklch(70% 0.16 250 / .32);
+
+      /* Semantic */
+      --iris:oklch(70% 0.16 290);
+      --cyan:oklch(78% 0.14 200);
+      --lime:oklch(80% 0.16 140);
+      --amber:oklch(80% 0.15 75);
+      --rose:oklch(72% 0.16 20);
+
+      --radius:12px;
+
+      /* ── Legacy aliases (mantém o HTML antigo funcionando) ── */
+      --s1:var(--panel);
+      --s2:rgba(255,255,255,0.03);
+      --s3:rgba(255,255,255,0.06);
+      --b1:var(--line);
+      --b2:var(--line-2);
     }
 
     * { box-sizing: border-box; }
-    body { background: var(--bg); color: var(--t1); font-family: 'DM Sans',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; min-height:100vh; }
+    html, body { background: var(--bg); color: var(--t1); font-family: 'DM Sans',-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; letter-spacing:-0.005em; font-size:13px; }
+    .mono { font-family: 'JetBrains Mono',ui-monospace,monospace; font-feature-settings:"tnum","ss01"; letter-spacing:-0.01em; }
+
+    /* Ambient glow (fixed, trás de tudo) */
+    body::before {
+      content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, oklch(70% 0.16 250 / .08), transparent 60%),
+        radial-gradient(800px 500px at 95% 0%, oklch(70% 0.16 290 / .05), transparent 55%);
+    }
 
     /* Noise overlay */
-    .noise { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.025;
-      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .noise { position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.025; mix-blend-mode:overlay;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
-    /* Glass card */
+    /* ── Primitivos ── */
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,0) 40%), var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 20px 40px -20px rgba(0,0,0,.6);
+    }
+    .panel-hd {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:14px 18px; border-bottom:1px solid var(--line);
+    }
+    .panel-title { font-size:13px; font-weight:600; color:var(--t1); letter-spacing:-0.01em; }
+    .panel-sub { font-size:11.5px; color:var(--t3); margin-top:2px; }
+    .ov { font-size:10px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--t3); }
+
+    /* Glass (legado — redefinido para combinar com o panel novo) */
     .glass {
-      background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.55) 100%);
-      border: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(40px);
-      box-shadow: rgba(255,255,255,0.06) 0px 1px 0px 0px inset, rgba(0,0,0,0.5) 0px 20px 50px;
+      background: linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,0) 40%), var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 20px 40px -20px rgba(0,0,0,.6);
       transition: border-color .2s;
     }
-    .glass:hover { border-color: rgba(255,255,255,0.14); }
+    .glass:hover { border-color: var(--line-2); }
+
+    /* Pill button */
+    .pill {
+      display:inline-flex; align-items:center; gap:6px;
+      height:30px; padding:0 12px; border-radius:99px;
+      font-size:12px; font-weight:500; color:var(--t2);
+      background:rgba(255,255,255,0.03); border:1px solid var(--line);
+      transition:all .15s; cursor:pointer; white-space:nowrap;
+    }
+    .pill:hover { color:var(--t1); border-color:var(--line-2); }
+    .pill.active { color:var(--t1); background:rgba(255,255,255,0.06); border-color:var(--line-2); }
+    .pill-accent.active { background:var(--accent-soft); border-color:var(--accent-line); color:#bfd3ff; }
+
+    /* Segmented control */
+    .seg { display:inline-flex; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; }
+    .seg > button { height:26px; padding:0 12px; border-radius:7px; font-size:12px; font-weight:500; color:var(--t3); transition:all .15s; background:transparent; border:0; cursor:pointer; }
+    .seg > button:hover { color:var(--t2); }
+    .seg > button.active { background:rgba(255,255,255,0.08); color:var(--t1); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04); }
+
+    /* Chip genérico */
+    .chip {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:600;
+      border:1px solid transparent;
+    }
+
+    /* Status badges novos (sb-*) */
+    .sb { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:600; border:1px solid; white-space:nowrap; }
+    .sb-novo  { background:rgba(113,113,122,.1);           color:#a1a1aa;             border-color:rgba(113,113,122,.22); }
+    .sb-ia    { background:oklch(78% 0.14 200 / .12);      color:oklch(85% 0.12 200); border-color:oklch(78% 0.14 200 / .3); }
+    .sb-qual  { background:oklch(70% 0.16 250 / .12);      color:#bfd3ff;             border-color:oklch(70% 0.16 250 / .3); }
+    .sb-aikon { background:oklch(80% 0.15 75 / .12);       color:oklch(88% 0.12 75);  border-color:oklch(80% 0.15 75 / .3); }
+    .sb-reun  { background:oklch(70% 0.16 290 / .12);      color:oklch(85% 0.12 290); border-color:oklch(70% 0.16 290 / .3); }
+    .sb-aber  { background:oklch(75% 0.15 45 / .12);       color:oklch(85% 0.12 45);  border-color:oklch(75% 0.15 45 / .3); }
+    .sb-conv  { background:oklch(80% 0.16 140 / .12);      color:oklch(88% 0.14 140); border-color:oklch(80% 0.16 140 / .3); }
+    .sb-perd  { background:oklch(72% 0.16 20 / .12);       color:oklch(85% 0.12 20);  border-color:oklch(72% 0.16 20 / .3); }
+
+    /* Avatar */
+    .av { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-weight:600; color:#fff; flex-shrink:0; }
+    .av-6 { width:22px; height:22px; font-size:9px; }
+    .av-7 { width:28px; height:28px; font-size:10.5px; }
+    .av-9 { width:36px; height:36px; font-size:12px; }
+
+    /* Metric */
+    .metric { font-variant-numeric:tabular-nums; letter-spacing:-0.035em; }
+
+    /* Delta arrows (KPIs) */
+    .delta-up { color:var(--lime); }
+    .delta-down { color:var(--rose); }
+    .delta-flat { color:var(--t3); }
+
+    /* Progress bars */
+    .pbar { height:3px; border-radius:99px; background:rgba(255,255,255,.05); overflow:hidden; }
+    .pbar > span { display:block; height:100%; border-radius:99px; }
+    .stack-bar { display:flex; height:6px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,0.04); }
+    .stack-bar > span { height:100%; transition:flex .3s; }
+
+    /* Dot */
+    .dot { display:inline-block; width:6px; height:6px; border-radius:50%; }
+
+    /* Command palette kbd */
+    .kbd { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; border-radius:4px; background:rgba(255,255,255,0.06); border:1px solid var(--line-2); color:var(--t2); font-family:'JetBrains Mono'; font-size:10px; }
+    .cmdk-btn { display:inline-flex; align-items:center; gap:10px; height:32px; padding:0 10px 0 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--line); color:var(--t3); font-size:12.5px; min-width:260px; cursor:pointer; transition:all .15s; }
+    .cmdk-btn:hover { border-color:var(--line-2); color:var(--t2); }
+
+    /* Tabs topbar */
+    .maintab {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:14px 14px; font-size:13px; font-weight:500; color:var(--t3);
+      border-bottom:1.5px solid transparent; transition:color .15s, border-color .15s;
+      background:transparent; border-left:0; border-right:0; border-top:0; cursor:pointer;
+    }
+    .maintab:hover { color:var(--t2); }
+    .maintab.active { color:var(--t1); border-bottom-color:var(--accent); }
 
     /* Scrollbar */
-    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius:4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius:99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 
     /* Inputs dark */
     input, select, textarea {
-      background: rgba(255,255,255,0.04) !important;
-      border-color: rgba(255,255,255,0.08) !important;
+      background: rgba(255,255,255,0.03) !important;
+      border-color: var(--line) !important;
       color: var(--t1) !important;
+      font-family: inherit;
     }
-    input::placeholder, textarea::placeholder { color: var(--t3) !important; }
+    input::placeholder, textarea::placeholder { color: var(--t4) !important; }
     input:focus, select:focus, textarea:focus {
       outline: none !important;
-      border-color: rgba(59,130,246,.5) !important;
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important;
+      border-color: var(--accent-line) !important;
+      box-shadow: 0 0 0 3px var(--accent-soft) !important;
     }
-    select option { background: #111; color: var(--t1); }
-    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor:pointer; }
-    input[type="checkbox"] { accent-color: #3b82f6; width:14px; height:14px; cursor:pointer; }
+    select option { background: var(--panel-2); color: var(--t1); }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor:pointer; }
+    input[type="checkbox"] { accent-color: var(--accent); width:14px; height:14px; cursor:pointer; }
+
+    /* Focus ring (botões e links) */
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 
     /* Animations */
-    @keyframes fadeUp   { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes slideIn  { from { transform:translateX(100%); }            to { transform:translateX(0); } }
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideIn  { from { transform:translateX(100%); }           to { transform:translateX(0); } }
     @keyframes toastIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes spin     { to   { transform:rotate(360deg); } }
-    .anim-up   { animation: fadeUp  0.2s ease both; }
-    .anim-slide{ animation: slideIn 0.22s ease both; }
-    .anim-toast{ animation: toastIn 0.2s ease both; }
-    .spin      { animation: spin 1s linear infinite; }
+    @keyframes ping     { 0% { transform:scale(1); opacity:.8; } 80%,100% { transform:scale(2.2); opacity:0; } }
+    .anim-up    { animation: fadeUp  0.25s ease both; }
+    .anim-slide { animation: slideIn 0.22s ease both; }
+    .anim-toast { animation: toastIn 0.2s ease both; }
+    .spin       { animation: spin 1s linear infinite; }
 
     /* Overdue / due-today */
     .overdue   { color: #f87171; font-weight:600; }
@@ -240,86 +367,142 @@
 <!-- NOISE OVERLAY -->
 <div class="noise" aria-hidden="true"></div>
 
+<!-- TWEAKS (canto inferior direito) — hue + densidade -->
+<button id="tweaks-toggle" onclick="toggleTweaks()" title="Ajustar aparência"
+  class="fixed bottom-5 right-5 z-[60] w-9 h-9 rounded-full flex items-center justify-center transition-all"
+  style="background:rgba(10,10,12,0.94);border:1px solid var(--line-2);backdrop-filter:blur(20px);color:var(--t2);box-shadow:0 8px 24px rgba(0,0,0,.4);">
+  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"/></svg>
+</button>
+<div id="tweaks" class="hidden fixed right-5 bottom-16 z-[60] anim-up" style="width:300px;padding:16px;border-radius:16px;background:rgba(10,10,12,0.94);backdrop-filter:blur(24px);border:1px solid var(--line-2);box-shadow:0 30px 80px rgba(0,0,0,.7);">
+  <div class="flex items-center justify-between mb-3">
+    <span class="ov">Tweaks</span>
+    <button onclick="toggleTweaks()" class="w-6 h-6 rounded-md flex items-center justify-center" style="color:var(--t3)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="space-y-4">
+    <div>
+      <div class="text-[11px] font-medium mb-2" style="color:var(--t2)">Cor de destaque</div>
+      <div class="flex items-center gap-2" id="tw-accent">
+        <button data-hue="250" title="Azul"     class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(70% 0.16 250)"></button>
+        <button data-hue="290" title="Roxo"     class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(70% 0.16 290)"></button>
+        <button data-hue="200" title="Ciano"    class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(78% 0.14 200)"></button>
+        <button data-hue="140" title="Verde"    class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(80% 0.16 140)"></button>
+        <button data-hue="75"  title="Âmbar"    class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(80% 0.15 75)"></button>
+        <button data-hue="20"  title="Vermelho" class="tw-accent w-7 h-7 rounded-full transition-all" style="background:oklch(72% 0.16 20)"></button>
+      </div>
+    </div>
+    <div>
+      <div class="text-[11px] font-medium mb-2" style="color:var(--t2)">Densidade</div>
+      <div class="seg w-full" id="tw-density" style="display:flex">
+        <button data-dens="compact" class="flex-1 active">Compacto</button>
+        <button data-dens="comfy"   class="flex-1">Confortável</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toasts" class="fixed bottom-6 right-6 z-[300] flex flex-col gap-2 pointer-events-none"></div>
 
-<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ HEADER ━━━━━━━━━━━━━━━━━━━━━━━━ -->
-<header style="background:rgba(0,0,0,0.75); border-bottom:1px solid rgba(255,255,255,0.07); backdrop-filter:blur(20px);" class="sticky top-0 z-30">
-  <div class="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ TOPBAR (single row, 56px) ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<header class="sticky top-0 z-30" style="background:rgba(6,6,7,0.78); border-bottom:1px solid var(--line); backdrop-filter:blur(20px);">
+  <div class="max-w-[1440px] mx-auto px-6 h-14 flex items-center gap-4">
 
-    <!-- Logo -->
-    <div class="flex items-center gap-3 flex-shrink-0">
-      <div style="background:linear-gradient(135deg,#3b82f6,#8b5cf6); border-radius:10px;" class="w-9 h-9 flex items-center justify-center font-bold text-base text-white shadow-lg">Z</div>
-      <div>
-        <h1 class="text-base font-semibold leading-none" style="color:var(--t1)">CRM Zeve</h1>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Gestão de Leads</p>
+    <!-- Logo + breadcrumb -->
+    <div class="flex items-center gap-2.5 flex-shrink-0">
+      <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg, oklch(70% 0.16 250), oklch(70% 0.16 290));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);">Z</div>
+      <span class="text-[13.5px] font-semibold">Zeve</span>
+      <span class="text-[12px]" style="color:var(--t3)">/</span>
+      <span class="text-[13.5px]" style="color:var(--t2)">CRM</span>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="flex items-center gap-1 ml-4" id="maintabs">
+      <button id="maintab-leads" onclick="setMainTab('leads')" class="maintab active">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Leads
+      </button>
+      <button id="maintab-kanban" onclick="setMainTab('kanban')" class="maintab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
+        Kanban
+      </button>
+      <button id="maintab-hoje" onclick="setMainTab('hoje')" class="maintab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Hoje
+      </button>
+      <button id="maintab-reunioes" onclick="setMainTab('reunioes')" class="maintab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Reuniões
+      </button>
+      <button id="maintab-evolucao" onclick="setMainTab('evolucao')" class="maintab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-5"/></svg>
+        Evolução
+      </button>
+      <button id="maintab-automacoes" onclick="setMainTab('automacoes')" class="maintab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Automações
+      </button>
+    </nav>
+
+    <div class="flex-1"></div>
+
+    <!-- Command palette (placeholder — abre a busca da aba Leads) -->
+    <button class="cmdk-btn hidden lg:inline-flex" onclick="focusSearch()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+      <span class="flex-1 text-left">Buscar leads…</span>
+      <span class="kbd">⌘K</span>
+    </button>
+
+    <!-- Status de sincronização -->
+    <div id="conn-chip" class="hidden md:flex items-center gap-2 px-3 h-8 rounded-lg" style="background:rgba(255,255,255,0.03);border:1px solid var(--line);" title="Sincronização com o banco">
+      <span style="position:relative;display:inline-flex">
+        <span id="conn-dot" style="width:6px;height:6px;border-radius:50%;background:oklch(80% 0.16 140);box-shadow:0 0 8px oklch(80% 0.16 140);"></span>
+        <span id="conn-ring" style="position:absolute;inset:0;border-radius:50%;background:oklch(80% 0.16 140);animation:ping 1.8s ease-out infinite;"></span>
+      </span>
+      <span id="conn-label" class="text-[12px]" style="color:var(--t2)">Sincronizado</span>
+    </div>
+
+    <!-- Notificações -->
+    <div class="relative">
+      <button id="notif-btn" onclick="toggleNotifDropdown(event)" title="Notificações"
+        class="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
+        style="background:rgba(255,255,255,0.03);border:1px solid var(--line);">
+        <svg width="14" height="14" style="color:var(--t2)" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0m6 0H9"/></svg>
+        <span id="notif-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[.6rem] font-bold flex items-center justify-center"
+          style="background:var(--rose);color:white;border:1px solid var(--bg);">0</span>
+      </button>
+      <div id="notif-dropdown" class="hidden absolute right-0 mt-2 rounded-xl shadow-2xl overflow-hidden panel" style="width:320px;max-height:420px;z-index:9999;">
+        <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid var(--line);">
+          <p class="text-[13px] font-semibold" style="color:var(--t1)">Notificações</p>
+          <button onclick="markAllNotifRead()" class="text-[11px] transition-colors" style="color:var(--t3)">Marcar todas como lidas</button>
+        </div>
+        <div id="notif-list" class="overflow-y-auto" style="max-height:360px;">
+          <p class="text-xs text-center py-6" style="color:var(--t3)">Carregando…</p>
+        </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center gap-2">
-      <!-- Notificações (sino) -->
-      <div class="relative">
-        <button id="notif-btn" onclick="toggleNotifDropdown(event)" title="Notificações"
-          class="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
-          style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
-          <svg class="w-4 h-4" style="color:var(--t2)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0m6 0H9"/></svg>
-          <span id="notif-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[.6rem] font-bold flex items-center justify-center"
-            style="background:#ef4444;color:white;border:1px solid rgba(0,0,0,.5);">0</span>
-        </button>
-        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 rounded-xl shadow-2xl overflow-hidden" style="width:320px;max-height:420px;background:#0b0b0f;border:1px solid rgba(255,255,255,0.1);z-index:9999;">
-          <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-            <p class="text-sm font-semibold" style="color:var(--t1)">Notificações</p>
-            <button onclick="markAllNotifRead()" class="text-xs transition-colors" style="color:var(--t3)" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='var(--t3)'">Marcar todas como lidas</button>
-          </div>
-          <div id="notif-list" class="overflow-y-auto" style="max-height:360px;">
-            <p class="text-xs text-center py-6" style="color:var(--t3)">Carregando…</p>
-          </div>
+    <!-- Settings -->
+    <button onclick="openSettings()" class="w-8 h-8 flex items-center justify-center rounded-lg transition-all" style="background:rgba(255,255,255,0.03);border:1px solid var(--line);" title="Configurações">
+      <svg width="14" height="14" style="color:var(--t2)" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+
+    <!-- User chip -->
+    <div class="flex items-center gap-2 h-8 px-2.5 rounded-lg" style="background:rgba(255,255,255,0.03);border:1px solid var(--line);">
+      <span class="av av-6" id="user-avatar" style="background:linear-gradient(135deg, oklch(70% 0.16 250), oklch(70% 0.16 290));">?</span>
+      <div class="leading-none">
+        <div class="flex items-center gap-1.5">
+          <span id="user-name" class="text-[12px] font-semibold" style="color:var(--t1)"></span>
+          <span id="user-role" class="text-[9px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded" style="color:var(--t3);background:rgba(255,255,255,0.04);"></span>
         </div>
       </div>
-
-      <!-- User pill (nome + role + sair) -->
-      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
-           style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
-        <span style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.65rem;" id="user-avatar">?</span>
-        <div class="leading-tight">
-          <span id="user-name" style="color:var(--t1);font-weight:600;"></span>
-          <span id="user-role" class="block" style="color:var(--t3);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;"></span>
-        </div>
-        <button onclick="Auth.logout()" title="Sair" class="ml-1 transition-colors" style="color:var(--t3)" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='var(--t3)'">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-        </button>
-      </div>
-      <!-- Connection pill -->
-      <button onclick="openSettings()" id="conn-btn"
-        style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:99px;"
-        class="flex items-center gap-2 px-3 py-1.5 text-xs transition-all hover:border-white/20">
-        <span id="conn-dot" style="background:#52525b;" class="w-1.5 h-1.5 rounded-full"></span>
-        <span id="conn-label" style="color:var(--t3)">Local</span>
+      <button onclick="Auth.logout()" title="Sair" class="ml-1 transition-colors" style="color:var(--t3)">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       </button>
-
-      <!-- Settings -->
-      <button onclick="openSettings()"
-        style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px;"
-        class="w-8 h-8 flex items-center justify-center transition-all hover:border-white/20"
-        title="Configurações">
-        <svg class="w-3.5 h-3.5" style="color:var(--t3)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
-      </button>
-
-      <button onclick="openModal()" class="btn-blue flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Adicionar Lead
-      </button>
-      <button onclick="exportXLS()" class="btn-green flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Exportar
-      </button>
-      <button onclick="triggerImport()" class="flex items-center gap-2 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all" style="background:#7c3aed" onmouseover="this.style.background='#8b5cf6';this.style.boxShadow='0 0 20px rgba(139,92,246,.3)'" onmouseout="this.style.background='#7c3aed';this.style.boxShadow='none'">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0l-4 4m4-4v12"/></svg>
-        Importar
-      </button>
-      <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportFile(this)"/>
     </div>
+
+    <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportFile(this)"/>
   </div>
 </header>
 
@@ -340,53 +523,34 @@
   </div>
 </div>
 
-<!-- ━━━━━━━━━━━━━━━━━━━━━━━━ TAB NAV ━━━━━━━━━━━━━━━━━━━━━━━━ -->
-<nav style="background:rgba(0,0,0,0.5);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(20px);">
-  <div class="max-w-screen-2xl mx-auto px-6 flex items-center gap-1">
-    <button id="maintab-leads" onclick="setMainTab('leads')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t1);border-bottom:2px solid #3b82f6;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-      Leads
-    </button>
-    <button id="maintab-kanban" onclick="setMainTab('kanban')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t3);border-bottom:2px solid transparent;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7"/></svg>
-      Kanban
-    </button>
-    <button id="maintab-evolucao" onclick="setMainTab('evolucao')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t3);border-bottom:2px solid transparent;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-      Evolução
-    </button>
-    <button id="maintab-hoje" onclick="setMainTab('hoje')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t3);border-bottom:2px solid transparent;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Hoje
-    </button>
-    <button id="maintab-reunioes" onclick="setMainTab('reunioes')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t3);border-bottom:2px solid transparent;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-      Reuniões
-    </button>
-    <button id="maintab-automacoes" onclick="setMainTab('automacoes')"
-      class="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold transition-all relative"
-      style="color:var(--t3);border-bottom:2px solid transparent;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-      Automações
-    </button>
-  </div>
-</nav>
-
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ MAIN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
-<main class="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+<main class="max-w-[1440px] mx-auto px-6 py-6 space-y-6 relative" style="z-index:2;">
 
   <!-- ══ TAB: LEADS ══ -->
-  <div id="tabpanel-leads">
+  <div id="tabpanel-leads" class="anim-up">
+
+  <!-- Page header (H1 + actions) -->
+  <div class="flex items-end justify-between gap-6 mb-4" id="leads-page-head">
+    <div>
+      <div class="ov mb-2" id="leads-page-overline">PIPELINE · ATIVOS</div>
+      <h1 class="text-[28px] font-semibold leading-none" style="letter-spacing:-0.025em;color:var(--t1)">Leads</h1>
+      <p class="text-[13px] mt-2" style="color:var(--t2)" id="leads-page-sub">Carregando…</p>
+    </div>
+    <div class="flex items-center gap-2" id="leads-page-actions">
+      <button onclick="triggerImport()" class="pill" id="btn-import">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Importar
+      </button>
+      <button onclick="exportXLS()" class="pill">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10" transform="rotate(180 12 12.5)"/><line x1="12" y1="15" x2="12" y2="3" transform="rotate(180 12 9)"/></svg>
+        Exportar
+      </button>
+      <button onclick="openModal()" class="pill pill-accent active" style="height:32px;font-weight:600;padding:0 14px;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+        Novo lead
+      </button>
+    </div>
+  </div>
 
   <!-- DASHBOARD -->
   <div id="dashboard"></div>
@@ -1564,6 +1728,14 @@ function toastUndo(msg){
 
 // Debounce da busca (evita refiltro a cada tecla)
 const debouncedRender=debounce(()=>renderTable(),180);
+// Atalho do botão CmdK na topbar: vai pra aba Leads e foca o campo de busca.
+function focusSearch(){
+  setMainTab('leads');
+  setTimeout(()=>{
+    const el=document.getElementById('f-search');
+    if(el){ el.focus(); el.select?.(); }
+  }, 20);
+}
 
 function setLoading(v){
   document.getElementById('loading-state').classList.toggle('hidden',!v);
@@ -2974,12 +3146,22 @@ async function adminReloadReports(){
 }
 
 function refreshConnStatus(){
-  const dot=document.getElementById('conn-dot');const lbl=document.getElementById('conn-label');
+  const dot=document.getElementById('conn-dot');
+  const ring=document.getElementById('conn-ring');
+  const lbl=document.getElementById('conn-label');
   if(!dot||!lbl)return;
   if(DB.ok){
-    dot.style.background='#22c55e';lbl.style.color='#6ee7b7';lbl.textContent='Online';
+    dot.style.background='oklch(80% 0.16 140)';
+    dot.style.boxShadow='0 0 8px oklch(80% 0.16 140)';
+    if(ring){ ring.style.background='oklch(80% 0.16 140)'; ring.style.display=''; }
+    lbl.style.color='var(--t2)';
+    lbl.textContent='Sincronizado';
   }else{
-    dot.style.background='#fbbf24';lbl.style.color='#fcd34d';lbl.textContent='Offline';
+    dot.style.background='var(--amber)';
+    dot.style.boxShadow='0 0 8px var(--amber)';
+    if(ring){ ring.style.display='none'; }
+    lbl.style.color='var(--amber)';
+    lbl.textContent='Offline';
   }
 }
 
@@ -3287,9 +3469,7 @@ function setMainTab(tab){
   const tabs=[['maintab-leads','leads'],['maintab-kanban','kanban'],['maintab-hoje','hoje'],['maintab-reunioes','reunioes'],['maintab-automacoes','automacoes'],['maintab-evolucao','evolucao']];
   tabs.forEach(([id,key])=>{
     const el=document.getElementById(id);if(!el)return;
-    const active=tab===key;
-    el.style.color=active?'var(--t1)':'var(--t3)';
-    el.style.borderBottomColor=active?'#3b82f6':'transparent';
+    el.classList.toggle('active', tab===key);
   });
   if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
   if(tab==='kanban'){renderKanban();}
@@ -4440,6 +4620,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeModal();closeDeleteModal();closeDrawer();closeSettings();closeStatusMenu();closeCategoriaMenu();closeImportModal();closeDispatchModal();document.getElementById('loss-modal').classList.add('hidden');return;}
+  // ⌘K / Ctrl+K → foca busca (mesmo dentro de inputs)
+  if((e.metaKey||e.ctrlKey) && (e.key==='k'||e.key==='K')){ e.preventDefault(); focusSearch(); return; }
   // atalhos globais — só quando foco NÃO está em input/textarea/select
   const tag=(e.target.tagName||'').toLowerCase();
   const editing=tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable;
@@ -4475,6 +4657,47 @@ document.getElementById('settings-modal').addEventListener('click',function(e){i
 document.getElementById('import-modal').addEventListener('click',function(e){if(e.target===this)closeImportModal();});
 document.getElementById('dispatch-modal').addEventListener('click',function(e){if(e.target===this)closeDispatchModal();});
 
+// ── TWEAKS (hue + densidade, persistido em localStorage) ─────
+const Tweaks = {
+  _state: { hue: 250, density: 'compact' },
+  load(){
+    try { const s = JSON.parse(localStorage.getItem('zeve_tweaks')||'null'); if (s && typeof s === 'object') this._state = { ...this._state, ...s }; } catch {}
+    this.applyAccent(this._state.hue);
+    this.applyDensity(this._state.density);
+  },
+  save(){ try { localStorage.setItem('zeve_tweaks', JSON.stringify(this._state)); } catch {} },
+  setHue(h){ this._state.hue = +h; this.applyAccent(+h); this.save(); this.syncUI(); },
+  setDensity(d){ this._state.density = d; this.applyDensity(d); this.save(); this.syncUI(); },
+  applyAccent(h){
+    document.documentElement.style.setProperty('--accent',      `oklch(70% 0.16 ${h})`);
+    document.documentElement.style.setProperty('--accent-soft', `oklch(70% 0.16 ${h} / .14)`);
+    document.documentElement.style.setProperty('--accent-line', `oklch(70% 0.16 ${h} / .32)`);
+  },
+  applyDensity(d){
+    const r = document.documentElement;
+    if (d === 'compact') { r.style.setProperty('--radius','10px'); document.body.style.fontSize='13px'; }
+    else                 { r.style.setProperty('--radius','14px'); document.body.style.fontSize='14px'; }
+  },
+  syncUI(){
+    document.querySelectorAll('.tw-accent').forEach(b => {
+      const on = +b.dataset.hue === +this._state.hue;
+      b.style.boxShadow = on ? '0 0 0 2px var(--bg), 0 0 0 3px var(--t1)' : 'inset 0 0 0 1px rgba(255,255,255,.15)';
+    });
+    document.querySelectorAll('#tw-density button').forEach(b => {
+      b.classList.toggle('active', b.dataset.dens === this._state.density);
+    });
+  },
+};
+function toggleTweaks(){ const el = document.getElementById('tweaks'); if (!el) return; el.classList.toggle('hidden'); Tweaks.syncUI(); }
+document.addEventListener('click', e => {
+  const hueBtn = e.target.closest('#tw-accent [data-hue]');
+  if (hueBtn) { Tweaks.setHue(hueBtn.dataset.hue); return; }
+  const denBtn = e.target.closest('#tw-density [data-dens]');
+  if (denBtn) { Tweaks.setDensity(denBtn.dataset.dens); return; }
+});
+// Carrega tweaks já no primeiro paint
+Tweaks.load();
+
 // ── INIT ─────────────────────────────────────────────────────
 function renderUserChip(){
   const u = Auth.user();
@@ -4504,16 +4727,10 @@ function applyRoleVisibility(){
   // Tab de automações, botão engrenagem, importar, bulk-assign: só admin
   set('maintab-automacoes', isAdmin);
   set('bulk-assign-wrap',   isAdmin);
-  // Engrenagem (botão ao lado do conn-btn) — não tem id próprio; selecionamos pelo título
+  set('btn-import',         isAdmin);
+  // Engrenagem (botão ao lado do conn-chip) — sem id próprio; usa title
   document.querySelectorAll('button[title="Configurações"]').forEach(b => {
     b.style.display = isAdmin ? '' : 'none';
-  });
-  // Botão importar: procuramos pelo input type=file adjacente — marcamos o botão por texto
-  document.querySelectorAll('button').forEach(b => {
-    const t = (b.textContent || '').trim();
-    if (t === 'Importar' && b.onclick && String(b.onclick).includes('triggerImport')) {
-      b.style.display = isAdmin ? '' : 'none';
-    }
   });
 
   // Aba Reuniões: admin e reunioes
