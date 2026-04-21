@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CRM Zeve</title>
+  <title>Atendimento Zeve</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -882,97 +882,139 @@
   </div><!-- /tabpanel-reunioes -->
 
   <!-- ══ TAB: EVOLUÇÃO ══ -->
-  <div id="tabpanel-evolucao" class="hidden space-y-6">
+  <div id="tabpanel-evolucao" class="hidden space-y-4 anim-up">
 
-    <!-- KPI cards do mês -->
-    <div id="evolucao-kpis" class="grid grid-cols-4 gap-4"></div>
-
-    <!-- Qualificação dos Leads -->
-    <div class="glass rounded-2xl overflow-hidden">
-      <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <p class="text-sm font-semibold" style="color:var(--t1)">Qualificação dos Leads</p>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Distribuição por perfil de trader</p>
-      </div>
-      <div id="ev-qualificacao" class="p-6 grid grid-cols-4 gap-4"></div>
-    </div>
-
-    <!-- Produto Alvo + Status IA -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="glass rounded-2xl overflow-hidden">
-        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-          <p class="text-sm font-semibold" style="color:var(--t1)">Produto Alvo</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Interesse declarado por produto</p>
+    <!-- Header da aba -->
+    <div class="flex items-end justify-between gap-6 mb-2">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="ov" id="evolucao-overline">ANALYTICS</span>
+          <span class="chip" style="background:oklch(80% 0.16 140 / .1);border-color:oklch(80% 0.16 140 / .3);color:oklch(85% 0.14 140)">
+            <span class="dot" style="background:oklch(80% 0.16 140)"></span>
+            <span id="evolucao-health">No prazo</span>
+          </span>
         </div>
-        <div id="ev-produto" class="p-5 space-y-3"></div>
+        <h1 class="text-[28px] font-semibold leading-none" style="letter-spacing:-0.025em;color:var(--t1)">Evolução</h1>
+        <p class="text-[13px] mt-2" style="color:var(--t2)">Como o pipeline está andando — e onde precisa de atenção.</p>
       </div>
-      <div class="glass rounded-2xl overflow-hidden">
-        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-          <p class="text-sm font-semibold" style="color:var(--t1)">Resposta à IA</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Status do disparo AIKON</p>
+      <div class="flex items-center gap-2">
+        <div class="seg" id="seg-chart-period">
+          <button id="chart-btn-week" onclick="setChartPeriod('week')">Semana</button>
+          <button id="chart-btn-month" onclick="setChartPeriod('month')" class="active">Mês</button>
         </div>
-        <div id="ev-statusia" class="p-5 space-y-3"></div>
+        <button onclick="exportXLS()" class="pill">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar
+        </button>
       </div>
     </div>
 
-    <!-- Gráfico principal -->
-    <div class="glass rounded-2xl overflow-hidden">
-      <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
+    <!-- KPI row (4 panels) -->
+    <div id="evolucao-kpis" class="grid grid-cols-4 gap-3"></div>
+
+    <!-- Funil -->
+    <div class="panel">
+      <div class="panel-hd">
         <div>
-          <p class="text-sm font-semibold" style="color:var(--t1)">Captados &amp; Convertidos</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Volume de leads ao longo do tempo</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="chart-btn-week" onclick="setChartPeriod('week')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;">Semana</button>
-          <button id="chart-btn-month" onclick="setChartPeriod('month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--t3);">Mês</button>
+          <div class="panel-title">Funil de conversão</div>
+          <div class="panel-sub">Cada etapa · tempo médio vs. SLA</div>
         </div>
       </div>
-      <div class="p-6">
-        <div style="position:relative;height:380px;">
-          <canvas id="evolution-chart"></canvas>
-        </div>
+      <div class="p-5">
+        <div id="funnel-container-ev" class="overflow-x-auto"></div>
       </div>
     </div>
 
-    <!-- Motivos de Perda + Velocidade por Etapa -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="glass rounded-2xl overflow-hidden">
-        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-          <p class="text-sm font-semibold" style="color:var(--t1)">Motivos de Perda</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Por que os leads não converteram</p>
+    <!-- Chart + Ring IA -->
+    <div class="grid gap-3" style="grid-template-columns:1.6fr 1fr">
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Captados &amp; convertidos</div>
+            <div class="panel-sub">Volume ao longo do tempo</div>
+          </div>
+          <div class="flex items-center gap-3 text-[11px]" style="color:var(--t2)">
+            <span class="flex items-center gap-1.5"><span class="dot" style="background:var(--accent)"></span>Captados</span>
+            <span class="flex items-center gap-1.5"><span class="dot" style="background:oklch(80% 0.16 140)"></span>Convertidos</span>
+          </div>
+        </div>
+        <div class="p-4" style="height:300px"><canvas id="evolution-chart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Resposta à IA</div>
+            <div class="panel-sub">AIKON · últimos disparos</div>
+          </div>
+        </div>
+        <div id="ev-statusia" class="p-5"></div>
+      </div>
+    </div>
+
+    <!-- Qualificação -->
+    <div class="panel">
+      <div class="panel-hd">
+        <div>
+          <div class="panel-title">Qualificação dos leads</div>
+          <div class="panel-sub">Distribuição por perfil de trader</div>
+        </div>
+      </div>
+      <div id="ev-qualificacao" class="p-5"></div>
+    </div>
+
+    <!-- Produto + Equipe + Motivos -->
+    <div class="grid gap-3" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Produto alvo</div>
+            <div class="panel-sub">Interesse declarado</div>
+          </div>
+        </div>
+        <div id="ev-produto" class="p-5 space-y-2.5"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Equipe</div>
+            <div class="panel-sub">Conversão por responsável</div>
+          </div>
+        </div>
+        <div id="ev-equipe" class="p-5 space-y-3"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Motivos de perda</div>
+            <div class="panel-sub">Por que não converteram</div>
+          </div>
         </div>
         <div id="ev-motivos" class="p-5 space-y-2.5"></div>
       </div>
-      <div class="glass rounded-2xl overflow-hidden">
-        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-          <p class="text-sm font-semibold" style="color:var(--t1)">Velocidade por Etapa</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Tempo médio × SLA — onde o funil trava</p>
-        </div>
-        <div id="ev-velocidade" class="p-5 space-y-2.5"></div>
-      </div>
     </div>
 
-    <!-- Log de Atividade Recente -->
-    <div class="glass rounded-2xl overflow-hidden">
-      <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div>
-          <p class="text-sm font-semibold" style="color:var(--t1)">Log de Atividade</p>
-          <p class="text-xs mt-0.5" style="color:var(--t3)">Últimas ações da equipe em todos os leads</p>
+    <!-- Velocidade + Log -->
+    <div class="grid gap-3" style="grid-template-columns:1fr 1.2fr">
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Velocidade por etapa</div>
+            <div class="panel-sub">Tempo médio × SLA</div>
+          </div>
         </div>
-        <button onclick="renderLogAtividade()" class="text-xs px-3 py-1.5 rounded-lg transition-all" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--t3);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">↻ Atualizar</button>
+        <div id="ev-velocidade" class="p-5 space-y-3"></div>
       </div>
-      <div id="ev-log" class="divide-y" style="border-color:rgba(255,255,255,0.05);max-height:360px;overflow-y:auto;"></div>
+      <div class="panel">
+        <div class="panel-hd">
+          <div>
+            <div class="panel-title">Log de atividade</div>
+            <div class="panel-sub">Últimas ações da equipe</div>
+          </div>
+          <button onclick="renderLogAtividade()" class="pill" style="height:26px;padding:0 10px;font-size:11px">↻ Atualizar</button>
+        </div>
+        <div id="ev-log" class="p-2" style="max-height:360px;overflow-y:auto;"></div>
+      </div>
     </div>
-
-    <!-- Funil na aba evolução também -->
-    <details class="glass rounded-2xl overflow-hidden" id="funnel-details-ev">
-      <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none list-none" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span class="section-label">Funil de Conversão</span>
-        <span class="text-xs" style="color:var(--t3)">% de avanço · ⌀ dias por etapa ▾</span>
-      </summary>
-      <div class="p-6">
-        <div id="funnel-container-ev" class="overflow-x-auto"></div>
-      </div>
-    </details>
 
   </div><!-- /tabpanel-evolucao -->
 
@@ -1849,104 +1891,55 @@ function renderDashboard(){
     </div>`;
 }
 
-// ── FUNNEL ───────────────────────────────────────────────────
+// ── FUNNEL (design handoff) ──────────────────────────────────
+// Hue OKLCH por etapa — alinhado ao KB_DOT/sb-*
+const FUNNEL_HUE = {
+  'Lead Novo':0, 'IA Disparou':200, 'Qualificado':250, 'AIKON em Ação':75,
+  'Reunião Agendada':290, 'Em Abertura':45, 'Convertido':140, 'Perdido':20,
+};
 function renderFunnel(containerId){
-  const activeLeads=leads.filter(l=>!l.archived);
-  const cnt={};const daySum={};
-  STATUSES.forEach(s=>{cnt[s]=0;daySum[s]=0;});
-  activeLeads.forEach(l=>{if(cnt[l.status]!==undefined){cnt[l.status]++;const d=diffDays(l.entry);if(d!==null)daySum[l.status]+=d;}});
-
-  const conv=FUNNEL_STAGES.map((s,i)=>{
-    if(i===FUNNEL_STAGES.length-1)return null;
-    const fromHere=FUNNEL_STAGES.slice(i).reduce((a,st)=>a+cnt[st],0);
-    const fromNext=FUNNEL_STAGES.slice(i+1).reduce((a,st)=>a+cnt[st],0);
-    return fromHere>0?Math.round(fromNext/fromHere*100):0;
-  });
-
-  const total=activeLeads.length||1;
-
-  let html=`<div style="display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:2px;">`;
-
-  FUNNEL_STAGES.forEach((s,i)=>{
-    const n=cnt[s];
-    const pct=Math.round(n/total*100);
-    const avg=n>0?Math.round(daySum[s]/n):0;
-    const sc=SC[s];
-    const barW=Math.max(4,pct);
-
-    html+=`
-    <div style="flex:1;min-width:130px;display:flex;flex-direction:column;">
-      <div style="
-        flex:1;position:relative;overflow:hidden;
-        border:1px solid ${sc.clr}28;
-        border-top:2px solid ${sc.clr};
-        border-radius:14px;
-        padding:18px 16px 16px;
-        background:linear-gradient(160deg,${sc.clr}0d 0%,rgba(0,0,0,0.35) 100%);
-        transition:border-color .2s;
-      " onmouseover="this.style.borderTopColor='${sc.clr}';this.style.borderColor='${sc.clr}55'" onmouseout="this.style.borderTopColor='${sc.clr}';this.style.borderColor='${sc.clr}28'">
-        <!-- barra de progresso no fundo -->
-        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.04);">
-          <div style="height:100%;width:${barW}%;background:linear-gradient(to right,${sc.grd},${sc.clr});border-radius:2px;transition:width .6s ease;"></div>
-        </div>
-        <!-- label -->
-        <p style="font-size:.6rem;font-weight:700;color:${sc.clr};text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s}</p>
-        <!-- número grande -->
-        <p style="font-size:2.2rem;font-weight:700;color:#fff;line-height:1;margin-bottom:8px;">${n}</p>
-        <!-- métricas -->
-        <div style="display:flex;flex-direction:column;gap:3px;">
-          <span style="font-size:.65rem;color:rgba(255,255,255,0.35);">${pct}% do total</span>
-          <span style="font-size:.65rem;color:rgba(255,255,255,0.25);">⌀ ${avg} dias</span>
-        </div>
-      </div>
-    </div>`;
-
-    if(i<FUNNEL_STAGES.length-1){
-      const p=conv[i];
-      const ac=p>=50?'#34d399':p>=25?'#fbbf24':'#f87171';
-      html+=`
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;gap:5px;flex-shrink:0;min-width:44px;">
-        <span style="font-size:.65rem;font-weight:700;color:${ac};letter-spacing:.02em;">${p}%</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${ac}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      </div>`;
+  const activeLeads = leads.filter(l => !l.archived);
+  const cnt = {}; const daySum = {};
+  STATUSES.forEach(s => { cnt[s]=0; daySum[s]=0; });
+  activeLeads.forEach(l => {
+    if (cnt[l.status]!==undefined) {
+      cnt[l.status]++;
+      const d = diffDays(l.stage_entered_at || l.entry);
+      if (d !== null) daySum[l.status] += d;
     }
   });
-
-  html+=`</div>`;
-
-  // Perdidos — linha separada compacta
-  const ln=cnt['Perdido'];
-  const lpct=leads.length>0?Math.round(ln/leads.length*100):0;
-  const lavg=ln>0?Math.round(daySum['Perdido']/ln):0;
-  const denom=cnt['Convertido']+cnt['Perdido'];
-  const taxaPerda=denom>0?Math.round(ln/denom*100):0;
-
-  html+=`
-  <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
-    <div style="flex:1;height:1px;background:rgba(239,68,68,.12);"></div>
-    <div style="display:inline-flex;align-items:center;gap:0;border:1px solid rgba(239,68,68,.18);border-radius:12px;background:rgba(239,68,68,.05);overflow:hidden;">
-      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
-        <p style="font-size:.55rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.09em;margin-bottom:3px;">Perdidos</p>
-        <p style="font-size:1.3rem;font-weight:700;color:#ef4444;line-height:1;">${ln}</p>
-      </div>
-      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
-        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">% total</p>
-        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">${lpct}%</p>
-      </div>
-      <div style="padding:10px 18px;border-right:1px solid rgba(239,68,68,.15);">
-        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">taxa perda</p>
-        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">${taxaPerda}%</p>
-      </div>
-      <div style="padding:10px 18px;">
-        <p style="font-size:.55rem;color:rgba(252,165,165,.5);margin-bottom:3px;">média dias</p>
-        <p style="font-size:.95rem;font-weight:600;color:#fca5a5;">⌀ ${lavg}d</p>
-      </div>
-    </div>
-    <div style="flex:1;height:1px;background:rgba(239,68,68,.12);"></div>
-  </div>`;
-
-  const target=document.getElementById(containerId||'funnel-container');
-  if(target) target.innerHTML=html;
+  const rows = FUNNEL_STAGES.map((s, i) => {
+    const n = cnt[s];
+    const avg = n > 0 ? Math.round((daySum[s]/n)*10)/10 : 0;
+    const sla = SLA_CFG[s] || 0;
+    return { s, n, avg, sla, hue: FUNNEL_HUE[s] ?? 250 };
+  });
+  const max = Math.max(...rows.map(r => r.n), 1);
+  const html = `
+    <div class="grid" style="grid-template-columns:repeat(${rows.length}, 1fr); gap:8px">
+      ${rows.map((r, i) => {
+        const pct = Math.round((r.n/max)*100);
+        const nextPct = i < rows.length-1 && r.n > 0 ? Math.round((rows[i+1].n/r.n)*100) : null;
+        const over = r.sla > 0 && r.avg > r.sla;
+        return `
+          <div class="cursor-pointer" onclick="setStatusPill('${escAttr(r.s)}');setMainTab('leads')">
+            <div class="ov mb-2" style="font-size:9.5px">${String(i+1).padStart(2,'0')} · ${esc(r.s)}</div>
+            <div style="height:88px;display:flex;align-items:flex-end">
+              <div style="width:100%;height:${Math.max(pct,6)}%;min-height:18px;background:linear-gradient(180deg, oklch(70% 0.14 ${r.hue} / .35), oklch(70% 0.14 ${r.hue} / .18));border:1px solid oklch(70% 0.14 ${r.hue} / .3);border-radius:6px 6px 2px 2px;transition:filter .15s" onmouseover="this.style.filter='brightness(1.3)'" onmouseout="this.style.filter=''"></div>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+              <span class="metric font-semibold" style="font-size:17px">${r.n}</span>
+              ${nextPct !== null ? `<span class="mono text-[10px]" style="color:var(--t3)">→ ${nextPct}%</span>` : ''}
+            </div>
+            ${r.sla > 0 ? `<div class="flex items-center justify-between text-[10px] mono mt-1" style="color:var(--t3)">
+              <span>⌀ ${r.avg}d</span>
+              <span style="color:${over?'oklch(72% 0.16 20)':'oklch(80% 0.16 140)'}">SLA ${r.sla}d</span>
+            </div>` : '<div style="height:14px"></div>'}
+          </div>`;
+      }).join('')}
+    </div>`;
+  const target = document.getElementById(containerId || 'funnel-container');
+  if (target) target.innerHTML = html;
 }
 
 // ── FILTERS ──────────────────────────────────────────────────
@@ -3508,20 +3501,20 @@ function setMainTab(tab){
     const el=document.getElementById(id);if(!el)return;
     el.classList.toggle('active', tab===key);
   });
-  if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
+  if(tab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderEvolucaoEquipe();renderMotivosPerda();renderVelocidadeEtapa();renderLogAtividade();renderChart();renderFunnelEv();}
   if(tab==='kanban'){renderKanban();}
   if(tab==='automacoes'){renderAutomacoes();}
   if(tab==='hoje'){renderHoje();}
   if(tab==='reunioes'){renderReunioes();}
 }
 
+// ── KPIs da Evolução (4 panels) ──
 function renderEvolucaoKpis(){
   const activeLeads=leads.filter(l=>!l.archived);
   const now=new Date();
   const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
   const ym_prev=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
-
   const thisMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym));
   const prevMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym_prev));
   const captados=thisMes.length;
@@ -3530,116 +3523,214 @@ function renderEvolucaoKpis(){
   const convertidosPrev=prevMes.filter(l=>l.status==='Convertido').length;
   const denom=convertidos+(thisMes.filter(l=>l.status==='Perdido').length);
   const taxa=denom>0?Math.round(convertidos/denom*100):0;
-  const taxaPrev=((convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length))>0)?Math.round(convertidosPrev/((convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length)))*100):0;
-
-  const diff=(cur,prev)=>{
-    if(!prev&&!cur)return'';
-    const d=cur-prev;
-    const clr=d>0?'#6ee7b7':d<0?'#f87171':'rgba(255,255,255,0.3)';
-    const sign=d>0?'↑':d<0?'↓':'';
-    return`<span style="font-size:.7rem;color:${clr};">${sign}${Math.abs(d)} vs mês ant.</span>`;
-  };
-  const diffPct=(cur,prev)=>{
-    if(prev===undefined)return'';
-    const d=cur-prev;
-    const clr=d>0?'#6ee7b7':d<0?'#f87171':'rgba(255,255,255,0.3)';
-    const sign=d>0?'↑':d<0?'↓':'';
-    return`<span style="font-size:.7rem;color:${clr};">${sign}${Math.abs(d)}pp vs mês ant.</span>`;
-  };
-
-  const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const mesNome=months[now.getMonth()];
-
-  const card=(label,val,valColor,accentColor,sub,delta)=>`
-    <div class="relative rounded-2xl overflow-hidden p-5" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);box-shadow:rgba(0,0,0,0.4) 0px 12px 40px;">
-      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${accentColor}60,transparent);"></div>
-      <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--t3)">${label}</p>
-      <p class="text-3xl font-bold leading-none mb-1" style="color:${valColor}">${val}</p>
-      ${sub?`<p class="text-xs" style="color:rgba(255,255,255,0.25)">${sub}</p>`:''}
-      <div class="mt-2">${delta}</div>
-    </div>`;
-
+  const taxaPrevDenom=convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length);
+  const taxaPrev=taxaPrevDenom>0?Math.round(convertidosPrev/taxaPrevDenom*100):0;
   const totalAtivos=activeLeads.filter(l=>l.status!=='Convertido'&&l.status!=='Perdido').length;
 
-  document.getElementById('evolucao-kpis').innerHTML=
-    card(`Captados — ${mesNome}`,captados,'#93c5fd','#3b82f6','leads este mês',diff(captados,captadosPrev))+
-    card(`Convertidos — ${mesNome}`,convertidos,'#6ee7b7','#22c55e','fechamentos este mês',diff(convertidos,convertidosPrev))+
-    card('Taxa de Conversão',taxa+'%','#a5b4fc','#818cf8','convertidos / (conv+perd)',diffPct(taxa,taxaPrev))+
-    card('Pipeline Ativo',totalAtivos,'#fcd34d','#f59e0b','leads em aberto','');
+  // Overline/health chip no topo da aba
+  const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const ovEl=document.getElementById('evolucao-overline');
+  if (ovEl) ovEl.textContent=`ANALYTICS · ${MESES[now.getMonth()]} ${now.getFullYear()}`;
+  const slaCount = activeLeads.reduce((s,l)=>{
+    const st=getSlaStatus(l); return s + (st&&st.overdue?1:0);
+  },0);
+  const healthEl=document.getElementById('evolucao-health');
+  if (healthEl) healthEl.textContent = slaCount > 0 ? `${slaCount} fora do SLA` : 'No prazo';
+
+  // Gera uma minisérie de sparkline a partir das últimas N semanas
+  function sparkFor(kind){
+    const weeks=8, buckets=new Array(weeks).fill(0);
+    const today=new Date(); today.setHours(0,0,0,0);
+    activeLeads.forEach(l=>{
+      if (!l.entry) return;
+      const d=new Date(l.entry+'T00:00:00');
+      const diff=Math.floor((today-d)/86400000);
+      const wk=Math.floor(diff/7);
+      if (wk<0 || wk>=weeks) return;
+      const idx=weeks-1-wk;
+      if (kind==='captados') buckets[idx]++;
+      else if (kind==='convertidos' && l.status==='Convertido') buckets[idx]++;
+    });
+    return buckets;
+  }
+
+  function sparkSvg(values, color='var(--accent)', {w=100,h=28,area=true}={}){
+    if (!values.length || values.every(v=>v===0)) return '';
+    const mn=Math.min(...values), mx=Math.max(...values), rng=mx-mn||1;
+    const step=w/(values.length-1);
+    const pts=values.map((v,i)=>[i*step, h-((v-mn)/rng)*(h-4)-2]);
+    const line=pts.map((p,i)=>`${i===0?'M':'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" preserveAspectRatio="none">${area?`<path d="${line} L ${w} ${h} L 0 ${h} Z" fill="${color}" opacity=".16"/>`:''}<path d="${line}" fill="none" stroke-width="1.5" stroke="${color}"/></svg>`;
+  }
+
+  function fmtDelta(cur,prev,{pp=false,invert=false}={}){
+    if (prev===0 && cur===0) return '<span class="delta-flat mono text-[11px] font-medium">— estável</span>';
+    const d=cur-prev;
+    const up = invert ? d<0 : d>0;
+    const flat=Math.abs(d)<0.1;
+    const cls = flat ? 'delta-flat' : up ? 'delta-up' : 'delta-down';
+    const arrow = flat ? '→' : up ? '↑' : '↓';
+    return `<span class="${cls} mono text-[11px] font-medium">${arrow} ${Math.abs(d)}${pp?'pp':''}</span>`;
+  }
+
+  const card=(label,value,delta,sparkColor,spark)=>`
+    <div class="panel p-4">
+      <div class="flex items-start justify-between mb-2">
+        <span class="ov">${label}</span>
+        ${delta}
+      </div>
+      <div class="flex items-end justify-between gap-3">
+        <div class="metric" style="font-size:26px;font-weight:600;line-height:1">${value}</div>
+        <div style="color:${sparkColor};margin-bottom:-4px">${sparkSvg(spark, sparkColor, {w:80, h:24})}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('evolucao-kpis').innerHTML =
+    card('Leads captados',    captados,           fmtDelta(captados, captadosPrev),                 'var(--accent)',            sparkFor('captados'))+
+    card('Convertidos',       convertidos,        fmtDelta(convertidos, convertidosPrev),           'oklch(80% 0.16 140)',      sparkFor('convertidos'))+
+    card('Taxa de conversão', taxa+'%',           fmtDelta(taxa, taxaPrev, {pp:true}),              'var(--iris)',              [])+
+    card('Pipeline ativo',    totalAtivos,        `<span class="mono text-[11px]" style="color:var(--t3)">em aberto</span>`, 'var(--amber)',           []);
 }
 
+// Qualificação como stack-bar + lista (handoff)
 function renderEvolucaoQualificacao(){
   const active=leads.filter(l=>!l.archived);
   const total=active.length||1;
   const cats=[
-    {key:'Aumentar Lotes', ...CATEGORIA_CFG['Aumentar Lotes']},
-    {key:'Inconsistente',  ...CATEGORIA_CFG['Inconsistente']},
-    {key:'Começando',      ...CATEGORIA_CFG['Começando']},
-    {key:null, medal:'—', label:'Não qualificado', clr:'rgba(255,255,255,0.3)', bg:'rgba(255,255,255,0.04)', border:'rgba(255,255,255,0.1)'},
+    {key:'Aumentar Lotes', medal:'🥇', label:'Aumentar Lotes', note:'maior LTV',  color:'oklch(80% 0.16 75)'},
+    {key:'Inconsistente',  medal:'🥈', label:'Inconsistente',  note:'dor clara',  color:'oklch(75% 0.14 220)'},
+    {key:'Começando',      medal:'🥉', label:'Começando',      note:'ciclo longo',color:'oklch(70% 0.12 300)'},
+    {key:null,             medal:'',   label:'Não qualificado',note:'fora do perfil',color:'oklch(55% 0.02 250)'},
   ];
-  document.getElementById('ev-qualificacao').innerHTML=cats.map(c=>{
-    const count=active.filter(l=>c.key===null?(l.categoria_ia==null||l.categoria_ia===''):(l.categoria_ia===c.key)).length;
-    const pct=Math.round(count/total*100);
-    return`<div class="relative rounded-2xl p-5 overflow-hidden" style="background:${c.bg};border:1px solid ${c.border};">
-      <div class="absolute inset-x-0 top-0 h-px" style="background:linear-gradient(to right,transparent,${c.clr}55,transparent);"></div>
-      <p class="text-2xl mb-0.5" style="line-height:1">${c.medal}</p>
-      <p class="text-xs font-semibold uppercase tracking-wider mt-2 mb-3" style="color:${c.clr};opacity:.8">${c.label}</p>
-      <p class="text-3xl font-bold leading-none" style="color:${c.clr}">${count}</p>
-      <p class="text-xs mt-1" style="color:rgba(255,255,255,0.25)">${pct}% do total</p>
-      <div class="mt-3 h-1 rounded-full" style="background:rgba(255,255,255,0.07)">
-        <div class="h-1 rounded-full transition-all" style="width:${pct}%;background:${c.clr};opacity:.7;"></div>
-      </div>
+  const rows = cats.map(c => {
+    const count=active.filter(l => c.key===null ? (l.categoria_ia==null||l.categoria_ia==='') : l.categoria_ia===c.key).length;
+    return { ...c, count };
+  });
+  const host = document.getElementById('ev-qualificacao');
+  if (!host) return;
+  host.innerHTML = `
+    <div class="stack-bar mb-4" style="height:8px">
+      ${rows.filter(r=>r.count).map(r=>`<span style="flex:${r.count};background:${r.color}"></span>`).join('') || '<span style="flex:1;background:var(--line)"></span>'}
+    </div>
+    <div class="space-y-2.5">
+      ${rows.map(r=>`
+        <div class="flex items-center gap-3">
+          <span class="dot" style="background:${r.color};width:8px;height:8px"></span>
+          <span class="text-[12.5px] flex-1">${r.medal?r.medal+' ':''}${r.label}</span>
+          <span class="text-[10.5px]" style="color:var(--t3)">${r.note}</span>
+          <span class="metric font-semibold" style="font-size:14px;min-width:34px;text-align:right">${r.count}</span>
+          <span class="mono text-[10.5px]" style="color:var(--t4);min-width:38px;text-align:right">${total?Math.round(r.count/total*100):0}%</span>
+        </div>
+      `).join('')}
     </div>`;
-  }).join('');
 }
 
+// Produto (pbar com gradient accent→iris)
 function renderEvolucaoProduto(){
   const active=leads.filter(l=>!l.archived&&l.produto_alvo);
   const counts={};
   active.forEach(l=>l.produto_alvo.split(',').map(p=>p.trim()).filter(Boolean).forEach(p=>{counts[p]=(counts[p]||0)+1;}));
   const order=['Assessoria','Robô','Sala Ao vivo','Zeve Hub','Treinamento'];
   const max=Math.max(...Object.values(counts),1);
-  const colors=['#67e8f9','#93c5fd','#c4b5fd','#fdba74','#6ee7b7'];
-  document.getElementById('ev-produto').innerHTML=order.map((p,i)=>{
+  const host = document.getElementById('ev-produto');
+  if (!host) return;
+  host.innerHTML = order.map(p=>{
     const n=counts[p]||0;
-    const pct=Math.round(n/max*100);
-    return`<div>
-      <div class="flex items-center justify-between mb-1">
-        <span class="text-xs font-medium" style="color:var(--t2)">${p}</span>
-        <span class="text-xs font-bold" style="color:${colors[i]}">${n}</span>
-      </div>
-      <div class="h-2 rounded-full" style="background:rgba(255,255,255,0.07)">
-        <div class="h-2 rounded-full transition-all" style="width:${pct}%;background:${colors[i]};opacity:.75;"></div>
-      </div>
+    return `<div class="grid items-center gap-3" style="grid-template-columns:100px 1fr 40px">
+      <span class="text-[12px]" style="color:var(--t2)">${esc(p)}</span>
+      <div class="pbar"><span style="width:${(n/max)*100}%;background:linear-gradient(90deg, var(--accent), var(--iris))"></span></div>
+      <span class="metric text-[12px] font-semibold text-right">${n}</span>
     </div>`;
   }).join('');
 }
 
+// Status IA — ring gauge SVG + legenda (handoff)
 function renderEvolucaoStatusIA(){
   const active=leads.filter(l=>!l.archived);
-  const total=active.length||1;
   const opts=[
-    {key:'Respondeu',           label:'Respondeu',              clr:'#6ee7b7', bg:'rgba(34,197,94,.12)',  icon:'✓'},
-    {key:'Aguardando Resposta', label:'Aguardando',             clr:'#fcd34d', bg:'rgba(245,158,11,.12)', icon:'⏳'},
-    {key:'Não Respondeu',       label:'Não Respondeu em 24h',   clr:'#f87171', bg:'rgba(239,68,68,.12)',  icon:'✗'},
-    {key:'',                    label:'Sem disparo',            clr:'rgba(255,255,255,0.3)', bg:'rgba(255,255,255,.05)', icon:'—'},
+    {key:'Respondeu',           label:'Respondeu',            color:'oklch(80% 0.16 140)'},
+    {key:'Aguardando Resposta', label:'Aguardando',           color:'oklch(80% 0.15 75)'},
+    {key:'Não Respondeu',       label:'Não respondeu 24h',    color:'oklch(72% 0.16 20)'},
+    {key:'',                    label:'Sem disparo',          color:'oklch(55% 0.02 250)'},
   ];
-  document.getElementById('ev-statusia').innerHTML=opts.map(o=>{
-    const count=active.filter(l=>o.key===''?(l.status_ia==null||l.status_ia===''):(l.status_ia===o.key)).length;
-    const pct=Math.round(count/total*100);
-    return`<div class="flex items-center gap-3 px-4 py-3 rounded-xl" style="background:${o.bg}">
-      <span style="font-size:1rem;flex-shrink:0;">${o.icon}</span>
+  const counts = opts.map(o => ({
+    ...o,
+    n: active.filter(l => o.key==='' ? (l.status_ia==null||l.status_ia==='') : l.status_ia===o.key).length
+  }));
+  const total = counts.reduce((s,x)=>s+x.n, 0) || 1;
+  const respondeu = counts[0].n;
+  const waiting = counts[1].n + counts[2].n;
+  const C = 2 * Math.PI * 40;
+  let acc = 0;
+  const arcs = counts.map(x => {
+    const f = x.n / total;
+    const dash = `${C*f} ${C}`;
+    const off = -C * acc;
+    acc += f;
+    return `<circle cx="48" cy="48" r="40" stroke="${x.color}" stroke-width="10" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${off}"/>`;
+  }).join('');
+
+  const host = document.getElementById('ev-statusia');
+  if (!host) return;
+  host.innerHTML = `
+    <div class="flex items-center gap-5">
+      <svg width="96" height="96" viewBox="0 0 96 96" style="flex-shrink:0;transform:rotate(-90deg)">
+        <circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,.05)" stroke-width="10" fill="none"/>
+        ${arcs}
+      </svg>
+      <div class="flex-1 space-y-2.5">
+        ${counts.map(x=>`
+          <div class="flex items-center gap-2.5">
+            <span class="dot" style="background:${x.color};width:7px;height:7px"></span>
+            <span class="text-[12px] flex-1">${x.label}</span>
+            <span class="metric text-[13px] font-semibold">${x.n}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ${waiting>0?`<button class="pill w-full justify-center mt-4" style="height:32px;display:flex;" onclick="toast('${waiting} follow-ups pendentes')">Follow-up ${waiting} pendente${waiting>1?'s':''} →</button>`:''}
+    <p class="text-[11px] text-center mt-3" style="color:var(--t3)">${total?Math.round(respondeu/total*100):0}% de engajamento</p>`;
+}
+
+// Performance por responsável (assigned_to + campo legado responsible)
+function renderEvolucaoEquipe(){
+  const host = document.getElementById('ev-equipe');
+  if (!host) return;
+  const active = leads.filter(l => !l.archived);
+  // Agrupa por assigned_to → user (ou por l.responsible quando não houver)
+  const groups = new Map();
+  for (const l of active) {
+    const u = Users.byId(l.assigned_to);
+    const key = u ? u.id : (l.responsible || '__unassigned__');
+    const name = u ? (u.name || u.email) : (l.responsible || 'Sem responsável');
+    const role = u ? u.role : '';
+    if (!groups.has(key)) groups.set(key, { key, name, role, n:0, conv:0, perd:0 });
+    const g = groups.get(key);
+    g.n++;
+    if (l.status==='Convertido') g.conv++;
+    else if (l.status==='Perdido') g.perd++;
+  }
+  const rows = [...groups.values()]
+    .filter(g => g.key !== '__unassigned__')
+    .map(g => ({ ...g, taxa: (g.conv+g.perd)>0 ? (g.conv/(g.conv+g.perd))*100 : 0 }))
+    .sort((a,b) => b.taxa - a.taxa || b.n - a.n)
+    .slice(0, 5);
+  if (!rows.length) { host.innerHTML = `<p class="text-[11px] text-center py-4" style="color:var(--t3)">Sem dados</p>`; return; }
+  const max = Math.max(...rows.map(r=>r.taxa || 0.01));
+  host.innerHTML = rows.map(r => `
+    <div class="flex items-center gap-3">
+      <div class="av av-7" style="background:${avatarFor(r.key)}">${initialsOf(r.name)}</div>
       <div class="flex-1 min-w-0">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold" style="color:${o.clr}">${o.label}</span>
-          <span class="text-sm font-bold" style="color:${o.clr}">${count}</span>
+        <div class="flex items-baseline justify-between">
+          <span class="text-[12.5px] font-medium truncate">${esc(r.name)}</span>
+          <span class="metric text-[12.5px] font-semibold">${r.taxa.toFixed(1)}%</span>
         </div>
-        <div class="mt-1.5 h-1 rounded-full" style="background:rgba(255,255,255,0.07)">
-          <div class="h-1 rounded-full" style="width:${pct}%;background:${o.clr};opacity:.6;"></div>
+        <div class="flex items-center gap-2 mt-1">
+          <div class="pbar flex-1"><span style="width:${(r.taxa/max)*100}%;background:var(--accent)"></span></div>
+          <span class="mono text-[10px]" style="color:var(--t3)">${r.n} leads</span>
         </div>
       </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
 }
 
 // ── MOTIVOS DE PERDA ─────────────────────────────────────────
@@ -3650,27 +3741,22 @@ function renderMotivosPerda(){
   perdidos.forEach(l=>{const r=l.loss_reason||'Não informado';counts[r]=(counts[r]||0)+1;});
   const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const max=sorted[0]?.[1]||1;
-  const colors=['#f87171','#fdba74','#fcd34d','#6ee7b7','#93c5fd','#c4b5fd','#f9a8d4'];
   const el=document.getElementById('ev-motivos');
   if(!el)return;
-  if(!sorted.length){el.innerHTML=`<p class="text-xs text-center py-4" style="color:var(--t3)">Nenhum lead perdido ainda</p>`;return;}
-  el.innerHTML=sorted.map(([r,n],i)=>{
+  if(!sorted.length){el.innerHTML=`<p class="text-[11px] text-center py-4" style="color:var(--t3)">Nenhum lead perdido ainda</p>`;return;}
+  el.innerHTML=sorted.map(([r,n])=>{
     const pct=Math.round(n/total*100);
-    const barW=Math.round(n/max*100);
-    const clr=colors[i%colors.length];
-    return`<div>
-      <div class="flex items-center justify-between mb-1">
-        <span class="text-xs font-medium truncate" style="color:var(--t2);max-width:70%">${r}</span>
-        <span class="text-xs font-bold ml-2 flex-shrink-0" style="color:${clr}">${n} <span style="color:var(--t3);font-weight:400">(${pct}%)</span></span>
+    return `<div>
+      <div class="flex items-baseline justify-between mb-1">
+        <span class="text-[11.5px] truncate" style="color:var(--t2);max-width:70%" title="${esc(r)}">${esc(r)}</span>
+        <span class="mono text-[10.5px]" style="color:var(--t3)">${n} · ${pct}%</span>
       </div>
-      <div class="h-1.5 rounded-full" style="background:rgba(255,255,255,0.06)">
-        <div class="h-1.5 rounded-full transition-all" style="width:${barW}%;background:${clr};opacity:.75;"></div>
-      </div>
+      <div class="pbar"><span style="width:${(n/max)*100}%;background:linear-gradient(90deg, oklch(72% 0.16 20 / .8), oklch(72% 0.16 20 / .4))"></span></div>
     </div>`;
   }).join('');
 }
 
-// ── VELOCIDADE POR ETAPA ──────────────────────────────────────
+// ── VELOCIDADE POR ETAPA (marca SLA) ─────────────────────────
 function renderVelocidadeEtapa(){
   const active=leads.filter(l=>!l.archived&&l.stage_entered_at&&l.status!=='Convertido'&&l.status!=='Perdido');
   const el=document.getElementById('ev-velocidade');if(!el)return;
@@ -3680,49 +3766,64 @@ function renderVelocidadeEtapa(){
     if(!group.length)return null;
     const avg=Math.round(group.reduce((acc,l)=>acc+diffDays(l.stage_entered_at),0)/group.length);
     const sla=SLA_CFG[s]||5;
-    const ratio=avg/sla;
-    const clr=ratio<=1?'#6ee7b7':ratio<=2?'#fcd34d':'#f87171';
-    const label=ratio<=1?'dentro do SLA':ratio<=2?'atenção':'crítico';
-    const barW=Math.min(Math.round(ratio*50),100);
-    return{s,avg,sla,clr,label,barW,count:group.length};
+    return{s,avg,sla,count:group.length};
   }).filter(Boolean);
-  if(!rows.length){el.innerHTML=`<p class="text-xs text-center py-4" style="color:var(--t3)">Sem dados suficientes</p>`;return;}
-  el.innerHTML=rows.map(r=>`
-    <div>
-      <div class="flex items-center justify-between mb-1">
-        <span class="text-xs font-medium" style="color:var(--t2)">${r.s} <span style="color:var(--t3)">(${r.count})</span></span>
-        <span class="text-xs font-bold flex-shrink-0 ml-2" style="color:${r.clr}">⌀ ${r.avg}d <span style="font-weight:400;color:var(--t3)">/ SLA ${r.sla}d — ${r.label}</span></span>
-      </div>
-      <div class="h-1.5 rounded-full" style="background:rgba(255,255,255,0.06)">
-        <div class="h-1.5 rounded-full transition-all" style="width:${r.barW}%;background:${r.clr};opacity:.75;"></div>
-      </div>
-    </div>`).join('');
+  if(!rows.length){el.innerHTML=`<p class="text-[11px] text-center py-4" style="color:var(--t3)">Sem dados suficientes</p>`;return;}
+  el.innerHTML=rows.map(r=>{
+    const over = r.avg > r.sla;
+    const near = r.avg > r.sla*0.8 && !over;
+    const color = over ? 'oklch(72% 0.16 20)' : near ? 'oklch(80% 0.15 75)' : 'oklch(80% 0.16 140)';
+    const maxScale = Math.max(r.avg, r.sla);
+    const avgW = Math.min(100, (r.avg/maxScale)*100);
+    const slaW = Math.min(100, (r.sla/maxScale)*100);
+    return `
+      <div>
+        <div class="flex items-baseline justify-between mb-1">
+          <span class="text-[12px] font-medium">${esc(r.s)} <span style="color:var(--t3)">(${r.count})</span></span>
+          <span class="mono text-[11px]" style="color:var(--t2)">
+            <span style="color:${color}">${r.avg}d</span>
+            <span style="color:var(--t4)"> / ${r.sla}d SLA</span>
+          </span>
+        </div>
+        <div class="relative" style="height:5px;background:rgba(255,255,255,.04);border-radius:99px">
+          <div style="position:absolute;left:${slaW}%;top:-2px;bottom:-2px;width:1px;background:var(--t3);z-index:2" title="SLA ${r.sla}d"></div>
+          <div style="height:100%;width:${avgW}%;border-radius:99px;background:${color};opacity:.8"></div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ── LOG DE ATIVIDADE CONSOLIDADO ──────────────────────────────
 async function renderLogAtividade(){
   const el=document.getElementById('ev-log');if(!el)return;
-  el.innerHTML=`<div class="px-6 py-4 text-xs" style="color:var(--t3)">Carregando…</div>`;
+  el.innerHTML=`<div class="px-4 py-4 text-[11px] text-center" style="color:var(--t3)">Carregando…</div>`;
   try{
     const activities=await DB.getRecentActivity(40);
-    if(!activities.length){el.innerHTML=`<div class="px-6 py-8 text-center text-xs" style="color:var(--t3)">Nenhuma atividade registrada</div>`;return;}
-    el.innerHTML=activities.map(a=>{
-      const lead=leads.find(l=>l.id===a.lead_id);
-      const name=lead?lead.name:`Lead #${a.lead_id}`;
-      const dt=a.created_at?new Date(a.created_at):null;
-      const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`:'';
-      const actionClr=a.action.includes('criado')?'#6ee7b7':a.action.includes('Status')?'#93c5fd':a.action.includes('Arquiv')?'#fcd34d':a.action.includes('Perdi')?'#f87171':'var(--t2)';
-      return`<div class="px-6 py-3 flex items-start gap-3 hover:bg-white/[0.02] transition-all">
-        <span class="text-xs mt-0.5 flex-shrink-0" style="color:var(--t3);min-width:70px">${dtStr}</span>
-        <div class="flex-1 min-w-0">
-          <span class="text-xs font-semibold" style="color:${actionClr}">${a.action}</span>
-          ${a.detail?`<span class="text-xs ml-1.5" style="color:var(--t3)">${a.detail}</span>`:''}
-          <button onclick="openDrawer(${a.lead_id})" class="text-xs ml-2 transition-colors" style="color:rgba(255,255,255,0.25);" onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">${name} ↗</button>
-        </div>
-        ${a.responsible&&a.responsible!=='—'?`<span class="text-xs flex-shrink-0" style="color:var(--t3)">${a.responsible}</span>`:''}
-      </div>`;
+    if(!activities.length){el.innerHTML=`<div class="px-4 py-8 text-center text-[11px]" style="color:var(--t3)">Nenhuma atividade registrada</div>`;return;}
+    el.innerHTML = activities.map(a => {
+      const lead = leads.find(l => l.id === a.lead_id);
+      const name = lead ? lead.name : `Lead #${a.lead_id}`;
+      const dt = a.created_at ? new Date(a.created_at) : null;
+      const when = dt ? `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+      const ac = (a.action || '').toLowerCase();
+      const color =
+        /criado|convertido|concluí/.test(ac) ? 'oklch(80% 0.16 140)' :
+        /perdi|excluí|arquiv/.test(ac)        ? 'oklch(72% 0.16 20)' :
+        /status|reatribuí|responsáv/.test(ac) ? 'var(--accent)' :
+        /qualific|templ|disparo|importad/.test(ac) ? 'oklch(78% 0.14 200)' :
+        'var(--t2)';
+      return `
+        <div class="flex items-center gap-3 px-3 py-2 rounded-lg transition-all" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='transparent'">
+          <span class="dot" style="background:${color};width:6px;height:6px;box-shadow:0 0 10px ${color}"></span>
+          <span class="text-[11.5px] flex-1 min-w-0">
+            <strong style="font-weight:600">${esc(a.action||'—')}</strong>
+            ${a.detail?`<span style="color:var(--t2)"> ${esc(a.detail)}</span>`:''}
+            <button onclick="openDrawer(${a.lead_id})" class="ml-1" style="color:var(--t3);text-decoration:underline;text-decoration-color:transparent;" onmouseover="this.style.textDecorationColor='currentColor'" onmouseout="this.style.textDecorationColor='transparent'">${esc(name)} ↗</button>
+          </span>
+          <span class="mono text-[10px]" style="color:var(--t4)">${esc(when)}</span>
+        </div>`;
     }).join('');
-  }catch(e){el.innerHTML=`<div class="px-6 py-4 text-xs" style="color:#f87171">Erro ao carregar: ${e.message}</div>`;}
+  }catch(e){el.innerHTML=`<div class="px-4 py-4 text-[11px]" style="color:var(--rose)">Erro ao carregar: ${esc(e.message)}</div>`;}
 }
 
 // ── REATIVAÇÃO BANNER ─────────────────────────────────────────
@@ -4533,12 +4634,10 @@ async function _applyStatusChange(id,newStatus){
 // ── GRÁFICO EVOLUÇÃO ─────────────────────────────────────────
 function setChartPeriod(p){
   chartPeriod=p;
-  document.getElementById('chart-btn-week').style.background=p==='week'?'rgba(59,130,246,0.2)':'rgba(255,255,255,0.04)';
-  document.getElementById('chart-btn-week').style.borderColor=p==='week'?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.08)';
-  document.getElementById('chart-btn-week').style.color=p==='week'?'#93c5fd':'rgba(255,255,255,0.28)';
-  document.getElementById('chart-btn-month').style.background=p==='month'?'rgba(59,130,246,0.2)':'rgba(255,255,255,0.04)';
-  document.getElementById('chart-btn-month').style.borderColor=p==='month'?'rgba(59,130,246,0.4)':'rgba(255,255,255,0.08)';
-  document.getElementById('chart-btn-month').style.color=p==='month'?'#93c5fd':'rgba(255,255,255,0.28)';
+  const bw=document.getElementById('chart-btn-week');
+  const bm=document.getElementById('chart-btn-month');
+  if (bw) bw.classList.toggle('active', p==='week');
+  if (bm) bm.classList.toggle('active', p==='month');
   renderChart();
 }
 
@@ -4600,62 +4699,53 @@ function renderChart(){
   Chart.defaults.color='rgba(255,255,255,0.28)';
   Chart.defaults.borderColor='rgba(255,255,255,0.06)';
 
+  const ctx2d = ctx.getContext ? ctx.getContext('2d') : null;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || 'oklch(70% 0.16 250)';
+  const lime   = 'oklch(80% 0.16 140)';
+  let gradA, gradB;
+  if (ctx2d) {
+    gradA = ctx2d.createLinearGradient(0, 0, 0, 300);
+    gradA.addColorStop(0, accent.replace(')', ' / 0.4)'));
+    gradA.addColorStop(1, accent.replace(')', ' / 0)'));
+    gradB = ctx2d.createLinearGradient(0, 0, 0, 300);
+    gradB.addColorStop(0, 'oklch(80% 0.16 140 / 0.32)');
+    gradB.addColorStop(1, 'oklch(80% 0.16 140 / 0)');
+  }
+
+  Chart.defaults.color='rgba(245,245,247,0.32)';
+  Chart.defaults.borderColor='rgba(255,255,255,0.05)';
+
   evolutionChart=new Chart(ctx,{
     type:'line',
     data:{
       labels,
       datasets:[
-        {
-          label:'Captados',
-          data:dataCapt,
-          borderColor:'#3b82f6',
-          backgroundColor:'rgba(59,130,246,0.08)',
-          borderWidth:2,
-          pointRadius:3,
-          pointBackgroundColor:'#3b82f6',
-          tension:0.4,
-          fill:true,
-        },
-        {
-          label:'Convertidos',
-          data:dataConv,
-          borderColor:'#22c55e',
-          backgroundColor:'rgba(34,197,94,0.06)',
-          borderWidth:2,
-          pointRadius:3,
-          pointBackgroundColor:'#22c55e',
-          tension:0.4,
-          fill:true,
-        },
+        { label:'Captados',    data:dataCapt, borderColor:accent, backgroundColor:gradA||accent, borderWidth:2, tension:0.35, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:accent, pointHoverBorderColor:'#fff', fill:true },
+        { label:'Convertidos', data:dataConv, borderColor:lime,   backgroundColor:gradB||lime,   borderWidth:2, tension:0.35, pointRadius:0, pointHoverRadius:5, pointHoverBackgroundColor:lime,   pointHoverBorderColor:'#fff', fill:true },
       ]
     },
     options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
       plugins:{
-        legend:{
-          position:'top',
-          align:'end',
-          labels:{boxWidth:10,boxHeight:10,borderRadius:3,usePointStyle:true,pointStyle:'circle',color:'rgba(255,255,255,0.4)',font:{size:11}},
-        },
+        legend:{ display:false },
         tooltip:{
-          backgroundColor:'rgba(0,0,0,0.85)',
-          borderColor:'rgba(255,255,255,0.12)',
+          backgroundColor:'rgba(15,15,18,.96)',
+          borderColor:'rgba(255,255,255,.11)',
           borderWidth:1,
-          titleColor:'#fff',
-          bodyColor:'rgba(255,255,255,0.6)',
-          padding:10,
-          callbacks:{
-            title:items=>chartPeriod==='week'?`Semana de ${items[0].label}`:`${items[0].label}`,
-          }
-        }
+          titleColor:'#f5f5f7',
+          bodyColor:'rgba(245,245,247,.75)',
+          padding:10, cornerRadius:8, displayColors:true, boxWidth:6, boxHeight:6, boxPadding:4,
+          titleFont:{family:"'DM Sans'",size:11,weight:'600'},
+          bodyFont:{family:"'JetBrains Mono'",size:11},
+          callbacks:{ title:items=>chartPeriod==='week' ? `Semana de ${items[0].label}` : `${items[0].label}` },
+        },
       },
       scales:{
-        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},maxRotation:45}},
-        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},precision:0},beginAtZero:true},
-      }
-    }
+        x:{ grid:{ color:'rgba(255,255,255,.03)', drawTicks:false }, ticks:{ color:'rgba(245,245,247,.32)', font:{family:"'JetBrains Mono'",size:10}, maxTicksLimit:12, maxRotation:0 }, border:{ display:false } },
+        y:{ grid:{ color:'rgba(255,255,255,.04)', drawTicks:false }, ticks:{ color:'rgba(245,245,247,.32)', font:{family:"'JetBrains Mono'",size:10}, padding:8, precision:0 }, border:{ display:false }, beginAtZero:true },
+      },
+    },
   });
 }
 
@@ -4664,7 +4754,7 @@ function renderAll(){
   if(mainTab==='kanban')renderKanban();
   if(mainTab==='hoje')renderHoje();
   if(mainTab==='reunioes')renderReunioes();
-  if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderMotivosPerda();renderVelocidadeEtapa();renderChart();renderFunnelEv();}
+  if(mainTab==='evolucao'){renderEvolucaoKpis();renderEvolucaoQualificacao();renderEvolucaoProduto();renderEvolucaoStatusIA();renderEvolucaoEquipe();renderMotivosPerda();renderVelocidadeEtapa();renderChart();renderFunnelEv();}
   renderReativacaoBanner();
 }
 
