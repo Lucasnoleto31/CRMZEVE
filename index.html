@@ -316,24 +316,75 @@
     .filters-advanced[open] > summary > svg { transform: rotate(180deg); }
     .filters-advanced > summary::-webkit-details-marker { display:none; }
 
-    /* ── KANBAN ── */
-    .kanban-board { display:grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
+    /* ── KANBAN (design handoff) ── */
+    .kanban-board { display:grid; grid-template-columns: repeat(8, minmax(230px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:8px; }
     @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(8, 250px); } }
-    .kb-col { display:flex; flex-direction:column; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:14px; min-height:260px; overflow:hidden; }
-    .kb-col.drop-target { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.4); }
-    .kb-col-head { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; gap:6px; position:sticky; top:0; backdrop-filter:blur(12px); background:rgba(12,12,12,0.8); z-index:2; }
-    .kb-col-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .kb-col-count { font-size:.65rem; font-weight:600; padding:2px 7px; border-radius:99px; background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.55); }
-    .kb-col-body { padding:10px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; max-height:calc(100vh - 320px); }
-    .kb-card { background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 12px; cursor:grab; transition:all .15s; user-select:none; }
-    .kb-card:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.15); transform:translateY(-1px); }
-    .kb-card.dragging { opacity:0.45; cursor:grabbing; }
-    .kb-card-name { font-size:.85rem; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .kb-card-meta { display:flex; flex-wrap:wrap; gap:4px 8px; margin-top:5px; font-size:.65rem; color:var(--t3); }
-    .kb-card-meta .k-dot { width:5px; height:5px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:middle; }
-    .kb-card-action { font-size:.65rem; margin-top:6px; color:var(--t2); display:-webkit-box; -webkit-line-clamp:1; line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
-    .kb-card-action.overdue { color:#f87171; }
-    .kb-empty { padding:16px 10px; text-align:center; font-size:.7rem; color:rgba(255,255,255,0.25); border:1px dashed rgba(255,255,255,0.08); border-radius:8px; }
+    .kb-col {
+      display:flex; flex-direction:column;
+      background:rgba(255,255,255,0.02);
+      border:1px solid var(--line);
+      border-radius:12px;
+      min-height:300px; overflow:hidden;
+      transition:background .15s, border-color .15s;
+    }
+    .kb-col.drop-target { background:var(--accent-soft); border-color:var(--accent-line); }
+    .kb-col-head {
+      padding:12px 14px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:6px;
+      position:sticky; top:0; z-index:2;
+      backdrop-filter:blur(12px);
+      background:rgba(11,11,13,0.9);
+    }
+    .kb-col-title-wrap { display:flex; align-items:center; gap:8px; min-width:0; }
+    .kb-col-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .kb-col-title {
+      font-size:11px; font-weight:600; text-transform:uppercase;
+      letter-spacing:.08em; color:var(--t1);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .kb-col-count {
+      font-family:'JetBrains Mono'; font-feature-settings:"tnum";
+      font-size:10.5px; font-weight:600;
+      padding:2px 7px; border-radius:99px;
+      background:rgba(255,255,255,.05); color:var(--t2);
+    }
+    .kb-col-body {
+      padding:8px; display:flex; flex-direction:column; gap:6px;
+      overflow-y:auto; max-height:calc(100vh - 260px);
+    }
+    .kb-card {
+      background:rgba(255,255,255,0.03);
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:10px 11px;
+      cursor:grab; user-select:none;
+      transition:all .15s;
+    }
+    .kb-card:hover {
+      background:rgba(255,255,255,0.05);
+      border-color:var(--line-2);
+      transform:translateY(-1px);
+    }
+    .kb-card.dragging { opacity:0.4; cursor:grabbing; }
+    .kb-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:6px; }
+    .kb-card-name { font-size:12px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+    .kb-card-medal { font-size:11px; flex-shrink:0; }
+    .kb-card-chips { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+    .kb-card-chip {
+      display:inline-flex; align-items:center;
+      padding:1px 6px; border-radius:99px;
+      font-size:10px; font-weight:500; color:var(--t2);
+      background:rgba(255,255,255,.04); border:1px solid var(--line);
+    }
+    .kb-card-foot { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .kb-card-who { display:flex; align-items:center; gap:6px; color:var(--t3); font-size:10.5px; }
+    .kb-card-date { font-family:'JetBrains Mono'; font-feature-settings:"tnum"; font-size:10px; color:var(--t4); }
+    .kb-card-action { font-size:10.5px; margin-top:6px; color:var(--t2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .kb-card-action.overdue { color:var(--rose); font-weight:600; }
+    .kb-empty {
+      padding:14px 10px; text-align:center; font-size:11px; color:var(--t4);
+      border:1px dashed var(--line); border-radius:8px;
+    }
 
     /* ── TIMELINE ── */
     .timeline { display:flex; flex-direction:column; gap:0; }
@@ -736,15 +787,17 @@
   </div><!-- /tabpanel-leads -->
 
   <!-- ══ TAB: KANBAN ══ -->
-  <div id="tabpanel-kanban" class="hidden space-y-4">
-    <div class="flex items-center justify-between">
+  <div id="tabpanel-kanban" class="hidden space-y-5 anim-up">
+    <div class="flex items-end justify-between gap-6">
       <div>
-        <h2 class="text-base font-semibold" style="color:var(--t1)">Pipeline Kanban</h2>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Arraste os cards para mover entre etapas · ocultos: Convertido e Perdido</p>
+        <div class="ov mb-2">Pipeline visual</div>
+        <h1 class="text-[28px] font-semibold leading-none" style="letter-spacing:-0.025em;color:var(--t1)">Kanban</h1>
+        <p class="text-[13px] mt-2" style="color:var(--t2)">Arraste para mover entre etapas · clique para abrir o drawer</p>
       </div>
       <div class="flex items-center gap-2">
-        <label class="flex items-center gap-2 text-xs" style="color:var(--t3)">
-          <input type="checkbox" id="kb-show-closed" onchange="renderKanban()"/> Mostrar finalizados
+        <label class="pill cursor-pointer" style="gap:8px">
+          <input type="checkbox" id="kb-show-closed" onchange="renderKanban()" style="accent-color:var(--accent);width:13px;height:13px;"/>
+          <span>Mostrar finalizados</span>
         </label>
       </div>
     </div>
@@ -4346,6 +4399,18 @@ async function maybeSuggestTemplateOnStage(leadId,stage){
 }
 
 // ── KANBAN ───────────────────────────────────────────────────
+// Cor do dot do header do kanban, por etapa (design handoff)
+const KB_DOT = {
+  'Lead Novo':        '#71717a',
+  'IA Disparou':      'oklch(78% 0.14 200)',
+  'Qualificado':      'oklch(70% 0.16 250)',
+  'AIKON em Ação':    'oklch(80% 0.15 75)',
+  'Reunião Agendada': 'oklch(70% 0.16 290)',
+  'Em Abertura':      'oklch(75% 0.15 45)',
+  'Convertido':       'oklch(80% 0.16 140)',
+  'Perdido':          'oklch(72% 0.16 20)',
+};
+
 function renderKanban(){
   const board=document.getElementById('kanban-board');
   if(!board)return;
@@ -4355,30 +4420,46 @@ function renderKanban(){
   const byStatus={};cols.forEach(s=>byStatus[s]=[]);
   active.forEach(l=>{const st=cols.includes(l.status)?l.status:(cols[0]||'Lead Novo');if(byStatus[st])byStatus[st].push(l);});
   const t=today();
-  board.style.gridTemplateColumns=`repeat(${cols.length}, minmax(240px, 1fr))`;
+  board.style.gridTemplateColumns=`repeat(${cols.length}, minmax(230px, 1fr))`;
   board.innerHTML=cols.map(s=>{
-    const sc=SC[s]||SC['Lead Novo'];
-    const items=byStatus[s]||[];
-    const cards=items.map(l=>{
-      const cat=CATEGORIA_CFG[l.categoria_ia];
-      const prio=PRIORITY_CFG[l.priority];
+    const dotColor = KB_DOT[s] || '#71717a';
+    const items = byStatus[s]||[];
+    const cards = items.map(l=>{
+      const medal = l.categoria_ia ? CATEGORIA_MEDAL[l.categoria_ia] : null;
       const sla=getSlaStatus(l);
       const na=l.next_action;
       const naOver=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+      const assignee = Users.byId(l.assigned_to);
+      const assigneeName = assignee ? (assignee.name || assignee.email) : (l.responsible || '');
+      const avatarBg = avatarFor(assignee ? assignee.id : (l.responsible || ''));
+      const initials = initialsOf(assigneeName || '—');
+      const prio = PRIORITY_CFG[l.priority];
       return`<div class="kb-card" draggable="true" data-lead-id="${l.id}">
-        <div class="kb-card-name" title="${esc(l.name)}">${iaChip(l)}${cat?`<span style="color:${cat.clr};">${cat.medal} </span>`:''}${esc(l.name)}</div>
-        <div class="kb-card-meta">
-          ${prio?`<span><span class="k-dot" style="background:${prio.clr};"></span>${esc(l.priority)}</span>`:''}
-          ${l.responsible?`<span>👤 ${esc(l.responsible)}</span>`:''}
-          ${l.value?`<span style="color:#6ee7b7;">${toCur(l.value)}</span>`:''}
-          ${sla&&sla.overdue?`<span style="color:#f87171;">⚠️ ${sla.days}d</span>`:''}
+        <div class="kb-card-head">
+          <div class="kb-card-name" title="${esc(l.name)}">${esc(l.name)}</div>
+          ${medal?`<span class="kb-card-medal" title="${esc(l.categoria_ia||'')}">${medal}</span>`:''}
         </div>
-        ${na?`<p class="kb-card-action${naOver?' overdue':''}" title="${esc(na)}">${naOver?'⚠️ ':'→ '}${esc(na)}</p>`:''}
+        <div class="kb-card-chips">
+          ${l.produto_alvo?`<span class="kb-card-chip">${esc((l.produto_alvo||'').split(',')[0].trim())}</span>`:''}
+          ${prio?`<span class="kb-card-chip" style="background:${prio.clr}22;border-color:${prio.clr}55;color:${prio.clr}">${esc(l.priority)}</span>`:''}
+          ${sla&&sla.overdue?`<span class="kb-card-chip" style="background:oklch(72% 0.16 20 / .12);border-color:oklch(72% 0.16 20 / .3);color:oklch(85% 0.12 20)">⚠ ${sla.days}d</span>`:''}
+          ${l.value?`<span class="kb-card-chip" style="color:oklch(85% 0.14 140)">${toCur(l.value)}</span>`:''}
+        </div>
+        <div class="kb-card-foot">
+          <div class="kb-card-who">
+            ${assigneeName?`<div class="av av-6" style="background:${avatarBg};width:20px;height:20px;font-size:8.5px">${initials}</div><span>${esc((assigneeName||'').split(' ')[0])}</span>`:'<span style="color:var(--t4)">sem dono</span>'}
+          </div>
+          <span class="kb-card-date">${l.entry?toDateBR(l.entry):''}</span>
+        </div>
+        ${na?`<div class="kb-card-action${naOver?' overdue':''}" title="${esc(na)}">${naOver?'⚠ ':'→ '}${esc(na)}</div>`:''}
       </div>`;
-    }).join('')||`<div class="kb-empty">Vazio</div>`;
+    }).join('') || `<div class="kb-empty">Vazio</div>`;
     return`<div class="kb-col" data-status="${escAttr(s)}">
       <div class="kb-col-head">
-        <span class="kb-col-title" style="color:${sc.clr};">● ${esc(s)}</span>
+        <div class="kb-col-title-wrap">
+          <span class="kb-col-dot" style="background:${dotColor}"></span>
+          <span class="kb-col-title">${esc(s)}</span>
+        </div>
         <span class="kb-col-count">${items.length}</span>
       </div>
       <div class="kb-col-body">${cards}</div>
