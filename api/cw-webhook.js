@@ -10,6 +10,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { dispatchAfterClassify } = require('./cw-dispatch');
 
 // Detecta se a SUPABASE_SERVICE_KEY configurada é, de fato, a service_role.
 // Se alguém colocou a anon key por engano, RLS vai bloquear os updates e o
@@ -94,29 +95,72 @@ async function classificar(texto) {
 }
 
 // ── Busca lead por telefone (ignora formatação) ───────────────
+// Usa find_lead_by_phone_strict (Fase 1): tenta últimos 11/10/9 dígitos
+// nessa ordem; só retorna match dos últimos 9 se for único — evita
+// colisão silenciosa entre dois leads com final igual.
 async function buscarLeadPorTelefone(phone) {
-  const digits  = phone.replace(/\D/g, '');
-  const semPais = digits.startsWith('55') ? digits.slice(2) : digits;
-  let searchDigits = semPais;
-  if (semPais.length === 11 && semPais[2] === '9') {
-    searchDigits = semPais.slice(0, 2) + semPais.slice(3);
-  }
-  const tail = searchDigits.slice(-8);
-  console.log(`BUSCA: "${phone}" → tail="${tail}"`);
+  const digits = phone.replace(/\D/g, '');
+  console.log(`BUSCA: "${phone}" → digits="${digits}"`);
 
+  // RPC nova (find_lead_by_phone_strict) — preferida
   try {
+    const { data: rpc } = await supabase.rpc('find_lead_by_phone_strict', { search_digits: digits });
+    if (rpc?.length) return rpc[0];
+  } catch (e) {
+    console.log(`RPC strict falhou (${e.message}), tentando legacy`);
+  }
+
+  // Fallback legacy (find_lead_by_digits) — para deploys onde a Fase 1
+  // ainda não rodou. Pode ser removido após confirmação.
+  try {
+    const tail = digits.length >= 8 ? digits.slice(-8) : digits;
     const { data: rpc } = await supabase.rpc('find_lead_by_digits', { search_digits: tail });
     if (rpc?.length) return rpc[0];
-  } catch {
-    console.log('RPC indisponível, usando ilike');
-  }
+  } catch { /* segue para ilike */ }
 
+  // Último recurso: ilike com últimos 9 dígitos
+  const tail9 = digits.slice(-9);
   const { data } = await supabase
     .from('crm_leads')
-    .select('id, name, status, status_ia, categoria_ia')
-    .ilike('phone', `%${tail}%`)
-    .limit(1);
-  return data?.[0] || null;
+    .select('*')
+    .ilike('phone', `%${tail9}%`)
+    .limit(2);
+  // Só retorna se for inequívoco
+  return data?.length === 1 ? data[0] : null;
+}
+
+// ── Cria notificação in-app para o vendedor responsável ───────
+// O CRM tem polling em crm_notifications (Fase 3 adiciona push). Inserir
+// aqui já habilita o badge mesmo antes da Fase 3 estar deployada.
+async function notify(userId, leadId, type, message) {
+  if (!userId) return;
+  try {
+    await supabase.from('crm_notifications').insert({
+      user_id: userId,
+      lead_id: leadId,
+      type,
+      message,
+    });
+  } catch (e) {
+    console.error('notify falhou:', e.message);
+  }
+}
+
+// ── Registra atribuição (qual disparo/mensagem rendeu o quê) ──
+async function attribute(leadId, outcome, extras = {}) {
+  try {
+    await supabase.from('crm_attributions').insert({
+      lead_id: leadId,
+      outcome,
+      template_name:    extras.template_name || null,
+      channel:          extras.channel || 'whatsapp',
+      category_at_time: extras.category || null,
+      cost_brl:         extras.cost_brl || 0,
+      meta:             extras.meta || null,
+    });
+  } catch (e) {
+    console.error('attribute falhou:', e.message);
+  }
 }
 
 // ── Handler principal ─────────────────────────────────────────
@@ -128,8 +172,23 @@ module.exports = async (req, res) => {
   try {
     const payload = req.body || {};
 
+    // Mensagem saindo: registra last_outbound_at para gating de anti-spam
+    // (Fase 5 usa esse campo). Não classifica nem notifica.
     if (payload.message_type === 'outgoing') {
-      return res.status(200).json({ ok: true, skip: 'outgoing' });
+      const phone = payload.conversation?.meta?.sender?.phone_number
+                 || payload.sender?.phone_number
+                 || payload.contact?.phone_number || '';
+      const convId = payload.conversation?.id || null;
+      if (phone) {
+        const lead = await buscarLeadPorTelefone(phone);
+        if (lead) {
+          await supabase.from('crm_leads').update({
+            last_outbound_at: new Date().toISOString(),
+            chatwoot_conversation_id: convId || lead.chatwoot_conversation_id,
+          }).eq('id', lead.id);
+        }
+      }
+      return res.status(200).json({ ok: true, skip: 'outgoing', tracked: true });
     }
 
     const content = payload.content || payload.message?.content || '';
@@ -137,8 +196,9 @@ module.exports = async (req, res) => {
                  || payload.sender?.phone_number
                  || payload.contact?.phone_number
                  || '';
+    const convId  = payload.conversation?.id || null;
 
-    console.log(`WEBHOOK: "${content}" | phone: ${phone}`);
+    console.log(`WEBHOOK: "${content}" | phone: ${phone} | conv: ${convId}`);
 
     if (!content || !phone) {
       return res.status(200).json({ ok: true, skip: 'no content or phone' });
@@ -150,31 +210,102 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, skip: 'lead not found' });
     }
 
-    // Se já tem categoria, não sobrescreve
+    const now = new Date().toISOString();
+
+    // Sempre registra: lead respondeu agora (mesmo se já classificado).
+    // Isso alimenta SLA "respondeu há quanto tempo?" e ordenação de Hoje.
+    const baseUpdate = {
+      last_inbound_at: now,
+      updated_at:      now,
+    };
+    if (convId && !lead.chatwoot_conversation_id) {
+      baseUpdate.chatwoot_conversation_id = convId;
+    }
+
+    // Se já tem categoria, só atualiza last_inbound + notifica novamente
+    // (vendedor precisa saber que o lead voltou a falar).
     if (lead.categoria_ia) {
+      await supabase.from('crm_leads').update(baseUpdate).eq('id', lead.id);
+      await notify(
+        lead.assigned_to,
+        lead.id,
+        'lead_replied',
+        `${lead.name || 'Lead'} respondeu de novo no WhatsApp`
+      );
+      await attribute(lead.id, 'responded', { category: lead.categoria_ia });
       return res.status(200).json({ ok: true, skip: 'already classified', categoria: lead.categoria_ia });
     }
 
-    const now      = new Date().toISOString();
     const categoria = await classificar(content);
 
     if (!categoria) {
-      await supabase.from('crm_leads')
-        .update({ status_ia: 'Respondeu', updated_at: now })
-        .eq('id', lead.id);
+      // Respondeu algo não-classificável (ex.: "obrigado"). Marca status_ia
+      // e notifica o vendedor pra ele ler e seguir manualmente.
+      await supabase.from('crm_leads').update({
+        ...baseUpdate,
+        status_ia: 'Respondeu',
+      }).eq('id', lead.id);
+      await notify(
+        lead.assigned_to,
+        lead.id,
+        'lead_replied_unclassified',
+        `${lead.name || 'Lead'} respondeu mas não foi classificado — leia a mensagem`
+      );
+      await attribute(lead.id, 'responded', { meta: { unclassified: true, content: content.slice(0, 200) } });
       console.log(`⏳ Não classificado: "${content}"`);
       return res.status(200).json({ ok: true, skip: 'unclassified' });
     }
 
+    // Classificou: muda status para Qualificado se vinha de IA Disparou,
+    // grava categoria + last_inbound, e notifica o vendedor (URGENTE).
+    const newStatus = lead.status === 'IA Disparou' ? 'Qualificado' : lead.status;
+    const stageChanged = newStatus !== lead.status;
+
     await supabase.from('crm_leads').update({
-      categoria_ia: categoria,
-      status_ia:    'Respondeu',
-      status:       lead.status === 'IA Disparou' ? 'Qualificado' : lead.status,
-      updated_at:   now,
+      ...baseUpdate,
+      categoria_ia:      categoria,
+      status_ia:         'Respondeu',
+      status:            newStatus,
+      stage_entered_at:  stageChanged ? now.slice(0, 10) : lead.stage_entered_at,
     }).eq('id', lead.id);
 
+    await notify(
+      lead.assigned_to,
+      lead.id,
+      'lead_qualified',
+      `🔥 ${lead.name || 'Lead'} qualificado como "${categoria}" — abra agora`
+    );
+    await attribute(lead.id, 'qualified', { category: categoria });
+
+    // Disparo automático AIKON (gate AIKON_AUTO_DISPATCH=true em env)
+    // Lê o lead já atualizado pra checar last_outbound_at corretamente
+    const { data: freshLead } = await supabase
+      .from('crm_leads').select('*').eq('id', lead.id).single();
+    if (freshLead) {
+      const result = await dispatchAfterClassify(freshLead, categoria).catch(e => ({ skipped: 'crash', error: e.message }));
+      console.log(`AIKON dispatch #${lead.id}:`, JSON.stringify(result));
+    }
+
+    // Log de atividade (timeline do drawer)
+    try {
+      await supabase.from('crm_activity').insert({
+        lead_id: lead.id,
+        action: 'Qualificação alterada',
+        detail: `IA classificou como ${categoria}`,
+        responsible: 'IA (webhook)',
+      });
+      if (stageChanged) {
+        await supabase.from('crm_activity').insert({
+          lead_id: lead.id,
+          action: 'Status alterado',
+          detail: `${lead.status} → ${newStatus} (auto)`,
+          responsible: 'IA (webhook)',
+        });
+      }
+    } catch (e) { console.error('activity log:', e.message); }
+
     console.log(`✅ #${lead.id} (${lead.name}) classificado: ${categoria}`);
-    return res.status(200).json({ ok: true, lead_id: lead.id, categoria });
+    return res.status(200).json({ ok: true, lead_id: lead.id, categoria, status: newStatus });
 
   } catch (err) {
     console.error('Webhook error:', err.message);

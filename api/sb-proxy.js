@@ -92,12 +92,26 @@ const HANDLERS = {
     const size = Math.min(Math.max(parseInt(page_size, 10) || 1000, 1), 1000);
     const all = [];
     let from = 0;
+    // Tenta primeiro a view crm_leads_full (vem com `sinal` e
+    // `dias_sem_movimento` da Fase "lead-signal"). Se a view ainda não
+    // foi criada, cai pra crm_leads e o front calcula o sinal localmente.
+    let table = 'crm_leads_full';
     while (true) {
       const to = from + size - 1;
-      const batch = await sbFetch(
-        `/crm_leads?select=*&order=created_at.desc`,
-        { headers: { 'Range-Unit': 'items', 'Range': `${from}-${to}`, 'Prefer': 'count=none' } }
-      );
+      let batch;
+      try {
+        batch = await sbFetch(
+          `/${table}?select=*&order=created_at.desc`,
+          { headers: { 'Range-Unit': 'items', 'Range': `${from}-${to}`, 'Prefer': 'count=none' } }
+        );
+      } catch (e) {
+        // Fallback: view não existe ainda → usa tabela crua
+        if (table === 'crm_leads_full' && from === 0) {
+          table = 'crm_leads';
+          continue;
+        }
+        throw e;
+      }
       if (!Array.isArray(batch) || batch.length === 0) break;
       all.push(...batch);
       if (batch.length < size) break;

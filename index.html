@@ -660,6 +660,13 @@
     <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span class="dot" style="background:oklch(80% 0.16 140)"></span>Convertido <span class="spill-count" id="count-Convertido"></span></button>
     <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span class="dot" style="background:oklch(72% 0.16 20)"></span>Perdido <span class="spill-count" id="count-Perdido"></span></button>
     <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span class="dot" style="background:var(--rose)"></span>⚠️ Vencidos</button>
+    <button class="spill flex-shrink-0" id="spill-hot" onclick="setHotFilter()" title="Apenas leads com score ≥ 65"><span class="dot" style="background:#f87171"></span>🔥 Quentes</button>
+    <button class="spill flex-shrink-0" id="spill-sla" onclick="setSlaFilter()" title="Leads com SLA estourado nesta etapa"><span class="dot" style="background:var(--amber)"></span>⏱ SLA estourado</button>
+    <button class="spill flex-shrink-0" id="spill-sig-ativo"     onclick="setSignalFilter('ativo')"     title="Lead respondeu nas últimas 48h"><span class="dot" style="background:#6ee7b7"></span>💬 Ativo</button>
+    <button class="spill flex-shrink-0" id="spill-sig-aguardando" onclick="setSignalFilter('aguardando')" title="Disparamos há &lt; 24h, esperando resposta"><span class="dot" style="background:#93c5fd"></span>📤 Aguardando</button>
+    <button class="spill flex-shrink-0" id="spill-sig-silencio"  onclick="setSignalFilter('silencio')"  title="Disparamos há &gt; 24h e zero retorno"><span class="dot" style="background:#fcd34d"></span>⏳ Silêncio</button>
+    <button class="spill flex-shrink-0" id="spill-sig-esfriando" onclick="setSignalFilter('esfriando')" title="Conversou antes mas voltou a sumir"><span class="dot" style="background:#fdba74"></span>💤 Esfriando</button>
+    <button class="spill flex-shrink-0" id="spill-sig-ghost"     onclick="setSignalFilter('ghost')"     title="Foi pra Perdido sem nunca responder"><span class="dot" style="background:#a1a1aa"></span>👻 Ghost</button>
     <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span class="dot" style="background:var(--cyan)"></span><span id="spill-ia-label">Todos os contatos</span></button>
   </div>
 
@@ -766,6 +773,7 @@
             <th class="py-3 px-4 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('name')">Nome <span class="sort-icon mono" data-col="name"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('status')">Status <span class="sort-icon mono" data-col="status"></span></th>
+            <th class="py-3 px-2 font-semibold" title="Sinal de vida do lead — atualizado automaticamente">Sinal</th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('responsible')">Responsável <span class="sort-icon mono" data-col="responsible"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('entry')">Entrada <span class="sort-icon mono" data-col="entry"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('next_action_date')">Próxima ação <span class="sort-icon mono" data-col="next_action_date"></span></th>
@@ -1208,6 +1216,10 @@
           <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
           WhatsApp
         </a>
+        <a id="drawer-cw-link" href="#" target="_blank" class="pill hidden" style="height:32px" title="Abrir conversa no Chatwoot">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Conversa
+        </a>
         <button onclick="openReunianoModalFromDrawer()" class="pill" style="height:32px">
           <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           Reunião
@@ -1449,35 +1461,80 @@
 
 <!-- ━━━━━━━━━━━━━━━━━━━━ LOSS REASON MODAL ━━━━━━━━━━━━━━━━━━━━ -->
 <div id="loss-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop">
-  <div class="glass anim-up rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+  <div class="glass anim-up rounded-2xl w-full max-w-md p-6 shadow-2xl">
     <div class="flex items-center gap-3 mb-4">
       <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,.12);">
         <svg class="w-5 h-5" style="color:#f87171" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       </div>
       <div>
         <h3 class="font-semibold" style="color:var(--t1)">Lead Perdido</h3>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Qual foi o motivo da perda?</p>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Por que estamos arquivando?</p>
       </div>
     </div>
     <p class="text-sm mb-4" style="color:var(--t2)">Lead: <strong id="loss-lead-name" style="color:var(--t1)"></strong></p>
-    <select id="loss-reason-sel" class="w-full border rounded-lg px-3 py-2.5 text-sm mb-4" style="border-color:rgba(239,68,68,.3)!important;">
-      <option value="">Selecionar motivo…</option>
-      <option>Preço muito alto</option>
-      <option>Sem capital disponível</option>
-      <option>Sem interesse</option>
-      <option>Escolheu concorrente</option>
-      <option>Sem resposta</option>
-      <option>Timing ruim</option>
-      <option>Outros</option>
-    </select>
+
+    <!-- Categoria (obrigatória) — diferencia "morto" de "ghost" -->
+    <div class="space-y-2 mb-4" id="loss-cat-radios">
+      <label class="loss-radio flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all"
+             style="border:1px solid var(--b1);background:var(--s2);"
+             onclick="selectLossCat('recusou', this)">
+        <input type="radio" name="loss-cat" value="recusou" class="mt-0.5"/>
+        <div class="flex-1">
+          <div class="text-sm font-semibold" style="color:var(--t1)">❌ Recusou</div>
+          <div class="text-xs" style="color:var(--t3)">Disse que não tem interesse</div>
+        </div>
+      </label>
+      <label class="loss-radio flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all"
+             style="border:1px solid var(--b1);background:var(--s2);"
+             onclick="selectLossCat('sem_capital', this)">
+        <input type="radio" name="loss-cat" value="sem_capital" class="mt-0.5"/>
+        <div class="flex-1">
+          <div class="text-sm font-semibold" style="color:var(--t1)">💸 Sem capital</div>
+          <div class="text-xs" style="color:var(--t3)">Não tem grana agora</div>
+        </div>
+      </label>
+      <label class="loss-radio flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all"
+             style="border:1px solid var(--b1);background:var(--s2);"
+             onclick="selectLossCat('comprou_concorrente', this)">
+        <input type="radio" name="loss-cat" value="comprou_concorrente" class="mt-0.5"/>
+        <div class="flex-1">
+          <div class="text-sm font-semibold" style="color:var(--t1)">🏃 Comprou concorrente</div>
+          <div class="text-xs" style="color:var(--t3)">Foi pra outra solução</div>
+        </div>
+      </label>
+      <label class="loss-radio flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all"
+             style="border:1px solid var(--b1);background:var(--s2);"
+             onclick="selectLossCat('sem_resposta', this)">
+        <input type="radio" name="loss-cat" value="sem_resposta" class="mt-0.5"/>
+        <div class="flex-1">
+          <div class="text-sm font-semibold" style="color:var(--t1)">👻 Sumiu (Ghost)</div>
+          <div class="text-xs" style="color:var(--t3)">Nunca respondeu — pode reativar depois</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Detalhe livre (opcional) -->
+    <input id="loss-reason-sel" type="text" placeholder="Detalhe opcional (ex: ‘falou que volta em janeiro’)"
+           class="w-full border rounded-lg px-3 py-2.5 text-sm mb-4"
+           style="border-color:rgba(239,68,68,.25)!important;background:var(--s2);color:var(--t1);"/>
+
+    <div id="loss-error" class="hidden text-xs mb-3 px-3 py-2 rounded-lg"
+         style="background:rgba(239,68,68,.10);color:#fca5a5;border:1px solid rgba(239,68,68,.25);">
+      Escolha um motivo antes de confirmar.
+    </div>
+
     <div class="flex gap-3">
       <button onclick="saveLossReason(false)"
         class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all"
-        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Pular</button>
+        style="background:var(--s2); border:1px solid var(--b1); color:var(--t2);">Cancelar</button>
       <button onclick="saveLossReason(true)" class="btn-red flex-1 text-white rounded-lg px-4 py-2 text-sm font-semibold transition-all">Confirmar Perda</button>
     </div>
   </div>
 </div>
+<style>
+  .loss-radio:hover { border-color: var(--b2)!important; background: rgba(255,255,255,.04)!important; }
+  .loss-radio.selected { border-color: rgba(239,68,68,.45)!important; background: rgba(239,68,68,.06)!important; }
+</style>
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ SCRIPT ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <script>
@@ -1589,6 +1646,8 @@ const CADENCIA_CFG = {
 };
 
 // SLA por etapa (dias máximos sem avançar)
+// Lead Novo / IA Disparou usam fração de dia (15min e 30min) — calculado
+// em getSlaStatus a partir de stage_entered_at + ms.
 const SLA_CFG = {
   'Lead Novo':        1,
   'IA Disparou':      1,
@@ -1596,6 +1655,24 @@ const SLA_CFG = {
   'AIKON em Ação':    2,
   'Reunião Agendada': 3,
   'Em Abertura':      7,
+};
+
+// SLA em MINUTOS para os primeiros estágios — sobrepõe SLA_CFG quando
+// presente. Captura a janela onde lead morno vira frio em minutos
+// (resposta < 5 min = 21x mais conversão, segundo InsideSales/Harvard).
+const SLA_FAST_MIN = {
+  'Lead Novo':   15,
+  'IA Disparou': 30,
+};
+
+// SLA por categoria_ia (substitui SLA_CFG quando aplicável). Alinhado
+// aos ciclos definidos em scripts/aikon-scripts.md — Aumentar Lotes
+// fecha em 3-7d, Inconsistente 7-14d, Começando 14-30d. Punir vendedor
+// antes do ciclo natural fechar = drop em moral e produtividade.
+const SLA_BY_CATEGORIA = {
+  'Aumentar Lotes': { 'AIKON em Ação': 3, 'Reunião Agendada': 3 },
+  'Inconsistente':  { 'AIKON em Ação': 7, 'Reunião Agendada': 5 },
+  'Começando':      { 'AIKON em Ação': 14, 'Reunião Agendada': 7 },
 };
 
 // Colors per status
@@ -1742,6 +1819,9 @@ let leads=[],filteredLeads=[],selectedIds=new Set(),pendingDeleteId=null,sortCol
 let lastStatusChange=null; // {id, old, new, at, prevStageAt, prevStep, prevNa, prevNaDate}
 let offlineMode=false; // true quando o proxy Supabase falhou e estamos em localStorage
 let iaFilter='all';    // 'all' | 'ia' | 'noia' — filtra por contatos tocados pela IA
+let hotFilter=false;   // pill "🔥 Quentes" (score >= 65)
+let slaOverdueFilter=false; // pill "⏱ SLA estourado"
+let signalFilter=null; // 'ativo'|'aguardando'|'silencio'|'esfriando'|'ghost'|'morto'|'novo'|null
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1805,11 +1885,90 @@ function scoreLabel(s){
   return           {label:'❄️ Frio',  clr:'#93c5fd',bg:'rgba(59,130,246,.1)', border:'rgba(59,130,246,.2)'};
 }
 
+// ── SINAL DE VIDA DO LEAD ─────────────────────────────────────
+// Resolve a ambiguidade "lead morreu vs lead nunca respondeu".
+// Espelha a view v_lead_signal (lead-signal.sql) — mantida sincronizada.
+// Se o backend já enviou lead.sinal (via crm_leads_full), usa direto.
+function getSignal(l){
+  if (l.sinal) return l.sinal;
+  if (l.status === 'Convertido') return 'convertido';
+  if (l.status === 'Perdido') {
+    return ['recusou','sem_capital','comprou_concorrente'].includes(l.loss_category)
+      ? 'morto' : 'ghost';
+  }
+  if (!l.last_outbound_at) return 'novo';
+  const out = new Date(l.last_outbound_at).getTime();
+  const inn = l.last_inbound_at ? new Date(l.last_inbound_at).getTime() : null;
+  const now = Date.now();
+  if (inn === null) {
+    return (now - out) < 24*3600*1000 ? 'aguardando' : 'silencio';
+  }
+  if (inn >= out && (now - inn) < 48*3600*1000) return 'ativo';
+  if (inn < out) return 'esfriando';
+  return 'ativo';
+}
+
+// Dias desde a última movimentação (cliente OU nossa)
+function daysWithoutMove(l){
+  if (typeof l.dias_sem_movimento === 'number') return l.dias_sem_movimento;
+  const ref = l.last_inbound_at || l.last_outbound_at || l.created_at;
+  if (!ref) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
+}
+
+const SIGNAL_CFG = {
+  novo:        { label:'Novo',       icon:'🆕', clr:'#a1a1aa', bg:'rgba(161,161,170,.10)', bd:'rgba(161,161,170,.30)' },
+  aguardando:  { label:'Aguardando', icon:'📤', clr:'#93c5fd', bg:'rgba(59,130,246,.10)',  bd:'rgba(59,130,246,.30)' },
+  silencio:    { label:'Silêncio',   icon:'⏳', clr:'#fcd34d', bg:'rgba(245,158,11,.10)',  bd:'rgba(245,158,11,.30)' },
+  ativo:       { label:'Ativo',      icon:'💬', clr:'#6ee7b7', bg:'rgba(34,197,94,.10)',   bd:'rgba(34,197,94,.30)' },
+  esfriando:   { label:'Esfriando',  icon:'💤', clr:'#fdba74', bg:'rgba(249,115,22,.10)',  bd:'rgba(249,115,22,.30)' },
+  ghost:       { label:'Ghost',      icon:'👻', clr:'#a1a1aa', bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)' },
+  morto:       { label:'Morto',      icon:'❌', clr:'#fca5a5', bg:'rgba(239,68,68,.10)',   bd:'rgba(239,68,68,.30)' },
+  convertido:  { label:'Cliente',    icon:'🏆', clr:'#bef264', bg:'rgba(132,204,22,.12)',  bd:'rgba(132,204,22,.32)' },
+};
+
+const LOSS_CATEGORY_LABEL = {
+  recusou:             '❌ Recusou — disse que não tem interesse',
+  sem_capital:         '💸 Sem capital — não tem grana agora',
+  comprou_concorrente: '🏃 Comprou concorrente',
+  sem_resposta:        '👻 Sumiu — nunca respondeu',
+};
+
+function signalBadge(l, size='md'){
+  const sig = getSignal(l);
+  const cfg = SIGNAL_CFG[sig] || SIGNAL_CFG.novo;
+  const days = daysWithoutMove(l);
+  // Dias só aparecem onde fazem sentido (silêncio, esfriando, aguardando)
+  const showDays = ['silencio','esfriando','aguardando'].includes(sig) && days > 0;
+  const small = size==='sm';
+  return `<span class="sig-badge" title="${cfg.label}${showDays?` há ${days}d`:''}"
+            style="display:inline-flex;align-items:center;gap:4px;${small?'font-size:9.5px;padding:1px 5px':'font-size:10.5px;padding:2px 7px'};
+                   border-radius:99px;background:${cfg.bg};color:${cfg.clr};border:1px solid ${cfg.bd};
+                   font-weight:600;letter-spacing:.02em;line-height:1;white-space:nowrap;">
+            <span style="font-size:${small?9:10}px">${cfg.icon}</span>${cfg.label}${showDays?` ${days}d`:''}
+          </span>`;
+}
+
 function getSlaStatus(lead){
   if(!lead.stage_entered_at||lead.status==='Convertido'||lead.status==='Perdido')return null;
-  const sla=SLA_CFG[lead.status];if(!sla)return null;
+
+  // SLA em minutos para Lead Novo / IA Disparou
+  const fastMin=SLA_FAST_MIN[lead.status];
+  if(fastMin){
+    // stage_entered_at vem como YYYY-MM-DD; usamos created_at se houver
+    // (mais preciso) ou meia-noite local da data.
+    const ref=lead.created_at||lead.updated_at||(lead.stage_entered_at+'T00:00:00');
+    const ms=Date.now()-new Date(ref).getTime();
+    const min=Math.max(0,Math.floor(ms/60000));
+    return{overdue:min>=fastMin,minutes:min,slaMin:fastMin,fast:true};
+  }
+
+  // SLA por categoria_ia tem prioridade sobre SLA_CFG
+  const catSla=SLA_BY_CATEGORIA[lead.categoria_ia]?.[lead.status];
+  const sla=catSla||SLA_CFG[lead.status];
+  if(!sla)return null;
   const daysIn=diffDays(lead.stage_entered_at);
-  return{overdue:daysIn>=sla,days:daysIn,sla};
+  return{overdue:daysIn>=sla,days:daysIn,sla,byCategory:!!catSla};
 }
 
 function toast(msg,type='success'){
@@ -2089,6 +2248,15 @@ function getFiltered(){
     // filtro "tocado pela IA"
     if(iaFilter==='ia'&&!iaTouched(l))return false;
     if(iaFilter==='noia'&&iaTouched(l))return false;
+    // filtro "🔥 Quentes" — score >= 65
+    if(hotFilter&&calcScore(l)<65)return false;
+    // filtro SLA estourado
+    if(slaOverdueFilter){
+      const sla=getSlaStatus(l);
+      if(!sla||!sla.overdue)return false;
+    }
+    // filtro por sinal de vida
+    if(signalFilter && getSignal(l)!==signalFilter)return false;
     // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
     if(overdueFilter){
       const notClosed=l.status!=='Convertido'&&l.status!=='Perdido';
@@ -2128,6 +2296,35 @@ function setOverdueFilter(){
     const tableEl=document.getElementById('table-wrap');
     if(tableEl) tableEl.scrollIntoView({behavior:'smooth',block:'start'});
   }
+}
+
+// Filtro "🔥 Quentes" — leads com score >= 65, ordenados por score desc
+function setHotFilter(){
+  hotFilter=!hotFilter;
+  const pill=document.getElementById('spill-hot');
+  if(pill) pill.classList.toggle('active-pill',hotFilter);
+  if(hotFilter){
+    sortCol='_score';sortDir='desc';
+  }
+  renderTable();
+}
+
+// Filtro "⏱ SLA estourado" — leads cujo getSlaStatus().overdue é true
+function setSlaFilter(){
+  slaOverdueFilter=!slaOverdueFilter;
+  const pill=document.getElementById('spill-sla');
+  if(pill) pill.classList.toggle('active-pill',slaOverdueFilter);
+  renderTable();
+}
+
+// Filtro por sinal de vida (alterna: clicar de novo desativa)
+function setSignalFilter(sig){
+  signalFilter = (signalFilter === sig) ? null : sig;
+  ['ativo','aguardando','silencio','esfriando','ghost'].forEach(s => {
+    const pill = document.getElementById('spill-sig-'+s);
+    if (pill) pill.classList.toggle('active-pill', signalFilter === s);
+  });
+  renderTable();
 }
 
 function syncOverduePill(){
@@ -2174,6 +2371,13 @@ function clearFilters(){
   selectedTags.clear();selectedDates.clear();
   overdueFilter=false;
   iaFilter='all';
+  hotFilter=false;
+  slaOverdueFilter=false;
+  signalFilter=null;
+  document.getElementById('spill-hot')?.classList.remove('active-pill');
+  document.getElementById('spill-sla')?.classList.remove('active-pill');
+  ['ativo','aguardando','silencio','esfriando','ghost'].forEach(s =>
+    document.getElementById('spill-sig-'+s)?.classList.remove('active-pill'));
   updateTagFilterLabel();renderDateChips();buildTagDropdown();
   syncStatusPills();syncOverduePill();syncIaPill();
   renderDashboard();
@@ -2306,8 +2510,13 @@ function renderTable(){
       <!-- Status -->
       <td class="py-3 px-2" onclick="event.stopPropagation();openStatusMenu(${l.id},event)" style="min-width:150px;">
         <button class="sb ${sbClass}" style="cursor:pointer">${esc(l.status)}</button>
-        ${sla&&sla.overdue?`<div class="mono text-[10px] mt-1" style="color:var(--rose)">⚠ ${sla.days}d parado</div>`:''}
-        ${l.status==='Perdido'&&l.loss_reason?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc(l.loss_reason)}</div>`:''}
+        ${sla&&sla.overdue?`<div class="mono text-[10px] mt-1" style="color:var(--rose)">⚠ ${sla.fast?(sla.minutes+'min'):(sla.days+'d')} parado</div>`:''}
+        ${l.status==='Perdido'&&l.loss_category?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc((LOSS_CATEGORY_LABEL[l.loss_category]||l.loss_category).replace(/^[^\s]+\s/,''))}</div>`:''}
+        ${l.status==='Perdido'&&!l.loss_category&&l.loss_reason?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc(l.loss_reason)}</div>`:''}
+      </td>
+      <!-- Sinal de vida -->
+      <td class="py-3 px-2" onclick="openDrawer(${l.id})" style="min-width:120px;">
+        ${signalBadge(l)}
       </td>
       <!-- Responsável -->
       <td class="py-3 px-2 whitespace-nowrap" onclick="openDrawer(${l.id})">
@@ -2569,33 +2778,72 @@ async function undoLastStatus(){
 }
 
 // ── LOSS REASON MODAL ────────────────────────────────────────
-let lossModalId=null, lossModalOldStatus=null;
+let lossModalId=null, lossModalOldStatus=null, lossModalCat=null;
 
 function openLossModal(id, oldStatus){
-  lossModalId=id; lossModalOldStatus=oldStatus;
+  lossModalId=id; lossModalOldStatus=oldStatus; lossModalCat=null;
   const lead=leads.find(l=>l.id===id);
   document.getElementById('loss-lead-name').textContent=lead?lead.name:'';
   document.getElementById('loss-reason-sel').value=lead?.loss_reason||'';
+  document.getElementById('loss-error').classList.add('hidden');
+  // Limpa seleção de radios + estado visual
+  document.querySelectorAll('#loss-cat-radios .loss-radio').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('#loss-cat-radios input[type=radio]').forEach(el => { el.checked = false; });
+  // Pré-seleciona categoria existente, se houver
+  if (lead?.loss_category) {
+    const el = document.querySelector(`#loss-cat-radios input[value="${lead.loss_category}"]`);
+    if (el) {
+      el.checked = true;
+      el.closest('.loss-radio').classList.add('selected');
+      lossModalCat = lead.loss_category;
+    }
+  }
   document.getElementById('loss-modal').classList.remove('hidden');
 }
 
+function selectLossCat(cat, labelEl){
+  lossModalCat = cat;
+  document.querySelectorAll('#loss-cat-radios .loss-radio').forEach(el => el.classList.remove('selected'));
+  labelEl.classList.add('selected');
+  const radio = labelEl.querySelector('input[type=radio]');
+  if (radio) radio.checked = true;
+  document.getElementById('loss-error').classList.add('hidden');
+}
+
 async function saveLossReason(confirm){
-  document.getElementById('loss-modal').classList.add('hidden');
   const id=lossModalId; const oldStatus=lossModalOldStatus;
-  lossModalId=null; lossModalOldStatus=null;
   const lead=leads.find(l=>l.id===id); if(!lead) return;
-  if(!confirm){lead.status=oldStatus;renderAll();return;}
-  const reason=document.getElementById('loss-reason-sel').value||null;
-  lead.loss_reason=reason;
-  lead.stage_entered_at=today();lead.cadencia_step=0;
+
+  if(!confirm){
+    // Cancelar — reverte status e fecha modal
+    document.getElementById('loss-modal').classList.add('hidden');
+    lossModalId=null; lossModalOldStatus=null; lossModalCat=null;
+    lead.status=oldStatus; renderAll(); return;
+  }
+
+  // Categoria é obrigatória pra confirmar
+  if(!lossModalCat){
+    document.getElementById('loss-error').classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('loss-modal').classList.add('hidden');
+  const detail = (document.getElementById('loss-reason-sel').value || '').trim() || null;
+  lead.loss_category = lossModalCat;
+  lead.loss_reason   = detail;
+  lead.stage_entered_at=today(); lead.cadencia_step=0;
   const lostStep=CADENCIA_CFG['Perdido']?.[0];
   if(lostStep){lead.next_action=lostStep.label;lead.next_action_date=addDays(today(),lostStep.days);}
+
+  const catLabel = LOSS_CATEGORY_LABEL[lossModalCat] || lossModalCat;
+  lossModalId=null; lossModalOldStatus=null; const savedCat=lossModalCat; lossModalCat=null;
+
   try{
     const s=await DB.upsert(lead);
     leads[leads.findIndex(l=>l.id===id)]=s;
-    await DB.log(id,'Status alterado',`${oldStatus} → Perdido${reason?' ('+reason+')':''}`,s.responsible||'—');
+    await DB.log(id,'Status alterado',`${oldStatus} → Perdido (${catLabel}${detail?': '+detail:''})`,s.responsible||'—');
     renderAll();
-    toast('Lead marcado como perdido','warn');
+    toast(savedCat === 'sem_resposta' ? 'Lead arquivado como Ghost' : 'Lead marcado como perdido','warn');
   }catch(e){toast('Erro: '+e.message,'error');lead.status=oldStatus;}
 }
 
@@ -2719,9 +2967,10 @@ async function openDrawer(id){
   // Avatar com iniciais + gradiente determinístico (baseado em id do lead)
   const av = document.getElementById('drawer-avatar');
   if (av) { av.textContent = initialsOf(l.name); av.style.background = avatarFor(l.id); }
-  // Status badge usando .sb-*
+  // Status badge + sinal de vida
   const sbClass = SB_CLASS[l.status] || 'sb-novo';
-  document.getElementById('drawer-status-badge').innerHTML = `<span class="sb ${sbClass}">${esc(l.status)}</span>`;
+  document.getElementById('drawer-status-badge').innerHTML =
+    `<span class="sb ${sbClass}">${esc(l.status)}</span><span style="margin-left:6px;display:inline-block">${signalBadge(l)}</span>`;
   // Meta line: telefone · "há Nd" · IA chip · valor/prioridade (mono)
   const days = l.entry ? diffDays(l.entry) : null;
   const prio = PRIORITY_CFG[l.priority] || null;
@@ -2735,6 +2984,22 @@ async function openDrawer(id){
   // Atalhos do action bar
   const wa = document.getElementById('drawer-wa-link');
   if (wa) wa.href = toWA(l.phone);
+  // Link direto para a conversa no Chatwoot (só aparece se temos o id).
+  // Base: ANTHROPIC mantém isso fora do code; usamos CHATWOOT_WEB_BASE
+  // gravado em localStorage (admin define em Configurações futuras) ou
+  // detecta automaticamente do CW_BASE quando disponível.
+  const cw = document.getElementById('drawer-cw-link');
+  if (cw) {
+    // Reaproveita config existente do Chatwoot (Configurações → CW): cw_url + cw_account
+    const cwBase = (window.CW_WEB_BASE || localStorage.getItem('cw_url') || '').replace(/\/$/, '');
+    const cwAccount = (window.CW_ACCOUNT_ID || localStorage.getItem('cw_account') || '1');
+    if (cwBase && l.chatwoot_conversation_id) {
+      cw.href = `${cwBase}/app/accounts/${cwAccount}/conversations/${l.chatwoot_conversation_id}`;
+      cw.classList.remove('hidden');
+    } else {
+      cw.classList.add('hidden');
+    }
+  }
   const editBtn = document.getElementById('drawer-edit-btn');
   if (editBtn) editBtn.onclick = () => openModal(l.id);
 
@@ -2767,13 +3032,15 @@ async function openDrawer(id){
 
   // ── SLA ──
   const sla=getSlaStatus(l);
+  const slaInner = sla ? (sla.fast
+    ? `<p class="text-sm font-bold" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.minutes}min ${sla.overdue?'⚠️':''}</p>
+       <p class="text-xs" style="color:var(--t3)">SLA: ${sla.slaMin}min</p>`
+    : `<p class="text-sm font-bold" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.days}d ${sla.overdue?'⚠️':''}</p>
+       <p class="text-xs" style="color:var(--t3)">SLA: ${sla.sla}d${sla.byCategory?' (cat)':''}</p>`) : '';
   document.getElementById('drawer-score-section').innerHTML=sla?`
     <div class="flex items-center justify-between rounded-xl p-3" style="background:var(--s2);border:1px solid var(--b1);">
       <p class="text-xs font-semibold uppercase tracking-wider" style="color:var(--t3)">Tempo nesta etapa</p>
-      <div class="text-right">
-        <p class="text-sm font-bold" style="color:${sla.overdue?'#f87171':'var(--t2)'}">${sla.days}d ${sla.overdue?'⚠️':''}</p>
-        <p class="text-xs" style="color:var(--t3)">SLA: ${sla.sla}d</p>
-      </div>
+      <div class="text-right">${slaInner}</div>
     </div>`:'';
 
   // ── Próxima Ação ──
@@ -3948,9 +4215,15 @@ function renderHoje(){
     hoje:     pool.filter(l => l.next_action_date === t),
     proximos: pool.filter(l => l.next_action_date > t && l.next_action_date <= d3),
   };
-  // Ordena cada bucket por data asc
+  // Ordena cada bucket: SCORE desc primeiro (lead quente vem antes),
+  // empate desempata por data ascendente. Vencidos: mais antigos primeiro.
   for (const k of Object.keys(buckets)) {
-    buckets[k].sort((a,b)=> (a.next_action_date||'').localeCompare(b.next_action_date||''));
+    buckets[k].sort((a,b)=>{
+      const sa=calcScore(a), sb=calcScore(b);
+      if(sa!==sb) return sb-sa;
+      const da=a.next_action_date||'', db=b.next_action_date||'';
+      return da.localeCompare(db);
+    });
   }
   const total = buckets.vencidos.length + buckets.hoje.length + buckets.proximos.length;
   summary.textContent = total ? `${total} ação${total>1?'ões':''} pendente${total>1?'s':''}` : 'Nenhuma ação pendente';
@@ -3984,6 +4257,7 @@ function renderHoje(){
                   <p class="text-xs truncate mt-0.5" style="color:var(--t2)">${esc(l.next_action||'—')}</p>
                   <div class="flex items-center gap-2 mt-1 flex-wrap">
                     <span class="badge ${sc.badge}" style="font-size:.62rem;padding:1px 6px;"><span class="badge-dot" style="background:${sc.dot}"></span>${esc(l.status)}</span>
+                    ${signalBadge(l,'sm')}
                     <span class="text-xs" style="color:var(--t3)">${toDateBR(l.next_action_date)}</span>
                     ${assignee?`<span class="text-xs" style="color:var(--t3)">· ${esc(assignee.name||assignee.email)}</span>`:''}
                   </div>
@@ -4244,18 +4518,54 @@ async function setMeetingOutcome(id, outcome){
   }
 }
 
-// ── NOTIFICAÇÕES (sino + polling 60s) ────────────────────────
+// ── NOTIFICAÇÕES (sino + polling 20s + push) ─────────────────
 const Notifs = {
   list: [],
   _timer: null,
+  _seenIds: new Set(),
+  _pushAsked: false,
   async refresh(){
+    let prev = this.list;
     try {
       this.list = await DB._call('list_my_notifications', { limit: 30 }) || [];
     } catch (e) {
-      // Tabela pode não existir ainda — silencia, apenas deixa badge zerado
       this.list = [];
     }
+    // Detecta notificações novas (não vistas) e dispara push do navegador
+    const fresh = this.list.filter(n => !n.read && !this._seenIds.has(n.id));
+    fresh.forEach(n => this._seenIds.add(n.id));
+    if (fresh.length && prev.length /* não dispara no boot */) {
+      this._sendPush(fresh);
+    }
     this.render();
+  },
+  async ensurePushPermission(){
+    if (this._pushAsked) return;
+    this._pushAsked = true;
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch {}
+    }
+  },
+  _sendPush(items){
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // Agrupa: 1 push se for 1 item, 1 push agregado se forem vários
+    if (items.length === 1) {
+      const n = items[0];
+      const title = /qualificado|🔥/i.test(n.message) ? '🔥 Lead quente!' : 'Novo no CRM';
+      const note = new Notification(title, {
+        body: n.message,
+        tag: 'crm-' + n.id,
+        requireInteraction: /qualificado|🔥/i.test(n.message),
+      });
+      note.onclick = () => { window.focus(); if (n.lead_id) openDrawer(n.lead_id); };
+    } else {
+      const note = new Notification(`${items.length} novidades no CRM`, {
+        body: items.slice(0,3).map(n=>'• '+n.message).join('\n'),
+        tag: 'crm-batch',
+      });
+      note.onclick = () => { window.focus(); toggleNotifDropdown(); };
+    }
   },
   unreadCount(){ return this.list.filter(n => !n.read).length; },
   render(){
@@ -4290,7 +4600,10 @@ const Notifs = {
   },
   startPolling(){
     if (this._timer) clearInterval(this._timer);
-    this._timer = setInterval(() => this.refresh(), 60000);
+    // 20s — janela curta para o vendedor reagir a lead quente sem sobrecarregar a API
+    this._timer = setInterval(() => this.refresh(), 20000);
+    // Pede permissão de push na primeira interação útil (não no boot)
+    this.ensurePushPermission();
   },
 };
 
@@ -4607,6 +4920,7 @@ function renderKanban(){
           ${medal?`<span class="kb-card-medal" title="${esc(l.categoria_ia||'')}">${medal}</span>`:''}
         </div>
         <div class="kb-card-chips">
+          ${signalBadge(l,'sm')}
           ${l.produto_alvo?`<span class="kb-card-chip">${esc((l.produto_alvo||'').split(',')[0].trim())}</span>`:''}
           ${prio?`<span class="kb-card-chip" style="background:${prio.clr}22;border-color:${prio.clr}55;color:${prio.clr}">${esc(l.priority)}</span>`:''}
           ${sla&&sla.overdue?`<span class="kb-card-chip" style="background:oklch(72% 0.16 20 / .12);border-color:oklch(72% 0.16 20 / .3);color:oklch(85% 0.12 20)">⚠ ${sla.days}d</span>`:''}

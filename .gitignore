@@ -32,3 +32,4 @@ Thumbs.db
 # Bot (whatsapp-web.js)
 bot/.wwebjs_auth/
 bot/.wwebjs_cache/
+.claude/
