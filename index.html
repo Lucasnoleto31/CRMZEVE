@@ -773,7 +773,7 @@
             <th class="py-3 px-4 w-8"><input type="checkbox" id="sel-all" onchange="toggleSelectAll(this)"/></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('name')">Nome <span class="sort-icon mono" data-col="name"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('status')">Status <span class="sort-icon mono" data-col="status"></span></th>
-            <th class="py-3 px-2 font-semibold" title="Sinal de vida do lead — atualizado automaticamente">Sinal</th>
+            <th class="py-3 px-2 font-semibold" title="Etapa atual do lead no funil — calculada a partir das mensagens (atualiza sozinha)">Etapa do funil</th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('responsible')">Responsável <span class="sort-icon mono" data-col="responsible"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('entry')">Entrada <span class="sort-icon mono" data-col="entry"></span></th>
             <th class="py-3 px-2 font-semibold sortable" onclick="sortBy('next_action_date')">Próxima ação <span class="sort-icon mono" data-col="next_action_date"></span></th>
@@ -1885,10 +1885,13 @@ function scoreLabel(s){
   return           {label:'❄️ Frio',  clr:'#93c5fd',bg:'rgba(59,130,246,.1)', border:'rgba(59,130,246,.2)'};
 }
 
-// ── SINAL DE VIDA DO LEAD ─────────────────────────────────────
+// ── ETAPA DO FUNIL (estado real do lead) ─────────────────────
 // Resolve a ambiguidade "lead morreu vs lead nunca respondeu".
-// Espelha a view v_lead_signal (lead-signal.sql) — mantida sincronizada.
-// Se o backend já enviou lead.sinal (via crm_leads_full), usa direto.
+// Os 8 estados (Novo / Aguardando / Silêncio / Ativo / Esfriando /
+// Ghost / Morto / Cliente) são a etapa real onde o lead se encontra
+// no funil, calculada a partir do comportamento (last_inbound_at,
+// last_outbound_at, loss_category) e não do status manual.
+// Espelha a view v_lead_signal (lead-signal.sql).
 function getSignal(l){
   if (l.sinal) return l.sinal;
   if (l.status === 'Convertido') return 'convertido';
