@@ -256,17 +256,14 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, skip: 'unclassified' });
     }
 
-    // Classificou: muda status para Qualificado se vinha de IA Disparou,
-    // grava categoria + last_inbound, e notifica o vendedor (URGENTE).
-    const newStatus = lead.status === 'IA Disparou' ? 'Qualificado' : lead.status;
-    const stageChanged = newStatus !== lead.status;
-
+    // Após refactor de etapas dinâmicas, o webhook NÃO promove status manualmente.
+    // O status manual em crm_leads continua o mesmo (geralmente 'novo'). A
+    // view v_lead_signal recalcula a etapa real ('ativo') a partir de
+    // last_inbound_at/last_outbound_at — atualizar esses campos basta.
     await supabase.from('crm_leads').update({
       ...baseUpdate,
       categoria_ia:      categoria,
       status_ia:         'Respondeu',
-      status:            newStatus,
-      stage_entered_at:  stageChanged ? now.slice(0, 10) : lead.stage_entered_at,
     }).eq('id', lead.id);
 
     await notify(
@@ -294,18 +291,10 @@ module.exports = async (req, res) => {
         detail: `IA classificou como ${categoria}`,
         responsible: 'IA (webhook)',
       });
-      if (stageChanged) {
-        await supabase.from('crm_activity').insert({
-          lead_id: lead.id,
-          action: 'Status alterado',
-          detail: `${lead.status} → ${newStatus} (auto)`,
-          responsible: 'IA (webhook)',
-        });
-      }
     } catch (e) { console.error('activity log:', e.message); }
 
     console.log(`✅ #${lead.id} (${lead.name}) classificado: ${categoria}`);
-    return res.status(200).json({ ok: true, lead_id: lead.id, categoria, status: newStatus });
+    return res.status(200).json({ ok: true, lead_id: lead.id, categoria });
 
   } catch (err) {
     console.error('Webhook error:', err.message);

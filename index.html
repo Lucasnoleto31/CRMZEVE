@@ -113,14 +113,18 @@
 
     /* Status badges novos (sb-*) */
     .sb { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:99px; font-size:10.5px; font-weight:600; border:1px solid; white-space:nowrap; }
-    .sb-novo  { background:rgba(113,113,122,.1);           color:#a1a1aa;             border-color:rgba(113,113,122,.22); }
-    .sb-ia    { background:oklch(78% 0.14 200 / .12);      color:oklch(85% 0.12 200); border-color:oklch(78% 0.14 200 / .3); }
-    .sb-qual  { background:oklch(70% 0.16 250 / .12);      color:#bfd3ff;             border-color:oklch(70% 0.16 250 / .3); }
-    .sb-aikon { background:oklch(80% 0.15 75 / .12);       color:oklch(88% 0.12 75);  border-color:oklch(80% 0.15 75 / .3); }
-    .sb-reun  { background:oklch(70% 0.16 290 / .12);      color:oklch(85% 0.12 290); border-color:oklch(70% 0.16 290 / .3); }
-    .sb-aber  { background:oklch(75% 0.15 45 / .12);       color:oklch(85% 0.12 45);  border-color:oklch(75% 0.15 45 / .3); }
-    .sb-conv  { background:oklch(80% 0.16 140 / .12);      color:oklch(88% 0.14 140); border-color:oklch(80% 0.16 140 / .3); }
-    .sb-perd  { background:oklch(72% 0.16 20 / .12);       color:oklch(85% 0.12 20);  border-color:oklch(72% 0.16 20 / .3); }
+    /* Etapas do funil — 11 estados */
+    .sb-novo        { background:rgba(113,113,122,.10);        color:#d4d4d8; border-color:rgba(113,113,122,.30); }
+    .sb-aguardando  { background:rgba(59,130,246,.10);         color:#93c5fd; border-color:rgba(59,130,246,.30); }
+    .sb-silencio    { background:rgba(245,158,11,.10);         color:#fcd34d; border-color:rgba(245,158,11,.30); }
+    .sb-ativo       { background:rgba(34,197,94,.10);          color:#6ee7b7; border-color:rgba(34,197,94,.30); }
+    .sb-esfriando   { background:rgba(249,115,22,.10);         color:#fdba74; border-color:rgba(249,115,22,.30); }
+    .sb-atendimento { background:rgba(251,191,36,.12);         color:#fcd34d; border-color:rgba(251,191,36,.32); }
+    .sb-reuniao     { background:rgba(168,85,247,.12);         color:#c4b5fd; border-color:rgba(168,85,247,.32); }
+    .sb-abrindo     { background:rgba(249,115,22,.12);         color:#fdba74; border-color:rgba(249,115,22,.32); }
+    .sb-cliente     { background:rgba(132,204,22,.14);         color:#bef264; border-color:rgba(132,204,22,.34); }
+    .sb-ghost       { background:rgba(120,120,130,.12);        color:#a1a1aa; border-color:rgba(120,120,130,.30); }
+    .sb-morto       { background:rgba(239,68,68,.10);          color:#fca5a5; border-color:rgba(239,68,68,.30); }
 
     /* Avatar */
     .av { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-weight:600; color:#fff; flex-shrink:0; }
@@ -632,18 +636,21 @@
     </div>
   </details>
 
-  <!-- STATUS PILLS (strip horizontal) -->
+  <!-- ETAPAS DO FUNIL (strip horizontal — 11 estados) -->
   <div class="flex items-center gap-1.5 mb-3 overflow-x-auto" style="scrollbar-width:none;">
     <select id="f-status" onchange="syncStatusPills();renderTable()" class="hidden">
       <option value=""></option>
-      <option value="Lead Novo">Lead Novo</option>
-      <option value="IA Disparou">IA Disparou</option>
-      <option value="Qualificado">Qualificado</option>
-      <option value="AIKON em Ação">AIKON em Ação</option>
-      <option value="Reunião Agendada">Reunião Agendada</option>
-      <option value="Em Abertura">Em Abertura</option>
-      <option value="Convertido">Convertido</option>
-      <option value="Perdido">Perdido</option>
+      <option value="novo">Novo</option>
+      <option value="aguardando">Aguardando</option>
+      <option value="silencio">Silêncio</option>
+      <option value="ativo">Ativo</option>
+      <option value="esfriando">Esfriando</option>
+      <option value="atendimento">Atendimento</option>
+      <option value="reuniao">Reunião</option>
+      <option value="abrindo">Abrindo</option>
+      <option value="cliente">Cliente</option>
+      <option value="ghost">Ghost</option>
+      <option value="morto">Morto</option>
     </select>
     <!-- toggle ativos/arquivados -->
     <div class="seg flex-shrink-0 mr-1">
@@ -651,23 +658,21 @@
       <button id="tab-arquivados" onclick="setShowArchived(true)">Arquivados</button>
     </div>
     <button class="spill active-pill flex-shrink-0" id="spill-" onclick="setStatusPill('')">Todos <span class="spill-count" id="count-"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Lead Novo" onclick="setStatusPill('Lead Novo')"><span class="dot" style="background:#a1a1aa"></span>Lead Novo <span class="spill-count" id="count-Lead Novo"></span></button>
-    <button class="spill flex-shrink-0" id="spill-IA Disparou" onclick="setStatusPill('IA Disparou')"><span class="dot" style="background:oklch(78% 0.14 200)"></span>IA Disparou <span class="spill-count" id="count-IA Disparou"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Qualificado" onclick="setStatusPill('Qualificado')"><span class="dot" style="background:oklch(70% 0.16 250)"></span>Qualificado <span class="spill-count" id="count-Qualificado"></span></button>
-    <button class="spill flex-shrink-0" id="spill-AIKON em Ação" onclick="setStatusPill('AIKON em Ação')"><span class="dot" style="background:oklch(80% 0.15 75)"></span>AIKON <span class="spill-count" id="count-AIKON em Ação"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Reunião Agendada" onclick="setStatusPill('Reunião Agendada')"><span class="dot" style="background:oklch(70% 0.16 290)"></span>Reunião <span class="spill-count" id="count-Reunião Agendada"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Em Abertura" onclick="setStatusPill('Em Abertura')"><span class="dot" style="background:oklch(75% 0.15 45)"></span>Abertura <span class="spill-count" id="count-Em Abertura"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Convertido" onclick="setStatusPill('Convertido')"><span class="dot" style="background:oklch(80% 0.16 140)"></span>Convertido <span class="spill-count" id="count-Convertido"></span></button>
-    <button class="spill flex-shrink-0" id="spill-Perdido" onclick="setStatusPill('Perdido')"><span class="dot" style="background:oklch(72% 0.16 20)"></span>Perdido <span class="spill-count" id="count-Perdido"></span></button>
-    <button class="spill flex-shrink-0" id="spill-overdue" onclick="setOverdueFilter()" style="display:none;"><span class="dot" style="background:var(--rose)"></span>⚠️ Vencidos</button>
-    <button class="spill flex-shrink-0" id="spill-hot" onclick="setHotFilter()" title="Apenas leads com score ≥ 65"><span class="dot" style="background:#f87171"></span>🔥 Quentes</button>
-    <button class="spill flex-shrink-0" id="spill-sla" onclick="setSlaFilter()" title="Leads com SLA estourado nesta etapa"><span class="dot" style="background:var(--amber)"></span>⏱ SLA estourado</button>
-    <button class="spill flex-shrink-0" id="spill-sig-ativo"     onclick="setSignalFilter('ativo')"     title="Lead respondeu nas últimas 48h"><span class="dot" style="background:#6ee7b7"></span>💬 Ativo</button>
-    <button class="spill flex-shrink-0" id="spill-sig-aguardando" onclick="setSignalFilter('aguardando')" title="Disparamos há &lt; 24h, esperando resposta"><span class="dot" style="background:#93c5fd"></span>📤 Aguardando</button>
-    <button class="spill flex-shrink-0" id="spill-sig-silencio"  onclick="setSignalFilter('silencio')"  title="Disparamos há &gt; 24h e zero retorno"><span class="dot" style="background:#fcd34d"></span>⏳ Silêncio</button>
-    <button class="spill flex-shrink-0" id="spill-sig-esfriando" onclick="setSignalFilter('esfriando')" title="Conversou antes mas voltou a sumir"><span class="dot" style="background:#fdba74"></span>💤 Esfriando</button>
-    <button class="spill flex-shrink-0" id="spill-sig-ghost"     onclick="setSignalFilter('ghost')"     title="Foi pra Perdido sem nunca responder"><span class="dot" style="background:#a1a1aa"></span>👻 Ghost</button>
-    <button class="spill flex-shrink-0" id="spill-ia" onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span class="dot" style="background:var(--cyan)"></span><span id="spill-ia-label">Todos os contatos</span></button>
+    <button class="spill flex-shrink-0" id="spill-novo"        onclick="setStatusPill('novo')"><span class="dot" style="background:#a1a1aa"></span>🆕 Novo <span class="spill-count" id="count-novo"></span></button>
+    <button class="spill flex-shrink-0" id="spill-aguardando"  onclick="setStatusPill('aguardando')"><span class="dot" style="background:#60a5fa"></span>📤 Aguardando <span class="spill-count" id="count-aguardando"></span></button>
+    <button class="spill flex-shrink-0" id="spill-silencio"    onclick="setStatusPill('silencio')"><span class="dot" style="background:#fbbf24"></span>⏳ Silêncio <span class="spill-count" id="count-silencio"></span></button>
+    <button class="spill flex-shrink-0" id="spill-ativo"       onclick="setStatusPill('ativo')"><span class="dot" style="background:#34d399"></span>💬 Ativo <span class="spill-count" id="count-ativo"></span></button>
+    <button class="spill flex-shrink-0" id="spill-esfriando"   onclick="setStatusPill('esfriando')"><span class="dot" style="background:#fb923c"></span>💤 Esfriando <span class="spill-count" id="count-esfriando"></span></button>
+    <button class="spill flex-shrink-0" id="spill-atendimento" onclick="setStatusPill('atendimento')"><span class="dot" style="background:#fcd34d"></span>🎯 Atendimento <span class="spill-count" id="count-atendimento"></span></button>
+    <button class="spill flex-shrink-0" id="spill-reuniao"     onclick="setStatusPill('reuniao')"><span class="dot" style="background:#c4b5fd"></span>📅 Reunião <span class="spill-count" id="count-reuniao"></span></button>
+    <button class="spill flex-shrink-0" id="spill-abrindo"     onclick="setStatusPill('abrindo')"><span class="dot" style="background:#fdba74"></span>🏦 Abrindo <span class="spill-count" id="count-abrindo"></span></button>
+    <button class="spill flex-shrink-0" id="spill-cliente"     onclick="setStatusPill('cliente')"><span class="dot" style="background:#84cc16"></span>🏆 Cliente <span class="spill-count" id="count-cliente"></span></button>
+    <button class="spill flex-shrink-0" id="spill-ghost"       onclick="setStatusPill('ghost')"><span class="dot" style="background:#71717a"></span>👻 Ghost <span class="spill-count" id="count-ghost"></span></button>
+    <button class="spill flex-shrink-0" id="spill-morto"       onclick="setStatusPill('morto')"><span class="dot" style="background:#ef4444"></span>❌ Morto <span class="spill-count" id="count-morto"></span></button>
+    <button class="spill flex-shrink-0" id="spill-overdue"     onclick="setOverdueFilter()" style="display:none;"><span class="dot" style="background:var(--rose)"></span>⚠️ Vencidos</button>
+    <button class="spill flex-shrink-0" id="spill-hot"         onclick="setHotFilter()" title="Apenas leads com score ≥ 65"><span class="dot" style="background:#f87171"></span>🔥 Quentes</button>
+    <button class="spill flex-shrink-0" id="spill-sla"         onclick="setSlaFilter()" title="Leads com SLA estourado nesta etapa"><span class="dot" style="background:var(--amber)"></span>⏱ SLA estourado</button>
+    <button class="spill flex-shrink-0" id="spill-ia"          onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span class="dot" style="background:var(--cyan)"></span><span id="spill-ia-label">Todos os contatos</span></button>
   </div>
 
   <!-- FILTERS -->
@@ -725,7 +730,7 @@
     <span id="bulk-count" class="text-[12.5px] font-semibold" style="color:#bfd3ff"></span>
     <select id="bulk-status-sel" class="rounded-lg" style="height:30px;padding:0 10px;font-size:12px;">
       <option value="">Mudar status para…</option>
-      <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
+      <option value="novo">🆕 Novo</option><option value="atendimento">🎯 Atendimento</option><option value="reuniao">📅 Reunião</option><option value="abrindo">🏦 Abrindo</option><option value="cliente">🏆 Cliente</option><option value="ghost">👻 Ghost</option><option value="morto">❌ Morto</option>
     </select>
     <button onclick="bulkChangeStatus()" class="pill pill-accent active" style="height:30px;padding:0 12px;font-size:11.5px;">Aplicar</button>
 
@@ -882,7 +887,7 @@
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h2 class="text-base font-semibold" style="color:var(--t1)">Reuniões</h2>
-        <p class="text-xs mt-0.5" style="color:var(--t3)">Leads em <span style="color:#c4b5fd">Reunião Agendada</span>. Registre o resultado da apresentação.</p>
+        <p class="text-xs mt-0.5" style="color:var(--t3)">Leads em <span style="color:#c4b5fd">📅 Reunião</span>. Registre o resultado da apresentação.</p>
       </div>
       <div class="flex items-center gap-2">
         <div class="flex rounded-lg overflow-hidden flex-shrink-0" style="border:1px solid rgba(255,255,255,0.08);">
@@ -1076,10 +1081,17 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Status</label>
+          <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Etapa do funil</label>
           <select id="f-status-field" onchange="toggleLossReason(this.value)" class="w-full border rounded-lg px-3 py-2.5 text-sm">
-            <option>Lead Novo</option><option>IA Disparou</option><option>Qualificado</option><option>AIKON em Ação</option><option>Reunião Agendada</option><option>Em Abertura</option><option>Convertido</option><option>Perdido</option>
+            <option value="novo">🆕 Novo (sem disparo ainda)</option>
+            <option value="atendimento">🎯 Atendimento (em conversa ativa)</option>
+            <option value="reuniao">📅 Reunião (apresentação marcada)</option>
+            <option value="abrindo">🏦 Abrindo (abrindo conta na corretora)</option>
+            <option value="cliente">🏆 Cliente (convertido)</option>
+            <option value="ghost">👻 Ghost (nunca respondeu)</option>
+            <option value="morto">❌ Morto (recusou explicitamente)</option>
           </select>
+          <p class="text-[10px] mt-1" style="color:var(--t3)">Aguardando · Silêncio · Ativo · Esfriando são automáticos — calculados pelas mensagens.</p>
         </div>
         <div>
           <label class="block text-xs font-medium mb-1.5" style="color:var(--t2)">Responsável</label>
@@ -1240,6 +1252,7 @@
       <div id="drawer-pane-resumo" class="space-y-3">
         <div id="drawer-assignee-section"></div>
         <div id="drawer-score-section"></div>
+        <div id="drawer-redispatch-section"></div>
         <div id="drawer-next-action-section"></div>
         <div id="drawer-reactivate-section"></div>
       </div>
@@ -1538,8 +1551,26 @@
 
 <!-- ━━━━━━━━━━━━━━━━━━━━━━━━ SCRIPT ━━━━━━━━━━━━━━━━━━━━━━━━ -->
 <script>
-const STATUSES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido','Perdido'];
-const FUNNEL_STAGES = ['Lead Novo','IA Disparou','Qualificado','AIKON em Ação','Reunião Agendada','Em Abertura','Convertido'];
+// Etapas do funil (11 estados — mistura manual + automático).
+// AUTOMÁTICOS (calculados pelo backend a partir de mensagens, não setáveis manualmente):
+//   'aguardando','silencio','ativo','esfriando'
+// MANUAIS (vendedor avança):
+//   'novo','atendimento','reuniao','abrindo','cliente','ghost','morto'
+const STAGES = ['novo','aguardando','silencio','ativo','esfriando','atendimento','reuniao','abrindo','cliente','ghost','morto'];
+const STAGES_MANUAL = ['novo','atendimento','reuniao','abrindo','cliente','ghost','morto'];
+const STAGES_AUTO   = ['aguardando','silencio','ativo','esfriando'];
+const STAGES_LOST   = ['ghost','morto'];                  // ex-"Perdido"
+const STAGES_CLOSED = ['cliente','ghost','morto'];         // saídas do funil ativo
+// Helpers semânticos
+function isLost(s){ return s === 'ghost' || s === 'morto'; }
+function isClosed(s){ return s === 'cliente' || s === 'ghost' || s === 'morto'; }
+
+// Aliases legacy — alguns trechos ainda referenciam STATUSES/FUNNEL_STAGES.
+// Apontam pra mesma lista nova; serão removidos depois que tudo estiver
+// migrado.
+const STATUSES = STAGES;
+// Funil cronológico (excluindo as saídas: ghost/morto/esfriando)
+const FUNNEL_STAGES = ['novo','aguardando','silencio','ativo','atendimento','reuniao','abrindo','cliente'];
 
 // Backend proxy endpoint (credenciais ficam no servidor, nunca no browser)
 const SB_PROXY_URL = '/api/sb-proxy';
@@ -1610,82 +1641,113 @@ const LEVEL_CFG = {
   'Profissional':  { clr:'#fbbf24' },
 };
 
-// Cadência padrão por etapa
+// Cadência padrão por etapa (chaves = identifier interno da etapa)
 const CADENCIA_CFG = {
-  'Lead Novo': [
+  novo: [
     { label: 'Disparar mensagem IA de qualificação', days: 0 },
   ],
-  'IA Disparou': [
+  aguardando: [
     { label: 'Aguardar resposta do lead (24h)', days: 0 },
     { label: 'Segundo disparo — sem resposta', days: 1 },
   ],
-  'Qualificado': [
-    { label: 'AIKON: abordar com script da categoria', days: 0 },
-    { label: 'AIKON: follow-up se sem resposta', days: 1 },
+  silencio: [
+    { label: 'Tentativa final antes de virar Ghost', days: 0 },
+    { label: 'Marcar como Ghost se sem resposta', days: 3 },
   ],
-  'AIKON em Ação': [
+  ativo: [
+    { label: 'Abordar com script da categoria', days: 0 },
+    { label: 'Follow-up se sem resposta', days: 1 },
+  ],
+  esfriando: [
+    { label: 'Reengajar — pergunta aberta', days: 0 },
+    { label: 'Última chance de retomar conversa', days: 2 },
+  ],
+  atendimento: [
     { label: 'Agendar apresentação do ecossistema Zeve', days: 0 },
     { label: 'Follow-up — confirmar reunião', days: 1 },
     { label: 'Última tentativa de agendamento', days: 3 },
   ],
-  'Reunião Agendada': [
+  reuniao: [
     { label: 'Confirmar presença na apresentação', days: 0 },
     { label: 'Realizar apresentação do ecossistema', days: 1 },
     { label: 'Follow-up pós-reunião — proposta enviada?', days: 2 },
   ],
-  'Em Abertura': [
+  abrindo: [
     { label: 'Enviar instruções de abertura Genial / setup robô', days: 0 },
     { label: 'Verificar andamento da abertura', days: 3 },
     { label: 'Acompanhamento final — conta ativa?', days: 7 },
   ],
-  'Perdido': [
+  ghost: [
     { label: 'Reativação — 1ª tentativa', days: 30 },
     { label: 'Reativação — 2ª tentativa', days: 60 },
     { label: 'Reativação — última tentativa', days: 90 },
   ],
+  morto: [],
+  cliente: [],
 };
 
-// SLA por etapa (dias máximos sem avançar)
-// Lead Novo / IA Disparou usam fração de dia (15min e 30min) — calculado
-// em getSlaStatus a partir de stage_entered_at + ms.
+// SLA por etapa (dias máximos sem avançar). Etapas auto têm SLA curto;
+// manuais têm SLA mais longo porque dependem do vendedor + cliente.
 const SLA_CFG = {
-  'Lead Novo':        1,
-  'IA Disparou':      1,
-  'Qualificado':      1,
-  'AIKON em Ação':    2,
-  'Reunião Agendada': 3,
-  'Em Abertura':      7,
+  novo:        1,
+  aguardando:  1,
+  silencio:    3,
+  ativo:       1,
+  esfriando:   3,
+  atendimento: 2,
+  reuniao:     3,
+  abrindo:     7,
 };
 
-// SLA em MINUTOS para os primeiros estágios — sobrepõe SLA_CFG quando
-// presente. Captura a janela onde lead morno vira frio em minutos
-// (resposta < 5 min = 21x mais conversão, segundo InsideSales/Harvard).
+// SLA em MINUTOS para etapas iniciais — sobrepõe SLA_CFG. Janela onde
+// lead morno vira frio em minutos (resposta < 5min = 21x mais conversão).
 const SLA_FAST_MIN = {
-  'Lead Novo':   15,
-  'IA Disparou': 30,
+  novo:       15,
+  aguardando: 30,
 };
 
 // SLA por categoria_ia (substitui SLA_CFG quando aplicável). Alinhado
-// aos ciclos definidos em scripts/aikon-scripts.md — Aumentar Lotes
-// fecha em 3-7d, Inconsistente 7-14d, Começando 14-30d. Punir vendedor
-// antes do ciclo natural fechar = drop em moral e produtividade.
+// aos ciclos em scripts/aikon-scripts.md — punir vendedor antes do
+// ciclo natural fechar = drop em moral e produtividade.
 const SLA_BY_CATEGORIA = {
-  'Aumentar Lotes': { 'AIKON em Ação': 3, 'Reunião Agendada': 3 },
-  'Inconsistente':  { 'AIKON em Ação': 7, 'Reunião Agendada': 5 },
-  'Começando':      { 'AIKON em Ação': 14, 'Reunião Agendada': 7 },
+  'Aumentar Lotes': { atendimento: 3,  reuniao: 3 },
+  'Inconsistente':  { atendimento: 7,  reuniao: 5 },
+  'Começando':      { atendimento: 14, reuniao: 7 },
 };
 
-// Colors per status
-const SC = {
-  'Lead Novo':        { badge:'b-lnovo', dot:'#a1a1aa', clr:'#71717a', grd:'#27272a' },
-  'IA Disparou':      { badge:'b-iadi',  dot:'#67e8f9', clr:'#06b6d4', grd:'#164e63' },
-  'Qualificado':      { badge:'b-qual',  dot:'#93c5fd', clr:'#3b82f6', grd:'#1e40af' },
-  'AIKON em Ação':    { badge:'b-aiko',  dot:'#fcd34d', clr:'#f59e0b', grd:'#92400e' },
-  'Reunião Agendada': { badge:'b-reun',  dot:'#c4b5fd', clr:'#a855f7', grd:'#5b21b6' },
-  'Em Abertura':      { badge:'b-aber',  dot:'#fdba74', clr:'#f97316', grd:'#7c2d12' },
-  'Convertido':       { badge:'b-conv',  dot:'#6ee7b7', clr:'#22c55e', grd:'#065f46' },
-  'Perdido':          { badge:'b-perd',  dot:'#fca5a5', clr:'#ef4444', grd:'#7f1d1d' },
+// Configuração canônica de etapa (substitui SC + SB_CLASS + SIGNAL_CFG +
+// FUNNEL_HUE + CATEGORIA_MEDAL antigos). Cada etapa tem ícone, label PT-BR,
+// cores de badge, dot do kanban e hue do funil.
+const STAGE_CFG = {
+  novo:        { icon:'🆕', label:'Novo',        clr:'#d4d4d8', dot:'#a1a1aa', grd:'#27272a',
+                 bg:'rgba(161,161,170,.10)', bd:'rgba(161,161,170,.30)', hue:0,   auto:false, manual:true,  funnel:1 },
+  aguardando:  { icon:'📤', label:'Aguardando',  clr:'#93c5fd', dot:'#60a5fa', grd:'#1e40af',
+                 bg:'rgba(59,130,246,.10)',  bd:'rgba(59,130,246,.30)',  hue:230, auto:true,  manual:false, funnel:2 },
+  silencio:    { icon:'⏳', label:'Silêncio',    clr:'#fcd34d', dot:'#fbbf24', grd:'#92400e',
+                 bg:'rgba(245,158,11,.10)',  bd:'rgba(245,158,11,.30)',  hue:75,  auto:true,  manual:false, funnel:3 },
+  ativo:       { icon:'💬', label:'Ativo',       clr:'#6ee7b7', dot:'#34d399', grd:'#065f46',
+                 bg:'rgba(34,197,94,.10)',   bd:'rgba(34,197,94,.30)',   hue:140, auto:true,  manual:false, funnel:4 },
+  esfriando:   { icon:'💤', label:'Esfriando',   clr:'#fdba74', dot:'#fb923c', grd:'#7c2d12',
+                 bg:'rgba(249,115,22,.10)',  bd:'rgba(249,115,22,.30)',  hue:45,  auto:true,  manual:false, funnel:0 },
+  atendimento: { icon:'🎯', label:'Atendimento', clr:'#fcd34d', dot:'#fcd34d', grd:'#92400e',
+                 bg:'rgba(251,191,36,.10)',  bd:'rgba(251,191,36,.30)',  hue:60,  auto:false, manual:true,  funnel:5 },
+  reuniao:     { icon:'📅', label:'Reunião',     clr:'#c4b5fd', dot:'#c4b5fd', grd:'#5b21b6',
+                 bg:'rgba(168,85,247,.10)',  bd:'rgba(168,85,247,.30)',  hue:290, auto:false, manual:true,  funnel:6 },
+  abrindo:     { icon:'🏦', label:'Abrindo',     clr:'#fdba74', dot:'#fdba74', grd:'#7c2d12',
+                 bg:'rgba(249,115,22,.10)',  bd:'rgba(249,115,22,.30)',  hue:30,  auto:false, manual:true,  funnel:7 },
+  cliente:     { icon:'🏆', label:'Cliente',     clr:'#bef264', dot:'#84cc16', grd:'#365314',
+                 bg:'rgba(132,204,22,.12)',  bd:'rgba(132,204,22,.32)',  hue:120, auto:false, manual:true,  funnel:8 },
+  ghost:       { icon:'👻', label:'Ghost',       clr:'#a1a1aa', dot:'#71717a', grd:'#27272a',
+                 bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)', hue:0,   auto:false, manual:true,  funnel:0 },
+  morto:       { icon:'❌', label:'Morto',       clr:'#fca5a5', dot:'#ef4444', grd:'#7f1d1d',
+                 bg:'rgba(239,68,68,.10)',   bd:'rgba(239,68,68,.30)',   hue:20,  auto:false, manual:true,  funnel:0 },
 };
+
+// Aliases legacy — código antigo ainda referencia SC/FUNNEL_HUE.
+const SC = Object.fromEntries(Object.entries(STAGE_CFG).map(([k,v]) => [k, {
+  badge:'sb-'+k, dot:v.dot, clr:v.clr, grd:v.grd
+}]));
+const FUNNEL_HUE = Object.fromEntries(Object.entries(STAGE_CFG).map(([k,v]) => [k, v.hue]));
 
 // Qualificação de categoria IA — ordem de prioridade comercial
 const CATEGORIA_CFG = {
@@ -1841,11 +1903,11 @@ function debounce(fn,ms=250){let t;return function(...a){clearTimeout(t);t=setTi
 // lead.categoria_ia (preenchido quando a IA classifica) OU status inicial
 // após o disparo automático ("IA Disparou").
 function iaTouched(l){
-  return !!(l && (l.status_ia || l.categoria_ia || l.status === 'IA Disparou'));
+  return !!(l && (l.status_ia || l.categoria_ia || l.status === 'aguardando'));
 }
 function iaTooltip(l){
   const parts = [];
-  if (l.status === 'IA Disparou') parts.push('Template disparado pela IA');
+  if (l.status === 'aguardando') parts.push('Template disparado pela IA');
   if (l.status_ia) parts.push(`IA: ${l.status_ia}`);
   if (l.categoria_ia) parts.push(`Qualificação IA: ${l.categoria_ia}`);
   return parts.length ? parts.join(' · ') : 'A IA já interagiu com este lead';
@@ -1859,15 +1921,15 @@ function iaChip(l, size='sm'){
 
 function fmtPhone(i){let v=i.value.replace(/\D/g,'').slice(0,11);if(v.length>6)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);else if(v.length>0)v='('+v;i.value=v;}
 function toWA(p){let d=p.replace(/\D/g,'');if(!d.startsWith('55'))d='55'+d;return'https://wa.me/'+d;}
-function fuClass(f,s){if(!f||s==='Convertido'||s==='Perdido')return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
+function fuClass(f,s){if(!f||isClosed(s))return'';const t=today();return f<t?'overdue':f===t?'due-today':'';}
 
 function addDays(dateStr,n){const[y,m,d]=dateStr.split('-').map(Number);const dt=new Date(y,(m||1)-1,d||1);dt.setDate(dt.getDate()+n);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
 
 function calcScore(lead){
-  if(lead.status==='Convertido')return 100;
-  if(lead.status==='Perdido')return 0;
+  if(lead.status==='cliente')return 100;
+  if(isLost(lead.status))return 0;
   let s=0;
-  const base={'Lead Novo':5,'IA Disparou':10,'Qualificado':20,'AIKON em Ação':35,'Reunião Agendada':50,'Em Abertura':70};
+  const base={'novo':5,'aguardando':10,'ativo':20,'atendimento':35,'reuniao':50,'abrindo':70};
   s+=base[lead.status]||0;
   if(lead.stage_entered_at){const d=diffDays(lead.stage_entered_at);const sla=SLA_CFG[lead.status]||5;s-=Math.min(Math.floor(d/sla)*10,35);}
   if(lead.next_action)s+=8;
@@ -1886,19 +1948,17 @@ function scoreLabel(s){
 }
 
 // ── ETAPA DO FUNIL (estado real do lead) ─────────────────────
-// Resolve a ambiguidade "lead morreu vs lead nunca respondeu".
-// Os 8 estados (Novo / Aguardando / Silêncio / Ativo / Esfriando /
-// Ghost / Morto / Cliente) são a etapa real onde o lead se encontra
-// no funil, calculada a partir do comportamento (last_inbound_at,
-// last_outbound_at, loss_category) e não do status manual.
-// Espelha a view v_lead_signal (lead-signal.sql).
-function getSignal(l){
-  if (l.sinal) return l.sinal;
-  if (l.status === 'Convertido') return 'convertido';
-  if (l.status === 'Perdido') {
-    return ['recusou','sem_capital','comprou_concorrente'].includes(l.loss_category)
-      ? 'morto' : 'ghost';
+// 11 estados, sendo 4 automáticos e 7 manuais. Backend retorna em
+// `lead.funnel_stage` (via crm_leads_full). Quando ausente, calcula
+// localmente — replica a lógica da view v_lead_signal.
+function getStage(l){
+  if (l.funnel_stage) return l.funnel_stage;
+  if (l.sinal) return l.sinal; // alias legacy
+  // Estados manuais armazenados em lead.status têm prioridade
+  if (l.status && ['atendimento','reuniao','abrindo','cliente','ghost','morto'].includes(l.status)) {
+    return l.status;
   }
+  // Cálculo automático
   if (!l.last_outbound_at) return 'novo';
   const out = new Date(l.last_outbound_at).getTime();
   const inn = l.last_inbound_at ? new Date(l.last_inbound_at).getTime() : null;
@@ -1910,6 +1970,8 @@ function getSignal(l){
   if (inn < out) return 'esfriando';
   return 'ativo';
 }
+// Alias antigo
+function getSignal(l){ return getStage(l); }
 
 // Dias desde a última movimentação (cliente OU nossa)
 function daysWithoutMove(l){
@@ -1919,17 +1981,6 @@ function daysWithoutMove(l){
   return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
 }
 
-const SIGNAL_CFG = {
-  novo:        { label:'Novo',       icon:'🆕', clr:'#a1a1aa', bg:'rgba(161,161,170,.10)', bd:'rgba(161,161,170,.30)' },
-  aguardando:  { label:'Aguardando', icon:'📤', clr:'#93c5fd', bg:'rgba(59,130,246,.10)',  bd:'rgba(59,130,246,.30)' },
-  silencio:    { label:'Silêncio',   icon:'⏳', clr:'#fcd34d', bg:'rgba(245,158,11,.10)',  bd:'rgba(245,158,11,.30)' },
-  ativo:       { label:'Ativo',      icon:'💬', clr:'#6ee7b7', bg:'rgba(34,197,94,.10)',   bd:'rgba(34,197,94,.30)' },
-  esfriando:   { label:'Esfriando',  icon:'💤', clr:'#fdba74', bg:'rgba(249,115,22,.10)',  bd:'rgba(249,115,22,.30)' },
-  ghost:       { label:'Ghost',      icon:'👻', clr:'#a1a1aa', bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)' },
-  morto:       { label:'Morto',      icon:'❌', clr:'#fca5a5', bg:'rgba(239,68,68,.10)',   bd:'rgba(239,68,68,.30)' },
-  convertido:  { label:'Cliente',    icon:'🏆', clr:'#bef264', bg:'rgba(132,204,22,.12)',  bd:'rgba(132,204,22,.32)' },
-};
-
 const LOSS_CATEGORY_LABEL = {
   recusou:             '❌ Recusou — disse que não tem interesse',
   sem_capital:         '💸 Sem capital — não tem grana agora',
@@ -1937,11 +1988,11 @@ const LOSS_CATEGORY_LABEL = {
   sem_resposta:        '👻 Sumiu — nunca respondeu',
 };
 
-function signalBadge(l, size='md'){
-  const sig = getSignal(l);
-  const cfg = SIGNAL_CFG[sig] || SIGNAL_CFG.novo;
+function stageBadge(l, size='md'){
+  const sig = getStage(l);
+  const cfg = STAGE_CFG[sig] || STAGE_CFG.novo;
   const days = daysWithoutMove(l);
-  // Dias só aparecem onde fazem sentido (silêncio, esfriando, aguardando)
+  // Dias só aparecem onde fazem sentido
   const showDays = ['silencio','esfriando','aguardando'].includes(sig) && days > 0;
   const small = size==='sm';
   return `<span class="sig-badge" title="${cfg.label}${showDays?` há ${days}d`:''}"
@@ -1951,9 +2002,16 @@ function signalBadge(l, size='md'){
             <span style="font-size:${small?9:10}px">${cfg.icon}</span>${cfg.label}${showDays?` ${days}d`:''}
           </span>`;
 }
+// Alias legacy
+function signalBadge(l, size='md'){ return stageBadge(l, size); }
+// Renderiza o "status badge" (chip lá da tabela) — agora puxa do STAGE_CFG.
+function statusChip(stage){
+  const cfg = STAGE_CFG[stage] || STAGE_CFG.novo;
+  return `<span class="sb sb-${stage}" style="background:${cfg.bg};color:${cfg.clr};border-color:${cfg.bd};">${cfg.icon} ${cfg.label}</span>`;
+}
 
 function getSlaStatus(lead){
-  if(!lead.stage_entered_at||lead.status==='Convertido'||lead.status==='Perdido')return null;
+  if(!lead.stage_entered_at||isClosed(lead.status))return null;
 
   // SLA em minutos para Lead Novo / IA Disparou
   const fastMin=SLA_FAST_MIN[lead.status];
@@ -2000,12 +2058,8 @@ function toastUndo(msg){
 // Debounce da busca (evita refiltro a cada tecla)
 const debouncedRender=debounce(()=>renderTable(),180);
 
-// Status → classe .sb-* (design handoff)
-const SB_CLASS = {
-  'Lead Novo':'sb-novo','IA Disparou':'sb-ia','Qualificado':'sb-qual',
-  'AIKON em Ação':'sb-aikon','Reunião Agendada':'sb-reun','Em Abertura':'sb-aber',
-  'Convertido':'sb-conv','Perdido':'sb-perd',
-};
+// Etapa → classe .sb-* (design handoff). Usa o identifier interno como sufixo.
+const SB_CLASS = Object.fromEntries(STAGES.map(s => [s, 'sb-'+s]));
 // Medalha emoji a partir da categoria (usado na coluna Nome)
 const CATEGORIA_MEDAL = {
   'Aumentar Lotes':'🥇','Inconsistente':'🥈','Começando':'🥉',
@@ -2050,15 +2104,15 @@ function renderDashboard(){
   const c={Total:activeLeads.length};STATUSES.forEach(s=>c[s]=0);
   let pipeline=0,overdue=0;const t=today();
   activeLeads.forEach(l=>{
-    const st=STATUSES.includes(l.status)?l.status:'Lead Novo';
+    const st=STATUSES.includes(l.status)?l.status:'novo';
     c[st]=(c[st]||0)+1;
-    if(l.status!=='Convertido'&&l.status!=='Perdido'&&l.value) pipeline+=parseFloat(l.value)||0;
-    const fOverdue=l.followup&&l.followup<t&&l.status!=='Convertido'&&l.status!=='Perdido';
-    const aOverdue=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+    if(!isClosed(l.status)&&l.value) pipeline+=parseFloat(l.value)||0;
+    const fOverdue=l.followup&&l.followup<t&&!isClosed(l.status);
+    const aOverdue=l.next_action_date&&l.next_action_date<t&&!isClosed(l.status);
     if(fOverdue||aOverdue) overdue++;
   });
-  const denom=c['Convertido']+c['Perdido'];
-  const convPct=denom>0?Math.round(c['Convertido']/denom*100):0;
+  const denom=c['cliente']+(c['ghost']||0)+(c['morto']||0);
+  const convPct=denom>0?Math.round(c['cliente']/denom*100):0;
 
   const banner=document.getElementById('overdue-banner');
   if(overdue>0){banner.classList.remove('hidden');document.getElementById('overdue-text').textContent=`⚠️ ${overdue} follow-up${overdue>1?'s':''} atrasado${overdue>1?'s':''} — verifique os leads`;}
@@ -2081,34 +2135,34 @@ function renderDashboard(){
   document.getElementById('dashboard').innerHTML=`
     <div class="grid gap-2 mb-3" style="grid-template-columns:repeat(${overdue>0?'4':'3'},minmax(0,1fr));">
       ${kpiInline('Total', c.Total, '#f4f4f5', '#71717a')}
-      ${kpiInline('Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['Convertido']}/${denom} qual.`)}
+      ${kpiInline('Conversão', convPct+'%', '#a5b4fc', '#818cf8', `${c['cliente']}/${denom} qual.`)}
       ${kpiInline('Pipeline', toCur(pipeline), '#5eead4', '#2dd4bf', 'em aberto')}
       ${overdue>0?kpiInline('Vencidas', overdue, '#f87171', '#ef4444', overdueFilter?'✕ remover filtro':'clique p/ filtrar', 'setOverdueFilter()'):''}
     </div>`;
 }
 
-// ── FUNNEL (design handoff) ──────────────────────────────────
-// Hue OKLCH por etapa — alinhado ao KB_DOT/sb-*
-const FUNNEL_HUE = {
-  'Lead Novo':0, 'IA Disparou':200, 'Qualificado':250, 'AIKON em Ação':75,
-  'Reunião Agendada':290, 'Em Abertura':45, 'Convertido':140, 'Perdido':20,
-};
+// ── FUNIL DE CONVERSÃO ──────────────────────────────────────
+// Usa funnel_stage (computado pela view) — abrange os 11 estados, não
+// só status manual. Cada bucket conta tanto leads em estado manual
+// quanto em estado automático.
 function renderFunnel(containerId){
   const activeLeads = leads.filter(l => !l.archived);
   const cnt = {}; const daySum = {};
-  STATUSES.forEach(s => { cnt[s]=0; daySum[s]=0; });
+  FUNNEL_STAGES.forEach(s => { cnt[s]=0; daySum[s]=0; });
   activeLeads.forEach(l => {
-    if (cnt[l.status]!==undefined) {
-      cnt[l.status]++;
+    const stage = getStage(l);
+    if (cnt[stage] !== undefined) {
+      cnt[stage]++;
       const d = diffDays(l.stage_entered_at || l.entry);
-      if (d !== null) daySum[l.status] += d;
+      if (d !== null) daySum[stage] += d;
     }
   });
   const rows = FUNNEL_STAGES.map((s, i) => {
+    const cfg = STAGE_CFG[s] || {};
     const n = cnt[s];
     const avg = n > 0 ? Math.round((daySum[s]/n)*10)/10 : 0;
     const sla = SLA_CFG[s] || 0;
-    return { s, n, avg, sla, hue: FUNNEL_HUE[s] ?? 250 };
+    return { s, n, avg, sla, cfg, hue: cfg.hue ?? 250 };
   });
   const max = Math.max(...rows.map(r => r.n), 1);
   const html = `
@@ -2117,9 +2171,15 @@ function renderFunnel(containerId){
         const pct = Math.round((r.n/max)*100);
         const nextPct = i < rows.length-1 && r.n > 0 ? Math.round((rows[i+1].n/r.n)*100) : null;
         const over = r.sla > 0 && r.avg > r.sla;
+        const isAuto = r.cfg.auto;
         return `
           <div class="cursor-pointer" onclick="setStatusPill('${escAttr(r.s)}');setMainTab('leads')">
-            <div class="ov mb-2" style="font-size:9.5px">${String(i+1).padStart(2,'0')} · ${esc(r.s)}</div>
+            <div class="ov mb-2 flex items-center gap-1.5" style="font-size:9.5px;text-transform:none;letter-spacing:.04em;">
+              <span class="mono" style="color:var(--t3)">${String(i+1).padStart(2,'0')}</span>
+              <span style="font-size:11px">${r.cfg.icon||''}</span>
+              <span style="color:${r.cfg.clr||'var(--t2)'};font-weight:600">${esc(r.cfg.label||r.s)}</span>
+              ${isAuto ? '<span class="mono" title="Calculado automaticamente das mensagens" style="color:var(--t3);font-size:8.5px">auto</span>' : ''}
+            </div>
             <div style="height:88px;display:flex;align-items:flex-end">
               <div style="width:100%;height:${Math.max(pct,6)}%;min-height:18px;background:linear-gradient(180deg, oklch(70% 0.14 ${r.hue} / .35), oklch(70% 0.14 ${r.hue} / .18));border:1px solid oklch(70% 0.14 ${r.hue} / .3);border-radius:6px 6px 2px 2px;transition:filter .15s" onmouseover="this.style.filter='brightness(1.3)'" onmouseout="this.style.filter=''"></div>
             </div>
@@ -2235,7 +2295,7 @@ function getFiltered(){
       const hayResp=l.responsible?.toLowerCase().includes(q);
       if(!(hayName||hayPhone||hayNotes||hayResp))return false;
     }
-    const nst=STATUSES.includes(l.status)?l.status:'Lead Novo';
+    const nst=STATUSES.includes(l.status)?l.status:'novo';
     if(st&&nst!==st)return false;if(re&&l.responsible!==re)return false;
     if(or&&l.origin!==or)return false;
     // data de entrada: datas específicas têm prioridade sobre range
@@ -2262,7 +2322,7 @@ function getFiltered(){
     if(signalFilter && getSignal(l)!==signalFilter)return false;
     // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
     if(overdueFilter){
-      const notClosed=l.status!=='Convertido'&&l.status!=='Perdido';
+      const notClosed=!isClosed(l.status);
       const fOverdue=l.followup&&l.followup<t&&notClosed;
       const aOverdue=l.next_action_date&&l.next_action_date<t&&notClosed;
       if(!fOverdue&&!aOverdue)return false;
@@ -2462,7 +2522,7 @@ function renderTable(){
   // Subtítulo da aba Leads
   const sub = document.getElementById('leads-page-sub');
   if (sub) {
-    const conv = leads.filter(l => !l.archived && l.status === 'Convertido').length;
+    const conv = leads.filter(l => !l.archived && l.status === 'cliente').length;
     const ov = document.getElementById('leads-page-overline');
     if (ov) ov.textContent = showArchived ? 'PIPELINE · ARQUIVADOS' : 'PIPELINE · ATIVOS';
     sub.textContent = `${cnt} lead${cnt===1?'':'s'} ${showArchived?'arquivado':'no pipeline'}${cnt===1?'':'s'} · ${conv} convertido${conv===1?'':'s'}`;
@@ -2483,7 +2543,7 @@ function renderTable(){
     const isSel=selectedIds.has(l.id);
     const prio=PRIORITY_CFG[l.priority]||null;
     const sla=getSlaStatus(l);
-    const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
+    const naOverdue=l.next_action_date&&l.next_action_date<today()&&!isClosed(l.status);
     const iaFlag = iaTouched(l);
     const medal = l.categoria_ia ? CATEGORIA_MEDAL[l.categoria_ia] : null;
     const assignee = Users.byId(l.assigned_to);
@@ -2514,8 +2574,8 @@ function renderTable(){
       <td class="py-3 px-2" onclick="event.stopPropagation();openStatusMenu(${l.id},event)" style="min-width:150px;">
         <button class="sb ${sbClass}" style="cursor:pointer">${esc(l.status)}</button>
         ${sla&&sla.overdue?`<div class="mono text-[10px] mt-1" style="color:var(--rose)">⚠ ${sla.fast?(sla.minutes+'min'):(sla.days+'d')} parado</div>`:''}
-        ${l.status==='Perdido'&&l.loss_category?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc((LOSS_CATEGORY_LABEL[l.loss_category]||l.loss_category).replace(/^[^\s]+\s/,''))}</div>`:''}
-        ${l.status==='Perdido'&&!l.loss_category&&l.loss_reason?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc(l.loss_reason)}</div>`:''}
+        ${isLost(l.status)&&l.loss_category?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc((LOSS_CATEGORY_LABEL[l.loss_category]||l.loss_category).replace(/^[^\s]+\s/,''))}</div>`:''}
+        ${isLost(l.status)&&!l.loss_category&&l.loss_reason?`<div class="text-[10px] mt-0.5" style="color:oklch(80% 0.1 20)">↳ ${esc(l.loss_reason)}</div>`:''}
       </td>
       <!-- Sinal de vida -->
       <td class="py-3 px-2" onclick="openDrawer(${l.id})" style="min-width:120px;">
@@ -2541,7 +2601,7 @@ function renderTable(){
       <!-- Ações -->
       <td class="py-3 px-2 text-right" onclick="event.stopPropagation()">
         <div class="inline-flex gap-1 items-center">
-          ${l.status==='Perdido'?`<button onclick="reativarLead(${l.id})" title="Reativar" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:oklch(70% 0.16 290 / .1);color:oklch(85% 0.12 290);border:1px solid oklch(70% 0.16 290 / .25);">↺</button>`:''}
+          ${isLost(l.status)?`<button onclick="reativarLead(${l.id})" title="Reativar" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:oklch(70% 0.16 290 / .1);color:oklch(85% 0.12 290);border:1px solid oklch(70% 0.16 290 / .25);">↺</button>`:''}
           <button onclick="openModal(${l.id})" title="Editar" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all" style="background:rgba(255,255,255,0.03);color:var(--t2);border:1px solid var(--line);">
             <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
@@ -2832,10 +2892,13 @@ async function saveLossReason(confirm){
 
   document.getElementById('loss-modal').classList.add('hidden');
   const detail = (document.getElementById('loss-reason-sel').value || '').trim() || null;
+  // Status final depende da categoria: sem_resposta = ghost, demais = morto
+  const finalStatus = (lossModalCat === 'sem_resposta') ? 'ghost' : 'morto';
+  lead.status        = finalStatus;
   lead.loss_category = lossModalCat;
   lead.loss_reason   = detail;
   lead.stage_entered_at=today(); lead.cadencia_step=0;
-  const lostStep=CADENCIA_CFG['Perdido']?.[0];
+  const lostStep=(CADENCIA_CFG[finalStatus]||[])[0];
   if(lostStep){lead.next_action=lostStep.label;lead.next_action_date=addDays(today(),lostStep.days);}
 
   const catLabel = LOSS_CATEGORY_LABEL[lossModalCat] || lossModalCat;
@@ -2844,16 +2907,16 @@ async function saveLossReason(confirm){
   try{
     const s=await DB.upsert(lead);
     leads[leads.findIndex(l=>l.id===id)]=s;
-    await DB.log(id,'Status alterado',`${oldStatus} → Perdido (${catLabel}${detail?': '+detail:''})`,s.responsible||'—');
+    await DB.log(id,'Status alterado',`${oldStatus} → ${finalStatus} (${catLabel}${detail?': '+detail:''})`,s.responsible||'—');
     renderAll();
-    toast(savedCat === 'sem_resposta' ? 'Lead arquivado como Ghost' : 'Lead marcado como perdido','warn');
+    toast(finalStatus === 'ghost' ? 'Lead arquivado como Ghost' : 'Lead marcado como morto','warn');
   }catch(e){toast('Erro: '+e.message,'error');lead.status=oldStatus;}
 }
 
 // ── MODAL ────────────────────────────────────────────────────
 function toggleLossReason(status){
   const wrap=document.getElementById('f-loss-reason-wrap');
-  if(status==='Perdido')wrap.classList.remove('hidden');
+  if(isLost(status))wrap.classList.remove('hidden');
   else{wrap.classList.add('hidden');document.getElementById('f-loss-reason').value='';}
 }
 
@@ -2873,20 +2936,20 @@ function openModal(id){
   ['f-id','f-name','f-phone','f-responsible','f-tags','f-notes','f-community','f-next-action'].forEach(k=>document.getElementById(k).value='');
   document.getElementById('f-entry').value=today();document.getElementById('f-followup').value='';
   document.getElementById('f-next-action-date').value='';
-  document.getElementById('f-status-field').value='Lead Novo';document.getElementById('f-origin').value='';
+  document.getElementById('f-status-field').value='novo';document.getElementById('f-origin').value='';
   document.getElementById('f-level').value='';document.getElementById('f-loss-reason').value='';
   document.getElementById('f-categoria-ia').value='';document.getElementById('f-status-ia').value='';
   resetProdChips('');
   document.getElementById('f-loss-reason-wrap').classList.add('hidden');
   document.getElementById('modal-title').textContent='Adicionar Lead';
-  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
+  const firstStep=CADENCIA_CFG['novo']?.[0];
   if(firstStep){document.getElementById('f-next-action').value=firstStep.label;document.getElementById('f-next-action-date').value=today();}
   if(id!==undefined){
     const l=leads.find(l=>l.id===id);if(!l)return;
     document.getElementById('modal-title').textContent='Editar Lead';
     document.getElementById('f-id').value=l.id;document.getElementById('f-name').value=l.name||'';
     document.getElementById('f-phone').value=l.phone||'';document.getElementById('f-entry').value=l.entry||'';
-    document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'Lead Novo';
+    document.getElementById('f-followup').value=l.followup||'';document.getElementById('f-status-field').value=l.status||'novo';
     document.getElementById('f-responsible').value=l.responsible||'';document.getElementById('f-origin').value=l.origin||'';
     document.getElementById('f-tags').value=l.tags||'';document.getElementById('f-notes').value=l.notes||'';
     document.getElementById('f-community').value=l.community||'';
@@ -2897,7 +2960,7 @@ function openModal(id){
     document.getElementById('f-categoria-ia').value=l.categoria_ia||'';
     document.getElementById('f-status-ia').value=l.status_ia||'';
     resetProdChips(l.produto_alvo||'');
-    toggleLossReason(l.status||'Lead Novo');
+    toggleLossReason(l.status||'novo');
   }
   setTimeout(()=>document.getElementById('f-name').focus(),60);
 }
@@ -2907,7 +2970,7 @@ async function saveLead(e){
   e.preventDefault();const idVal=document.getElementById('f-id').value;
   const statusVal=document.getElementById('f-status-field').value;
   const prodAlvo=Array.from(document.querySelectorAll('#f-produto-alvo input:checked')).map(el=>el.value).join(',')||null;
-  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),level:document.getElementById('f-level').value,loss_reason:statusVal==='Perdido'?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null,categoria_ia:document.getElementById('f-categoria-ia').value||null,produto_alvo:prodAlvo,status_ia:document.getElementById('f-status-ia').value||null};
+  const data={name:document.getElementById('f-name').value.trim(),phone:document.getElementById('f-phone').value.trim(),entry:document.getElementById('f-entry').value,followup:document.getElementById('f-followup').value||null,status:statusVal,responsible:document.getElementById('f-responsible').value.trim(),origin:document.getElementById('f-origin').value,tags:document.getElementById('f-tags').value.trim(),notes:document.getElementById('f-notes').value.trim(),community:document.getElementById('f-community').value.trim(),level:document.getElementById('f-level').value,loss_reason:isLost(statusVal)?(document.getElementById('f-loss-reason').value||null):null,next_action:document.getElementById('f-next-action').value.trim()||null,next_action_date:document.getElementById('f-next-action-date').value||null,categoria_ia:document.getElementById('f-categoria-ia').value||null,produto_alvo:prodAlvo,status_ia:document.getElementById('f-status-ia').value||null};
   const btn=document.getElementById('save-btn');btn.disabled=true;btn.textContent='Salvando…';
   try{
     let oldStatus=null;if(idVal){data.id=parseInt(idVal,10);oldStatus=leads.find(l=>l.id===data.id)?.status;}
@@ -2946,7 +3009,7 @@ function openStatusMenuFromDrawer(ev){
 // Move o lead para "Reunião Agendada" e vai pra aba Reuniões
 function openReunianoModalFromDrawer(){
   if (_drawerLeadId == null) return;
-  _applyStatusChange(_drawerLeadId, 'Reunião Agendada').then(()=>{ setMainTab('reunioes'); });
+  _applyStatusChange(_drawerLeadId, 'reuniao').then(()=>{ setMainTab('reunioes'); });
 }
 
 function setDrawerTab(tab){
@@ -2982,7 +3045,7 @@ async function openDrawer(id){
   if (days != null) meta.push(`há ${days}d`);
   if (l.value) meta.push(`<span style="color:oklch(85% 0.14 140)">${toCur(l.value)}</span>`);
   if (prio) meta.push(`<span style="color:${prio.clr}">● ${esc(l.priority)}</span>`);
-  if (l.status==='Perdido' && l.loss_reason) meta.push(`<span style="color:oklch(85% 0.12 20)">motivo: ${esc(l.loss_reason)}</span>`);
+  if (isLost(l.status) && l.loss_reason) meta.push(`<span style="color:oklch(85% 0.12 20)">motivo: ${esc(l.loss_reason)}</span>`);
   document.getElementById('drawer-meta-line').innerHTML = meta.join(' · ');
   // Atalhos do action bar
   const wa = document.getElementById('drawer-wa-link');
@@ -3046,8 +3109,33 @@ async function openDrawer(id){
       <div class="text-right">${slaInner}</div>
     </div>`:'';
 
+  // ── Reenviar disparo (só aparece se a etapa for "silencio") ──
+  const stage = getStage(l);
+  const redispatchHost = document.getElementById('drawer-redispatch-section');
+  if (redispatchHost) {
+    if (stage === 'silencio') {
+      const days = daysWithoutMove(l);
+      redispatchHost.innerHTML = `
+        <div class="rounded-xl p-3" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.30);">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#fcd34d">⏳ Em silêncio há ${days}d</p>
+          </div>
+          <p class="text-xs mb-3" style="color:var(--t2)">O lead recebeu o disparo mas não respondeu. Mande uma segunda tentativa antes que vire Ghost.</p>
+          <button id="redispatch-btn-${l.id}" onclick="redispatchSilencio(${l.id})"
+                  class="w-full text-xs font-semibold px-3 py-2 rounded-lg transition-all text-center"
+                  style="background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.4);"
+                  onmouseover="this.style.background='rgba(245,158,11,.30)'"
+                  onmouseout="this.style.background='rgba(245,158,11,.15)'">
+            📤 Reenviar disparo (segunda tentativa)
+          </button>
+        </div>`;
+    } else {
+      redispatchHost.innerHTML = '';
+    }
+  }
+
   // ── Próxima Ação ──
-  const naOverdue=l.next_action_date&&l.next_action_date<today()&&l.status!=='Convertido'&&l.status!=='Perdido';
+  const naOverdue=l.next_action_date&&l.next_action_date<today()&&!isClosed(l.status);
   document.getElementById('drawer-next-action-section').innerHTML=`
     <div class="rounded-xl p-3" style="background:${naOverdue?'rgba(239,68,68,.06)':'var(--s2)'};border:1px solid ${naOverdue?'rgba(239,68,68,.25)':'var(--b1)'};">
       <div class="flex items-center justify-between mb-2">
@@ -3102,7 +3190,7 @@ async function openDrawer(id){
   }
 
   // ── Reativar (Perdido) ──
-  if(l.status==='Perdido'){
+  if(isLost(l.status)){
     document.getElementById('drawer-reactivate-section').innerHTML=`
       <div class="rounded-xl p-3" style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.2);">
         <p class="text-xs font-semibold mb-2" style="color:#c4b5fd">Fluxo de Reativação</p>
@@ -3167,14 +3255,56 @@ async function advanceCadencia(id){
   }catch(e){toast('Erro: '+e.message,'error');}
 }
 
+// Reenvia o template AIKON para um lead em Silêncio (segunda tentativa)
+async function redispatchSilencio(id){
+  const btn = document.getElementById('redispatch-btn-'+id);
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const res = await DB._call('redispatch_lead', { lead_id: id });
+    if (res?.dispatched) {
+      toast(`Reenviado: ${res.template_name}`, 'success');
+      // Recarrega o lead pra atualizar last_outbound_at
+      try {
+        const updated = await DB._call('list_leads');
+        if (Array.isArray(updated)) {
+          const fresh = updated.find(x => x.id === id);
+          if (fresh) {
+            const i = leads.findIndex(x => x.id === id);
+            if (i !== -1) leads[i] = fresh;
+          }
+        }
+      } catch {}
+      await DB.log(id, 'Template disparado', 'Segunda tentativa (Silêncio)', Auth.user()?.name || '—');
+      renderAll();
+      openDrawer(id);
+    } else {
+      const reason = res?.skipped || 'erro';
+      const msg = {
+        'auto_dispatch_disabled': 'Disparo automático desligado',
+        'outside_hours': 'Fora do horário (08h–21h BRT)',
+        'cooldown': `Aguarde ${30 - (res.age_min||0)}min antes de reenviar`,
+        'daily_cap': 'Cota diária estourada',
+        'no_template': 'Sem template vinculado para esta etapa/categoria',
+        'chatwoot_not_configured': 'Chatwoot não configurado',
+        'send_failed': 'Falha no envio: ' + (res.error||''),
+      }[reason] || 'Não enviou: ' + reason;
+      toast(msg, 'warn');
+      if (btn) { btn.disabled = false; btn.textContent = '📤 Reenviar disparo (segunda tentativa)'; }
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Reenviar disparo (segunda tentativa)'; }
+  }
+}
+
 async function reativarLead(id){
   const l=leads.find(l=>l.id===id);if(!l)return;
-  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
-  const update={...l,status:'Lead Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Retomar contato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
+  const firstStep=CADENCIA_CFG['novo']?.[0];
+  const update={...l,status:'novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Retomar contato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
   try{
     const saved=await DB.upsert(update);
     const i=leads.findIndex(l=>l.id===id);if(i!==-1)leads[i]=saved;
-    await DB.log(id,'Lead reativado',`Retornando de "Perdido" para "Novo"`,l.responsible||'—');
+    await DB.log(id,'Lead reativado',`Retornando para "Novo"`,l.responsible||'—');
     toast(`${l.name} reativado!`);
     renderAll();openDrawer(id);
   }catch(e){toast('Erro: '+e.message,'error');}
@@ -3304,11 +3434,11 @@ function handleImportFile(input){
           let v=row[col]??'';
           if(field==='entry'||field==='followup'||field==='first_contact') v=normalizeDate(v);
           if(field==='value'||field==='capital') v=parseFloat(String(v).replace(',','.'))||0;
-          if(field==='status'&&!STATUSES.includes(v)) v='Lead Novo';
+          if(field==='status'&&!STATUSES.includes(v)) v='novo';
           lead[field]=v;
         });
         if(!lead.entry) lead.entry=today();
-        if(!lead.status) lead.status='Lead Novo';
+        if(!lead.status) lead.status='novo';
         return lead;
       }).filter(l=>l.name&&l.phone);
       document.getElementById('import-row-count').textContent=`${importRows.length} lead${importRows.length>1?'s':''}`;
@@ -3841,14 +3971,14 @@ function renderEvolucaoKpis(){
   const thisMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym));
   const prevMes=activeLeads.filter(l=>l.entry&&l.entry.startsWith(ym_prev));
   const captados=thisMes.length;
-  const convertidos=thisMes.filter(l=>l.status==='Convertido').length;
+  const convertidos=thisMes.filter(l=>l.status==='cliente').length;
   const captadosPrev=prevMes.length;
-  const convertidosPrev=prevMes.filter(l=>l.status==='Convertido').length;
-  const denom=convertidos+(thisMes.filter(l=>l.status==='Perdido').length);
+  const convertidosPrev=prevMes.filter(l=>l.status==='cliente').length;
+  const denom=convertidos+(thisMes.filter(l=>isLost(l.status)).length);
   const taxa=denom>0?Math.round(convertidos/denom*100):0;
-  const taxaPrevDenom=convertidosPrev+(prevMes.filter(l=>l.status==='Perdido').length);
+  const taxaPrevDenom=convertidosPrev+(prevMes.filter(l=>isLost(l.status)).length);
   const taxaPrev=taxaPrevDenom>0?Math.round(convertidosPrev/taxaPrevDenom*100):0;
-  const totalAtivos=activeLeads.filter(l=>l.status!=='Convertido'&&l.status!=='Perdido').length;
+  const totalAtivos=activeLeads.filter(l=>!isClosed(l.status)).length;
 
   // Overline/health chip no topo da aba
   const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -3872,7 +4002,7 @@ function renderEvolucaoKpis(){
       if (wk<0 || wk>=weeks) return;
       const idx=weeks-1-wk;
       if (kind==='captados') buckets[idx]++;
-      else if (kind==='convertidos' && l.status==='Convertido') buckets[idx]++;
+      else if (kind==='convertidos' && l.status==='cliente') buckets[idx]++;
     });
     return buckets;
   }
@@ -4030,8 +4160,8 @@ function renderEvolucaoEquipe(){
     if (!groups.has(key)) groups.set(key, { key, name, role, n:0, conv:0, perd:0 });
     const g = groups.get(key);
     g.n++;
-    if (l.status==='Convertido') g.conv++;
-    else if (l.status==='Perdido') g.perd++;
+    if (l.status==='cliente') g.conv++;
+    else if (isLost(l.status)) g.perd++;
   }
   const rows = [...groups.values()]
     .filter(g => g.key !== '__unassigned__')
@@ -4058,7 +4188,7 @@ function renderEvolucaoEquipe(){
 
 // ── MOTIVOS DE PERDA ─────────────────────────────────────────
 function renderMotivosPerda(){
-  const perdidos=leads.filter(l=>l.status==='Perdido');
+  const perdidos=leads.filter(l=>isLost(l.status));
   const total=perdidos.length||1;
   const counts={};
   perdidos.forEach(l=>{const r=l.loss_reason||'Não informado';counts[r]=(counts[r]||0)+1;});
@@ -4081,11 +4211,11 @@ function renderMotivosPerda(){
 
 // ── VELOCIDADE POR ETAPA (marca SLA) ─────────────────────────
 function renderVelocidadeEtapa(){
-  const active=leads.filter(l=>!l.archived&&l.stage_entered_at&&l.status!=='Convertido'&&l.status!=='Perdido');
+  const active=leads.filter(l=>!l.archived&&l.stage_entered_at&&!isClosed(l.status));
   const el=document.getElementById('ev-velocidade');if(!el)return;
-  const stages=FUNNEL_STAGES.filter(s=>s!=='Convertido');
+  const stages=FUNNEL_STAGES.filter(s=>s!=='cliente');
   const rows=stages.map(s=>{
-    const group=active.filter(l=>(STATUSES.includes(l.status)?l.status:'Lead Novo')===s);
+    const group=active.filter(l=>(STATUSES.includes(l.status)?l.status:'novo')===s);
     if(!group.length)return null;
     const avg=Math.round(group.reduce((acc,l)=>acc+diffDays(l.stage_entered_at),0)/group.length);
     const sla=SLA_CFG[s]||5;
@@ -4168,10 +4298,10 @@ async function bulkReativarVencidos(){
   const vencidos=leads.filter(l=>l.archived&&l.next_action_date&&l.next_action_date<=today());
   if(!vencidos.length)return;
   setLoading(true);
-  const firstStep=CADENCIA_CFG['Lead Novo']?.[0];
+  const firstStep=CADENCIA_CFG['novo']?.[0];
   try{
     for(const l of vencidos){
-      const update={...l,archived:false,status:'Lead Novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Recontato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
+      const update={...l,archived:false,status:'novo',stage_entered_at:today(),cadencia_step:0,loss_reason:null,next_action:firstStep?.label||'Recontato',next_action_date:firstStep?addDays(today(),firstStep.days):today()};
       const s=await DB.upsert(update);leads[leads.findIndex(x=>x.id===l.id)]=s;
       await DB.log(l.id,'Reativado automaticamente','Ciclo de reativação acionado','Sistema');
     }
@@ -4210,7 +4340,7 @@ function renderHoje(){
   const d3 = addDays(t, 3);
   const pool = leads.filter(l =>
     !l.archived &&
-    l.status !== 'Convertido' && l.status !== 'Perdido' &&
+    !isClosed(l.status) &&
     l.next_action_date
   );
   const buckets = {
@@ -4251,7 +4381,7 @@ function renderHoje(){
         </div>
         <div class="divide-y" style="border-color:rgba(255,255,255,0.04);">
           ${items.map(l => {
-            const sc=SC[l.status]||SC['Lead Novo'];
+            const sc=SC[l.status]||SC['novo'];
             const assignee = Users.byId(l.assigned_to);
             return `
               <div class="px-5 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors cursor-pointer" onclick="openDrawer(${l.id})">
@@ -4321,7 +4451,7 @@ function renderReunioes(){
   const sum  = document.getElementById('reunioes-summary');
   if (!host) return;
   // Vê todos os leads em "Reunião Agendada" ou que já tenham meeting_outcome gravado
-  let pool = leads.filter(l => !l.archived && (l.status === 'Reunião Agendada' || l.meeting_outcome));
+  let pool = leads.filter(l => !l.archived && (l.status === 'reuniao' || l.meeting_outcome));
   if (reunioesFilter === 'pending') pool = pool.filter(l => !l.meeting_outcome);
   else if (reunioesFilter === 'done') pool = pool.filter(l => !!l.meeting_outcome);
   // Se view=calendar, renderiza o calendário (usa todas as reuniões que têm meeting_at)
@@ -4508,9 +4638,9 @@ async function setMeetingOutcome(id, outcome){
       outcome==='remarcou'?'Remarcou':'Cancelou'
     ) : 'Limpo';
     await DB.log(id, 'Resultado da reunião', label, Auth.user()?.name || '—');
-    // Sugestão: se realizada, move para "Em Abertura". Se cancelou, para "Perdido" (pede motivo via modal).
-    if (outcome === 'realizada' && l.status === 'Reunião Agendada') {
-      await _applyStatusChange(id, 'Em Abertura');
+    // Sugestão: se realizada, move para Abrindo. Se cancelou, para Morto/Ghost (pede motivo via modal).
+    if (outcome === 'realizada' && l.status === 'reuniao') {
+      await _applyStatusChange(id, 'abrindo');
       return;
     }
     renderReunioes();
@@ -4686,25 +4816,30 @@ async function renderAutomacoes(){
   renderAutomacoesTemplates();
 }
 
+// Etapas onde faz sentido vincular template — todas exceto Cliente e Morto.
+// Cliente já fechou (não precisa de template); Morto recusou (não vamos insistir).
+const TEMPLATABLE_STAGES = ['novo','aguardando','silencio','ativo','esfriando','atendimento','reuniao','abrindo','ghost'];
+
 function renderAutomacoesSummary(){
   const wrap=document.getElementById('automacoes-stage-map');
   const count=document.getElementById('automacoes-summary-count');
   const mappedStages=new Set(Automacoes.mappings.filter(m=>m.enabled).map(m=>m.stage));
-  if (count) count.textContent=`${mappedStages.size} / ${STATUSES.length} etapas com template`;
+  if (count) count.textContent=`${mappedStages.size} / ${TEMPLATABLE_STAGES.length} etapas com template`;
   // Sub do header (dinâmico)
   const sub = document.getElementById('automacoes-header-sub');
   if (sub) sub.textContent = `${mappedStages.size} etapa${mappedStages.size===1?'':'s'} com template ativo · ${Automacoes.templates.length} template${Automacoes.templates.length===1?'':'s'} sincronizado${Automacoes.templates.length===1?'':'s'}`;
 
-  wrap.innerHTML=STATUSES.map(stage => {
+  wrap.innerHTML=TEMPLATABLE_STAGES.map(stage => {
+    const cfg = STAGE_CFG[stage] || {};
     const m = Automacoes.byStage(stage);
     const hasT = m && m.enabled && m.template_name;
-    const dot = KB_DOT[stage] || '#71717a';
     return `
       <div class="rounded-xl p-3 transition-all" style="background:rgba(255,255,255,0.02);border:1px solid ${hasT?'var(--accent-line)':'var(--line)'};">
         <div class="flex items-center justify-between mb-1.5">
           <div class="flex items-center gap-2 min-w-0">
-            <span class="dot" style="background:${dot};width:7px;height:7px"></span>
-            <span class="text-[11px] font-semibold uppercase" style="letter-spacing:.08em;color:var(--t1)">${esc(stage)}</span>
+            <span style="font-size:14px">${cfg.icon||'•'}</span>
+            <span class="text-[11.5px] font-semibold" style="letter-spacing:.02em;color:${cfg.clr||'var(--t1)'}">${esc(cfg.label||stage)}</span>
+            ${cfg.auto?'<span class="mono" title="Etapa calculada automaticamente das mensagens" style="color:var(--t3);font-size:8.5px">auto</span>':''}
           </div>
           ${hasT
             ? `<span class="chip" style="background:${m.auto_trigger?'var(--accent-soft)':'rgba(255,255,255,.04)'};border-color:${m.auto_trigger?'var(--accent-line)':'var(--line)'};color:${m.auto_trigger?'#bfd3ff':'var(--t3)'}">${m.auto_trigger?'⚡ auto':'sugerido'}</span>`
@@ -4740,7 +4875,10 @@ function renderAutomacoesTemplates(){
   wrap.innerHTML=list.map(tpl => {
     const mapped = Automacoes.byTemplate(tpl.name);
     const stageOpts = ['<option value="">— escolher etapa —</option>']
-      .concat(STATUSES.map(s => `<option value="${escAttr(s)}">${esc(s)}</option>`))
+      .concat(TEMPLATABLE_STAGES.map(s => {
+        const cfg = STAGE_CFG[s] || {};
+        return `<option value="${escAttr(s)}">${cfg.icon||''} ${esc(cfg.label||s)}</option>`;
+      }))
       .join('');
     const approved = tpl.status && /approved/i.test(tpl.status);
     return `<div class="px-5 py-4" id="tpl-row-${escAttr(tpl.name)}" style="border-top:1px solid var(--line);">
@@ -4754,13 +4892,25 @@ function renderAutomacoesTemplates(){
           </div>
           ${tpl.body?`<pre class="mono text-[11.5px] mt-2 whitespace-pre-wrap" style="color:var(--t2);background:rgba(255,255,255,0.02);padding:10px 12px;border-radius:8px;border:1px solid var(--line);">${esc(tpl.body)}</pre>`:''}
           ${mapped.length?`<div class="mt-2 flex flex-wrap gap-1.5">
-            ${mapped.map(m=>`<span class="chip" style="background:oklch(80% 0.16 140 / .08);border-color:oklch(80% 0.16 140 / .25);color:oklch(88% 0.14 140)">vinculado · ${esc(m.stage)}${m.auto_trigger?' ⚡':''}</span>`).join('')}
+            ${mapped.map(m=>{
+              const cfg=STAGE_CFG[m.stage]||{};
+              return `<span class="chip" style="background:oklch(80% 0.16 140 / .08);border-color:oklch(80% 0.16 140 / .25);color:oklch(88% 0.14 140)">vinculado · ${cfg.icon||''} ${esc(cfg.label||m.stage)}${m.auto_trigger?' ⚡':''}</span>`;
+            }).join('')}
           </div>`:''}
         </div>
         <div class="flex items-end gap-2 flex-wrap">
           <div>
             <label class="ov block mb-1.5">Vincular à etapa</label>
             <select data-tpl="${escAttr(tpl.name)}" class="tpl-stage-sel rounded-lg" style="height:30px;padding:0 10px;font-size:12px;min-width:170px;">${stageOpts}</select>
+          </div>
+          <div>
+            <label class="ov block mb-1.5">Categoria (opcional)</label>
+            <select data-tpl-cat="${escAttr(tpl.name)}" class="tpl-cat-sel rounded-lg" style="height:30px;padding:0 10px;font-size:12px;min-width:140px;">
+              <option value="">Todas as categorias</option>
+              <option value="Aumentar Lotes">🥇 Aumentar Lotes</option>
+              <option value="Inconsistente">🥈 Inconsistente</option>
+              <option value="Começando">🥉 Começando</option>
+            </select>
           </div>
           <label class="flex items-center gap-1.5 text-[11px] pill cursor-pointer" style="height:30px" title="Dispara sem pedir confirmação quando um lead entra na etapa">
             <input type="checkbox" data-tpl-auto="${escAttr(tpl.name)}" checked/> auto
@@ -4792,18 +4942,29 @@ async function syncChatwootTemplates(){
 
 async function mapTemplateToStage(tplName){
   const sel=document.querySelector(`.tpl-stage-sel[data-tpl="${CSS.escape(tplName)}"]`);
+  const catSel=document.querySelector(`.tpl-cat-sel[data-tpl-cat="${CSS.escape(tplName)}"]`);
   const autoCb=document.querySelector(`[data-tpl-auto="${CSS.escape(tplName)}"]`);
   const stage=sel?.value;
   if(!stage){toast('Escolha uma etapa','warn');return;}
+  const categoria_filter = catSel?.value || null;
   const tpl=Automacoes.templates.find(t=>t.name===tplName);
   if(!tpl){toast('Template não encontrado','error');return;}
-  const params={stage,template_name:tpl.name,template_body:tpl.body||null,language:tpl.language||'pt_BR',category:tpl.category||'MARKETING',enabled:true,auto_trigger:!!autoCb?.checked};
+  const params={
+    stage, template_name:tpl.name, template_body:tpl.body||null,
+    language:tpl.language||'pt_BR', category:tpl.category||'MARKETING',
+    enabled:true, auto_trigger:!!autoCb?.checked,
+    categoria_filter, priority: 100,
+  };
   try{
     const saved=await DB._call('upsert_stage_template',params);
-    const idx=Automacoes.mappings.findIndex(m=>m.stage===stage);
+    // Chave do mapeamento agora é (stage + categoria_filter)
+    const idx=Automacoes.mappings.findIndex(m =>
+      m.stage===stage && (m.categoria_filter||null)===categoria_filter
+    );
     if(idx>=0) Automacoes.mappings[idx]=saved||params; else Automacoes.mappings.push(saved||params);
     renderAutomacoesSummary();renderAutomacoesTemplates();
-    toast(`Vinculado a "${stage}"`);
+    const stageLabel = (STAGE_CFG[stage]||{}).label || stage;
+    toast(`Vinculado a "${stageLabel}"${categoria_filter?` · ${categoria_filter}`:''}`);
   }catch(e){toast('Erro: '+e.message,'error');}
 }
 
@@ -4882,26 +5043,17 @@ async function maybeSuggestTemplateOnStage(leadId,stage){
 }
 
 // ── KANBAN ───────────────────────────────────────────────────
-// Cor do dot do header do kanban, por etapa (design handoff)
-const KB_DOT = {
-  'Lead Novo':        '#71717a',
-  'IA Disparou':      'oklch(78% 0.14 200)',
-  'Qualificado':      'oklch(70% 0.16 250)',
-  'AIKON em Ação':    'oklch(80% 0.15 75)',
-  'Reunião Agendada': 'oklch(70% 0.16 290)',
-  'Em Abertura':      'oklch(75% 0.15 45)',
-  'Convertido':       'oklch(80% 0.16 140)',
-  'Perdido':          'oklch(72% 0.16 20)',
-};
+// Cor do dot do header do kanban, por etapa — derivado de STAGE_CFG
+const KB_DOT = Object.fromEntries(Object.entries(STAGE_CFG).map(([k,v]) => [k, v.dot]));
 
 function renderKanban(){
   const board=document.getElementById('kanban-board');
   if(!board)return;
   const showClosed=document.getElementById('kb-show-closed')?.checked;
-  const cols=showClosed?STATUSES:STATUSES.filter(s=>s!=='Convertido'&&s!=='Perdido');
+  const cols=showClosed?STATUSES:STATUSES.filter(s=>!isClosed(s));
   const active=leads.filter(l=>!l.archived);
   const byStatus={};cols.forEach(s=>byStatus[s]=[]);
-  active.forEach(l=>{const st=cols.includes(l.status)?l.status:(cols[0]||'Lead Novo');if(byStatus[st])byStatus[st].push(l);});
+  active.forEach(l=>{const st=cols.includes(l.status)?l.status:(cols[0]||'novo');if(byStatus[st])byStatus[st].push(l);});
   const t=today();
   board.style.gridTemplateColumns=`repeat(${cols.length}, minmax(230px, 1fr))`;
   board.innerHTML=cols.map(s=>{
@@ -4911,7 +5063,7 @@ function renderKanban(){
       const medal = l.categoria_ia ? CATEGORIA_MEDAL[l.categoria_ia] : null;
       const sla=getSlaStatus(l);
       const na=l.next_action;
-      const naOver=l.next_action_date&&l.next_action_date<t&&l.status!=='Convertido'&&l.status!=='Perdido';
+      const naOver=l.next_action_date&&l.next_action_date<t&&!isClosed(l.status);
       const assignee = Users.byId(l.assigned_to);
       const assigneeName = assignee ? (assignee.name || assignee.email) : (l.responsible || '');
       const avatarBg = avatarFor(assignee ? assignee.id : (l.responsible || ''));
@@ -4988,22 +5140,22 @@ async function _applyStatusChange(id,newStatus){
   const old=lead.status;
   lastStatusChange={id,old,new:newStatus,at:Date.now(),prevStageAt:lead.stage_entered_at,prevStep:lead.cadencia_step,prevNa:lead.next_action,prevNaDate:lead.next_action_date};
   lead.status=newStatus;
-  if(newStatus==='Perdido'){openLossModal(id,old);return;}
+  if(isLost(newStatus)){openLossModal(id,old);return;}
   lead.stage_entered_at=today();lead.cadencia_step=0;
   const firstStep=CADENCIA_CFG[newStatus]?.[0];
   if(firstStep){lead.next_action=firstStep.label;lead.next_action_date=addDays(today(),firstStep.days);}
   try{
     const s=await DB.upsert(lead);leads[leads.findIndex(l=>l.id===id)]=s;
     await DB.log(id,'Status alterado',`${old} → ${newStatus}`,s.responsible||'—');
-    // Fluxo Aikon → Artur: ao entrar em "Reunião Agendada", reatribui para quem tem role=reunioes
-    if (newStatus === 'Reunião Agendada') {
+    // Fluxo Aikon → Artur: ao entrar em "Reunião", reatribui para quem tem role=reunioes
+    if (newStatus === 'reuniao') {
       try {
         await Users.ensureLoaded();
         const reun = Users.list.find(u => u.role === 'reunioes' && u.active !== false);
         if (reun && s.assigned_to !== reun.id) {
           const patched = await DB._call('assign_lead', { lead_id: id, assigned_to: reun.id });
           if (patched) leads[leads.findIndex(l=>l.id===id)] = patched;
-          await DB.log(id, 'Reatribuído automaticamente', `Reunião Agendada → ${reun.name||reun.email}`, Auth.user()?.name || '—');
+          await DB.log(id, 'Reatribuído automaticamente', `📅 Reunião → ${reun.name||reun.email}`, Auth.user()?.name || '—');
         }
       } catch (e) { console.warn('auto-assign reunioes:', e.message); }
     }
@@ -5043,7 +5195,7 @@ function renderChart(){
       key=l.entry.slice(0,7);
     }
     buckets[key]=(buckets[key]||0)+1;
-    if(l.status==='Convertido') conv[key]=(conv[key]||0)+1;
+    if(l.status==='cliente') conv[key]=(conv[key]||0)+1;
   });
 
   const keys=Object.keys(buckets).sort();

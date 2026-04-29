@@ -175,7 +175,7 @@ const HANDLERS = {
     const data = await sbFetch('/crm_stage_templates?select=*&order=stage.asc');
     return Array.isArray(data) ? data : [];
   },
-  async upsert_stage_template({ stage, template_name, template_body = null, language = 'pt_BR', category = 'MARKETING', enabled = true, auto_trigger = false } = {}) {
+  async upsert_stage_template({ stage, template_name, template_body = null, language = 'pt_BR', category = 'MARKETING', enabled = true, auto_trigger = false, categoria_filter = null, priority = 100 } = {}) {
     if (!stage || !template_name) throw Object.assign(new Error('stage e template_name obrigatórios'), { statusCode: 400 });
     const row = {
       stage: String(stage),
@@ -185,6 +185,8 @@ const HANDLERS = {
       category: String(category || 'MARKETING'),
       enabled: !!enabled,
       auto_trigger: !!auto_trigger,
+      categoria_filter: categoria_filter || null,
+      priority: parseInt(priority, 10) || 100,
       updated_at: new Date().toISOString()
     };
     const data = await sbFetch(
@@ -231,6 +233,39 @@ const HANDLERS = {
       finally { _currentAuth = prev; }
     }
     return lead;
+  },
+
+  // ── REDISPATCH (segunda tentativa em leads em Silêncio) ──
+  // Chama cw-dispatch.js usando o template vinculado à etapa atual do lead.
+  // Registra atribuição com tag 'retry_silencio' pra você medir % retomada.
+  async redispatch_lead({ lead_id } = {}) {
+    if (lead_id == null) throw Object.assign(new Error('lead_id obrigatório'), { statusCode: 400 });
+
+    // Lê o lead (RLS aplicado via JWT do caller)
+    const leadRows = await sbFetch(`/crm_leads_full?id=eq.${encodeURIComponent(lead_id)}&select=*&limit=1`);
+    const lead = Array.isArray(leadRows) ? leadRows[0] : null;
+    if (!lead) throw Object.assign(new Error('lead não encontrado'), { statusCode: 404 });
+
+    // Bypass RLS para o disparo (precisa ler tabelas internas)
+    const prev = _currentAuth; _currentAuth = null;
+    try {
+      const { dispatchAfterClassify } = require('./cw-dispatch');
+      // Categoria: usa a já classificada, ou null se ainda não tem
+      const categoria = lead.categoria_ia || null;
+      const result = await dispatchAfterClassify(lead, categoria, { manual: true });
+
+      // Marca a atribuição como retry pra medir conversão de retomada
+      if (result?.dispatched) {
+        try {
+          await sbFetch('/crm_attributions', {
+            method: 'PATCH',
+            body: { meta: { conversation_id: result.conversation_id, auto: false, retry_silencio: true } },
+            headers: { 'Prefer': 'return=minimal' },
+          });
+        } catch { /* tolerável */ }
+      }
+      return result;
+    } finally { _currentAuth = prev; }
   },
 
   // ── NOTIFICAÇÕES ──
@@ -283,11 +318,11 @@ const HANDLERS = {
         const bucket = (l.assigned_to && byUser.get(l.assigned_to)) || naoAtrib;
         bucket.total++;
         if (l.archived) continue;
-        if (l.status === 'Convertido') bucket.convertidos++;
-        else if (l.status === 'Perdido') bucket.perdidos++;
+        if (l.status === 'cliente') bucket.convertidos++;
+        else if (l.status === 'ghost' || l.status === 'morto') bucket.perdidos++;
         else {
           bucket.ativos++;
-          if (l.status === 'Reunião Agendada') bucket.reuniao++;
+          if (l.status === 'reuniao') bucket.reuniao++;
         }
         if (l.stage_entered_at) {
           const d = new Date(l.stage_entered_at + 'T00:00:00').getTime();

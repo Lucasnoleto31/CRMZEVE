@@ -9,8 +9,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-let targetGroupId = null;
-let targetGroupName = null;
+// Conjunto de grupos monitorados. Cada evento group_join consulta o Set para
+// decidir se o chat de origem é um dos selecionados, e o Map id→nome serve
+// como fallback caso chat.name venha vazio.
+let targetGroupIds = null;
+let targetGroupNames = null;
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'lead-tracker' }),
@@ -209,40 +212,102 @@ async function selecionarGrupo() {
   }
 
   console.log('═══════════════════════════════════════════════════════');
-  console.log('  Selecione o grupo/comunidade para monitorar:');
+  console.log('  Selecione o(s) grupo(s)/comunidade(s) para monitorar:');
   console.log('═══════════════════════════════════════════════════════');
   grupos.forEach((g, i) => {
     const n = g.participantsCount ?? '?';
     console.log(`  [${String(i + 1).padStart(2, ' ')}] ${g.name}  (${n} membros)`);
   });
+  console.log('═══════════════════════════════════════════════════════');
+  console.log('  Dica: digite um número, vários separados por vírgula');
+  console.log('  (ex: 1,3,5), um intervalo (ex: 2-6) ou "todos".');
   console.log('═══════════════════════════════════════════════════════\n');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  const resposta = await pergunta(rl, 'Digite o número do grupo: ');
-  const idx = parseInt(resposta.trim(), 10) - 1;
+  const resposta = (await pergunta(rl, 'Digite sua seleção: ')).trim().toLowerCase();
 
-  if (isNaN(idx) || idx < 0 || idx >= grupos.length) {
-    console.log('\n❌ Número inválido. Reinicie o bot e tente novamente.\n');
+  const indices = parseSelecao(resposta, grupos.length);
+  if (indices.length === 0) {
+    console.log('\n❌ Seleção inválida. Reinicie o bot e tente novamente.\n');
     rl.close();
     return;
   }
 
-  const grupoSelecionado = grupos[idx];
-  targetGroupId = grupoSelecionado.id._serialized;
-  targetGroupName = grupoSelecionado.name;
+  const selecionados = indices.map(i => grupos[i]);
+  targetGroupIds = new Set(selecionados.map(g => g.id._serialized));
+  targetGroupNames = new Map(selecionados.map(g => [g.id._serialized, g.name]));
 
-  console.log(`\n✅ Grupo selecionado: "${targetGroupName}"\n`);
+  console.log(`\n✅ ${selecionados.length} grupo(s) selecionado(s):`);
+  selecionados.forEach(g => console.log(`   • ${g.name}`));
+  console.log('');
 
-  await importarMembrosExistentes(grupoSelecionado, rl);
+  // Pré-carrega telefones já cadastrados uma única vez — vale para o import
+  // de todos os grupos selecionados, evitando reconsultar o banco a cada um
+  // e impedindo que o mesmo membro seja importado duas vezes quando está
+  // em mais de um grupo marcado.
+  const telefonesExistentes = await carregarTelefonesExistentes();
+
+  for (const grupo of selecionados) {
+    console.log(`\n━━━ Grupo: ${grupo.name} ━━━`);
+    await importarMembrosExistentes(grupo, rl, telefonesExistentes);
+  }
   rl.close();
 
-  console.log('\n👁  Aguardando novos membros...\n');
+  console.log('\n👁  Aguardando novos membros em todos os grupos selecionados...\n');
+}
+
+// Interpreta strings como "1", "1,3,5", "2-6", "todos"/"all" em lista de
+// índices 0-based, descartando valores fora do range.
+function parseSelecao(entrada, total) {
+  if (!entrada) return [];
+  if (entrada === 'todos' || entrada === 'all' || entrada === '*') {
+    return Array.from({ length: total }, (_, i) => i);
+  }
+  const set = new Set();
+  for (const parte of entrada.split(',').map(s => s.trim()).filter(Boolean)) {
+    const intervalo = parte.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (intervalo) {
+      const a = parseInt(intervalo[1], 10);
+      const b = parseInt(intervalo[2], 10);
+      const [min, max] = a <= b ? [a, b] : [b, a];
+      for (let n = min; n <= max; n++) {
+        if (n >= 1 && n <= total) set.add(n - 1);
+      }
+    } else {
+      const n = parseInt(parte, 10);
+      if (!isNaN(n) && n >= 1 && n <= total) set.add(n - 1);
+    }
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+// Lê telefones já cadastrados no CRM (paginado) para deduplicação.
+async function carregarTelefonesExistentes() {
+  console.log('⏳ Verificando duplicatas no banco...\n');
+  const telefones = new Set();
+  let fromRow = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data: pagina } = await supabase
+      .from('crm_leads')
+      .select('phone')
+      .range(fromRow, fromRow + pageSize - 1);
+    if (!pagina || pagina.length === 0) break;
+    pagina.forEach(r => {
+      const d = (r.phone || '').replace(/\D/g, '');
+      if (d) telefones.add(d.slice(-10));
+    });
+    if (pagina.length < pageSize) break;
+    fromRow += pageSize;
+  }
+  return telefones;
 }
 
 // ─── Importação de membros existentes ────────────────────────────────────────
 
-async function importarMembrosExistentes(chat, rl) {
+async function importarMembrosExistentes(chat, rl, telefonesExistentes) {
+  const groupName = chat.name || targetGroupNames?.get(chat.id._serialized) || 'Grupo';
   console.log('⏳ Carregando membros existentes com datas de entrada...\n');
 
   const participantesRaw = await buscarParticipantesComData(chat.id._serialized);
@@ -266,7 +331,7 @@ async function importarMembrosExistentes(chat, rl) {
   const ordenados = [...participantes].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
 
   console.log('─────────────────────────────────────────────────────────────────────────');
-  console.log(`  ${ordenados.length} membros encontrados em "${targetGroupName}"`);
+  console.log(`  ${ordenados.length} membros encontrados em "${groupName}"`);
   console.log('─────────────────────────────────────────────────────────────────────────');
   console.log(`  ${'#'.padEnd(4)} ${'Telefone'.padEnd(18)} ${'Entrada'.padEnd(20)} ${'Nome'.padEnd(25)} Admin`);
   console.log('─────────────────────────────────────────────────────────────────────────');
@@ -281,23 +346,11 @@ async function importarMembrosExistentes(chat, rl) {
 
   console.log('─────────────────────────────────────────────────────────────────\n');
 
-  // Busca telefones já cadastrados no CRM para evitar duplicatas (paginado)
-  console.log('⏳ Verificando duplicatas no banco...\n');
-  const telefonesExistentes = new Set();
-  let fromRow = 0;
-  const pageSize = 1000;
-  while (true) {
-    const { data: pagina } = await supabase
-      .from('crm_leads')
-      .select('phone')
-      .range(fromRow, fromRow + pageSize - 1);
-    if (!pagina || pagina.length === 0) break;
-    pagina.forEach(r => {
-      const d = (r.phone || '').replace(/\D/g, '');
-      if (d) telefonesExistentes.add(d.slice(-10));
-    });
-    if (pagina.length < pageSize) break;
-    fromRow += pageSize;
+  // Deduplicação: usa o Set compartilhado entre todos os grupos desta rodada.
+  // Se o chamador não passar um, cai para o carregamento sob demanda — mantém
+  // esta função reusável isoladamente em testes/scripts.
+  if (!telefonesExistentes) {
+    telefonesExistentes = await carregarTelefonesExistentes();
   }
 
   const novos = ordenados.filter(p => {
@@ -329,7 +382,7 @@ async function importarMembrosExistentes(chat, rl) {
   if (cwReady) {
     const respDisp = await pergunta(
       rl,
-      `Disparar template do Chatwoot para os ${novos.length} novos (etapa "Lead Novo")? (s/n): `
+      `Disparar template do Chatwoot para os ${novos.length} novos (etapa "novo")? (s/n): `
     );
     deveDisparar = respDisp.trim().toLowerCase() === 's';
   } else {
@@ -369,9 +422,9 @@ async function importarMembrosExistentes(chat, rl) {
       const leadData = {
         name:       nome || `Lead ${phoneFmt}`,
         phone:      phoneFmt,
-        status:     'Lead Novo',
+        status:     'novo',
         origin:     'WhatsApp',
-        community:  targetGroupName,
+        community:  groupName,
         entry:      p.joinedAt
           ? new Date(p.joinedAt * 1000).toISOString().slice(0, 10)
           : new Date().toISOString().slice(0, 10),
@@ -390,6 +443,10 @@ async function importarMembrosExistentes(chat, rl) {
         erros++;
       } else {
         salvos++;
+        // Já marca o telefone como existente para que a próxima iteração
+        // (inclusive em outro grupo desta mesma rodada) não tente reimportar.
+        const dedupeKey = phoneFmt.replace(/\D/g, '').slice(-10);
+        if (dedupeKey) telefonesExistentes.add(dedupeKey);
         // Só dispara se o usuário confirmou na pergunta de antes.
         // Pausa maior aqui para respeitar rate-limit em importações grandes.
         if (deveDisparar) {
@@ -478,7 +535,7 @@ async function getStageTemplate(stage) {
   }
 }
 
-async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
+async function chatwootDisparar(lead, leadId, stage = 'novo') {
   if (!CW_ATIVO || !CW_URL || !CW_ACCOUNT || !CW_TOKEN || !CW_INBOX) {
     console.log('⚠️  Chatwoot não configurado — disparo automático ignorado.');
     return false;
@@ -682,12 +739,13 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
     return false;
   }
 
-  // 5. Registra atividade no CRM e avança status → IA Disparou
+  // 5. Registra atividade no CRM. Após refactor: NÃO mexe em status manual —
+  // só atualiza last_outbound_at. A view recalcula a etapa real (aguardando/silencio).
   try {
     const now = new Date().toISOString();
     await supabase
       .from('crm_leads')
-      .update({ status: 'IA Disparou', stage_entered_at: now.slice(0, 10), cadencia_step: 0, updated_at: now })
+      .update({ last_outbound_at: now, updated_at: now })
       .eq('id', leadId);
     await supabase.from('crm_activity').insert({
       lead_id:     leadId,
@@ -696,9 +754,9 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
       responsible: 'Bot',
       created_at:  now,
     });
-    console.log(`   ↳ Status atualizado: IA Disparou`);
+    console.log(`   ↳ last_outbound_at atualizado (etapa será calculada pela view)`);
   } catch (e) {
-    console.error(`   ⚠️  Erro ao atualizar status/activity: ${e.message}`);
+    console.error(`   ⚠️  Erro ao atualizar lead/activity: ${e.message}`);
   }
 
   return true;
@@ -707,11 +765,19 @@ async function chatwootDisparar(lead, leadId, stage = 'Lead Novo') {
 // ─── Monitoramento de novos membros ──────────────────────────────────────────
 
 client.on('group_join', async (notification) => {
-  if (!targetGroupId) return;
+  if (!targetGroupIds || targetGroupIds.size === 0) return;
 
   try {
     const chat = await notification.getChat();
-    if (chat.id._serialized !== targetGroupId) return;
+    if (!targetGroupIds.has(chat.id._serialized)) return;
+
+    // chat.name pode vir vazio em alguns casos (cache do WA Web não
+    // hidratado); nesse caso o Map preenchido no /selecionarGrupo/ é o
+    // fallback, e como último recurso um rótulo genérico.
+    const groupName =
+      chat.name ||
+      targetGroupNames?.get(chat.id._serialized) ||
+      'Grupo';
 
     const memberIds = notification.recipientIds || [];
 
@@ -750,15 +816,15 @@ client.on('group_join', async (notification) => {
         const leadData = {
           name:       nome || `Lead ${phoneFormatado}`,
           phone:      phoneFormatado,
-          status:     'Lead Novo',
+          status:     'novo',
           origin:     'WhatsApp',
-          community:  targetGroupName,
+          community:  groupName,
           entry:      today.slice(0, 10),
           created_at: today,
           updated_at: today,
         };
 
-        console.log(`\n👤 Novo lead: ${leadData.name} (${leadData.phone})`);
+        console.log(`\n👤 Novo lead: ${leadData.name} (${leadData.phone}) — grupo: ${groupName}`);
 
         const { data: saved, error } = await supabase
           .from('crm_leads')
@@ -785,8 +851,8 @@ client.on('group_join', async (notification) => {
 
 client.on('disconnected', (reason) => {
   console.log('🔌 Desconectado:', reason);
-  targetGroupId = null;
-  targetGroupName = null;
+  targetGroupIds = null;
+  targetGroupNames = null;
   console.log('Reiniciando em 5 segundos...');
   setTimeout(() => client.initialize(), 5000);
 });

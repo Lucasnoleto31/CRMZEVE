@@ -27,17 +27,20 @@ const supabase = createClient(
 );
 
 // ── Score: replica a lógica do front (calcScore em index.html) ────
+// Identificadores ASCII após refactor de etapas dinâmicas.
 const STATUS_BASE = {
-  'Lead Novo':         5,
-  'IA Disparou':      10,
-  'Qualificado':      20,
-  'AIKON em Ação':    35,
-  'Reunião Agendada': 50,
-  'Em Abertura':      70,
+  novo:         5,
+  aguardando:  10,
+  silencio:    10,
+  ativo:       20,
+  esfriando:   15,
+  atendimento: 35,
+  reuniao:     50,
+  abrindo:     70,
 };
 const SLA_DAYS = {
-  'Lead Novo': 1, 'IA Disparou': 1, 'Qualificado': 1,
-  'AIKON em Ação': 2, 'Reunião Agendada': 3, 'Em Abertura': 7,
+  novo: 1, aguardando: 1, silencio: 3, ativo: 1, esfriando: 3,
+  atendimento: 2, reuniao: 3, abrindo: 7,
 };
 const PRIO_BONUS = { Urgente: 15, Alto: 8, 'Médio': 3, Baixo: 0 };
 
@@ -50,12 +53,14 @@ function diffDays(iso) {
 }
 
 function calcScore(l) {
-  if (l.status === 'Convertido') return 100;
-  if (l.status === 'Perdido')    return 0;
-  let s = STATUS_BASE[l.status] || 0;
+  // Usa funnel_stage (computado pela view) se disponível, senão status manual.
+  const stage = l.funnel_stage || l.status;
+  if (stage === 'cliente') return 100;
+  if (stage === 'ghost' || stage === 'morto') return 0;
+  let s = STATUS_BASE[stage] || STATUS_BASE[l.status] || 0;
   if (l.stage_entered_at) {
     const d = diffDays(l.stage_entered_at);
-    const sla = SLA_DAYS[l.status] || 5;
+    const sla = SLA_DAYS[stage] || SLA_DAYS[l.status] || 5;
     s -= Math.min(Math.floor(d / sla) * 10, 35);
   }
   if (l.next_action) s += 8;
@@ -76,7 +81,7 @@ async function recomputeScores() {
     .from('crm_leads')
     .select('id, status, stage_entered_at, next_action, next_action_date, priority, capital, level, archived, score')
     .eq('archived', false)
-    .not('status', 'in', '("Convertido","Perdido")');
+    .not('status', 'in', '("cliente","ghost","morto")');
   if (error) throw error;
 
   let updated = 0;
@@ -114,10 +119,11 @@ async function suggestReactivations() {
     const cutoffStart = new Date(today.getTime() - (days + 1) * 86400000).toISOString().slice(0, 10);
     const cutoffEnd   = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10);
 
+    // Reativação só faz sentido pra Ghost (sumiram), não Morto (recusaram)
     const { data: leads } = await supabase
       .from('crm_leads')
       .select('id, name, stage_entered_at, status')
-      .eq('status', 'Perdido')
+      .eq('status', 'ghost')
       .eq('archived', false)
       .gte('stage_entered_at', cutoffStart)
       .lt('stage_entered_at', cutoffEnd);
@@ -138,7 +144,7 @@ async function suggestReactivations() {
           user_id: a.id,
           lead_id: l.id,
           type: 'reactivation_suggested',
-          message: `${l.name || 'Lead'} está perdido há ${days}d — vale tentar reativar?`,
+          message: `${l.name || 'Lead'} está em Ghost há ${days}d — vale tentar reativar?`,
         });
       }
       suggested++;
@@ -150,31 +156,36 @@ async function suggestReactivations() {
 async function detectInconsistencies() {
   const issues = [];
 
-  // 1) Lead "IA Disparou" sem last_outbound_at há 24h+
+  // 1) Leads em "novo" (status manual default) com último outbound > 24h
+  // — equivalente a estado 'silencio' computado pela view. View seria
+  // ideal mas filtros .eq() são mais rápidos no PostgREST.
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data: stuck1 } = await supabase
     .from('crm_leads')
-    .select('id, name, assigned_to, last_outbound_at, stage_entered_at')
-    .eq('status', 'IA Disparou')
+    .select('id, name, assigned_to, last_outbound_at, last_inbound_at, stage_entered_at')
+    .eq('status', 'novo')
     .eq('archived', false)
-    .or(`last_outbound_at.is.null,last_outbound_at.lt.${since}`)
-    .lt('stage_entered_at', new Date(Date.now() - 86400000).toISOString().slice(0, 10))
+    .is('last_inbound_at', null)
+    .not('last_outbound_at', 'is', null)
+    .lt('last_outbound_at', since)
     .limit(50);
 
   for (const l of stuck1 || []) {
     issues.push({
       lead_id: l.id,
       user_id: l.assigned_to,
-      message: `${l.name} parou em "IA Disparou" sem disparo recente — re-enviar?`,
+      message: `${l.name} está em Silêncio há > 24h — reenviar mensagem?`,
     });
   }
 
-  // 2) Lead "Qualificado" sem dono
+  // 2) Lead que respondeu (last_inbound_at recente) e ainda está sem dono
+  const recent = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
   const { data: orphans } = await supabase
     .from('crm_leads')
     .select('id, name')
-    .eq('status', 'Qualificado')
+    .eq('status', 'novo')
     .eq('archived', false)
+    .gte('last_inbound_at', recent)
     .is('assigned_to', null)
     .limit(50);
 
@@ -187,7 +198,7 @@ async function detectInconsistencies() {
         issues.push({
           lead_id: o.id,
           user_id: a.id,
-          message: `⚠️ ${o.name} foi qualificado mas está sem responsável`,
+          message: `⚠️ ${o.name} respondeu mas está sem responsável atribuído`,
         });
       }
     }

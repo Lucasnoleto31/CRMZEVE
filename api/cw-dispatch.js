@@ -131,21 +131,31 @@ async function pickTemplate(stage, categoria) {
 }
 
 /**
- * Função principal — chamada pelo webhook.
+ * Função principal — chamada pelo webhook (auto) ou via redispatch_lead (manual).
+ *
+ * @param {object} lead       linha de crm_leads (ou crm_leads_full)
+ * @param {string|null} categoria  categoria_ia atual
+ * @param {object} opts
+ * @param {boolean} opts.manual   true = vendedor clicou (pula AUTO_DISPATCH);
+ *                                 cooldown ainda aplica pra evitar duplo-click
+ *
  * Retorna { skipped: 'reason' } ou { dispatched: true, template_name, conversation_id }.
  */
-async function dispatchAfterClassify(lead, categoria) {
-  // GATE 1: kill switch global
-  if (process.env.AIKON_AUTO_DISPATCH !== 'true') {
+async function dispatchAfterClassify(lead, categoria, opts = {}) {
+  const manual = !!opts.manual;
+
+  // GATE 1: kill switch global (não aplica em disparo manual)
+  if (!manual && process.env.AIKON_AUTO_DISPATCH !== 'true') {
     return { skipped: 'auto_dispatch_disabled' };
   }
 
-  // GATE 2: janela de horário
+  // GATE 2: janela de horário (aplica sempre — não enviar à 1h da manhã)
   if (!isWithinDispatchWindow()) {
     return { skipped: 'outside_hours' };
   }
 
   // GATE 3: cooldown anti-spam (last_outbound_at < 30min)
+  // Aplica também em manual: evita o vendedor clicar 2x em 5 segundos.
   if (lead.last_outbound_at) {
     const ageMs = Date.now() - new Date(lead.last_outbound_at).getTime();
     if (ageMs < COOLDOWN_MIN * 60 * 1000) {
@@ -166,9 +176,10 @@ async function dispatchAfterClassify(lead, categoria) {
     }
   }
 
-  // GATE 5: template ativo para a categoria
-  const tpl = await pickTemplate('Qualificado', categoria);
-  if (!tpl) return { skipped: 'no_template', stage: 'Qualificado', categoria };
+  // GATE 5: template ativo para a categoria.
+  // Após refactor: stage 'ativo' = lead respondeu (substitui antigo 'Qualificado').
+  const tpl = await pickTemplate('ativo', categoria);
+  if (!tpl) return { skipped: 'no_template', stage: 'ativo', categoria };
 
   // GATE 6: config Chatwoot
   if (!CW.url || !CW.token || !CW.inbox) {
