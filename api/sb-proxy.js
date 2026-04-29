@@ -189,8 +189,10 @@ const HANDLERS = {
       priority: parseInt(priority, 10) || 100,
       updated_at: new Date().toISOString()
     };
+    // Chave composta (stage, categoria_filter) — match com a UNIQUE
+    // CONSTRAINT NULLS NOT DISTINCT criada em fix-stage-template-upsert.sql.
     const data = await sbFetch(
-      `/crm_stage_templates?on_conflict=stage&select=*`,
+      `/crm_stage_templates?on_conflict=stage,categoria_filter&select=*`,
       { method: 'POST', body: row, headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' } }
     );
     return Array.isArray(data) ? data[0] : data;
