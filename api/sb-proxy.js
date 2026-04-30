@@ -122,15 +122,18 @@ const HANDLERS = {
   async upsert_lead({ lead } = {}) {
     if (!lead || typeof lead !== 'object') throw Object.assign(new Error('lead obrigatório'), { statusCode: 400 });
     const now = new Date().toISOString();
-    if (lead.id) {
-      const { id, ...rest } = lead;
+    // Strip de colunas computadas vindas da view crm_leads_full — não existem
+    // na tabela crm_leads e o PostgREST estoura schema-cache se forem enviadas.
+    const { funnel_stage: _fs, sinal: _sn, dias_sem_movimento: _dsm, status_manual: _sm, ...clean } = lead;
+    if (clean.id) {
+      const { id, ...rest } = clean;
       const data = await sbFetch(
         `/crm_leads?id=eq.${encodeURIComponent(id)}&select=*`,
         { method: 'PATCH', body: { ...rest, updated_at: now }, headers: { 'Prefer': 'return=representation' } }
       );
       return Array.isArray(data) ? data[0] : data;
     } else {
-      const { id: _, ...rest } = lead;
+      const { id: _, ...rest } = clean;
       const data = await sbFetch(
         `/crm_leads?select=*`,
         { method: 'POST', body: { ...rest, created_at: now, updated_at: now }, headers: { 'Prefer': 'return=representation' } }
