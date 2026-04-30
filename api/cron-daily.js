@@ -2,13 +2,14 @@
  * Vercel Cron — manutenção diária do CRM (03:00 BRT / 06:00 UTC)
  *
  * Tarefas:
- *   1. Recalcular `score` de todos os leads ativos (cache que alimenta
+ *   1. Auto-Ghost: promover leads em status='novo' que receberam disparo
+ *      há > 24h e nunca responderam → status='ghost' (loss_category='sem_resposta').
+ *   2. Recalcular `score` de todos os leads ativos (cache que alimenta
  *      a pill "🔥 Quentes" e a ordenação do Hoje sem custo no client).
- *   2. Detectar leads em "Perdido" há 30/60/90 dias e gerar notificação
+ *   3. Detectar leads em Ghost há 30/60/90 dias e gerar notificação
  *      pro admin sugerir reativação. NÃO move status nem dispara mensagem
  *      — só sugere na bandeja para o humano decidir.
- *   3. Detectar inconsistências (lead em "IA Disparou" sem `last_outbound_at`
- *      há 24h, lead "Qualificado" sem assigned_to, etc.) e alertar admin.
+ *   4. Detectar inconsistências (lead que respondeu mas está sem responsável).
  *
  * Disparo automático de mensagens fica na Fase 5 (cw-dispatch.js + gate).
  *
@@ -76,6 +77,53 @@ function calcScore(l) {
 }
 
 // ── Tarefas ───────────────────────────────────────────────────
+
+// Promove pra Ghost qualquer lead em status='novo' que recebeu disparo
+// há > 24h e nunca respondeu. Etapas manuais (atendimento, reuniao, etc.)
+// não são tocadas — vendedor já decidiu o estado. loss_category='sem_resposta'
+// preserva a semântica "sumiu" vs "recusou".
+async function autoGhostStaleLeads() {
+  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const today  = new Date().toISOString().slice(0, 10);
+  const now    = new Date().toISOString();
+
+  const { data: stale, error } = await supabase
+    .from('crm_leads')
+    .select('id, name')
+    .eq('status', 'novo')
+    .eq('archived', false)
+    .is('last_inbound_at', null)
+    .not('last_outbound_at', 'is', null)
+    .lt('last_outbound_at', cutoff)
+    .limit(500);
+
+  if (error) throw error;
+  if (!stale?.length) return { promoted: 0 };
+
+  let promoted = 0;
+  for (const l of stale) {
+    const { error: ue } = await supabase
+      .from('crm_leads')
+      .update({
+        status: 'ghost',
+        loss_category: 'sem_resposta',
+        stage_entered_at: today,
+        updated_at: now,
+      })
+      .eq('id', l.id);
+    if (ue) continue;
+    promoted++;
+    // Histórico — falha silenciosa não bloqueia a promoção
+    await supabase.from('crm_activity').insert({
+      lead_id: l.id,
+      action: 'Auto-Ghost',
+      detail: '24h sem resposta — promovido automaticamente',
+      responsible: 'sistema',
+    }).then(() => {}, () => {});
+  }
+  return { promoted, candidates: stale.length };
+}
+
 async function recomputeScores() {
   const { data: leads, error } = await supabase
     .from('crm_leads')
@@ -156,29 +204,11 @@ async function suggestReactivations() {
 async function detectInconsistencies() {
   const issues = [];
 
-  // 1) Leads em "novo" (status manual default) com último outbound > 24h
-  // — equivalente a estado 'silencio' computado pela view. View seria
-  // ideal mas filtros .eq() são mais rápidos no PostgREST.
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { data: stuck1 } = await supabase
-    .from('crm_leads')
-    .select('id, name, assigned_to, last_outbound_at, last_inbound_at, stage_entered_at')
-    .eq('status', 'novo')
-    .eq('archived', false)
-    .is('last_inbound_at', null)
-    .not('last_outbound_at', 'is', null)
-    .lt('last_outbound_at', since)
-    .limit(50);
+  // (Antes havia um alerta para leads em Silêncio há > 24h. Agora esses leads
+  // são automaticamente promovidos a Ghost por autoGhostStaleLeads — alerta
+  // virou redundante e foi removido.)
 
-  for (const l of stuck1 || []) {
-    issues.push({
-      lead_id: l.id,
-      user_id: l.assigned_to,
-      message: `${l.name} está em Silêncio há > 24h — reenviar mensagem?`,
-    });
-  }
-
-  // 2) Lead que respondeu (last_inbound_at recente) e ainda está sem dono
+  // 1) Lead que respondeu (last_inbound_at recente) e ainda está sem dono
   const recent = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
   const { data: orphans } = await supabase
     .from('crm_leads')
@@ -240,6 +270,11 @@ module.exports = async (req, res) => {
 
   const start = Date.now();
   const result = { ok: true, ts: new Date().toISOString() };
+
+  // Auto-ghost ANTES de recomputar scores — score deve refletir o status novo.
+  try {
+    result.auto_ghost = await autoGhostStaleLeads();
+  } catch (e) { result.auto_ghost = { error: e.message }; }
 
   try {
     result.scores = await recomputeScores();
