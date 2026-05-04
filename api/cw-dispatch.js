@@ -176,10 +176,12 @@ async function dispatchAfterClassify(lead, categoria, opts = {}) {
     }
   }
 
-  // GATE 5: template ativo para a categoria.
-  // Após refactor: stage 'ativo' = lead respondeu (substitui antigo 'Qualificado').
-  const tpl = await pickTemplate('ativo', categoria);
-  if (!tpl) return { skipped: 'no_template', stage: 'ativo', categoria };
+  // GATE 5: template ativo para (stage, categoria).
+  // stage default 'ativo' (lead respondeu — substitui antigo 'Qualificado').
+  // Pode ser sobrescrito (ex: cron de reativação passa stage='ghost').
+  const stage = opts.stage || 'ativo';
+  const tpl = await pickTemplate(stage, categoria);
+  if (!tpl) return { skipped: 'no_template', stage, categoria };
 
   // GATE 6: config Chatwoot
   if (!CW.url || !CW.token || !CW.inbox) {
@@ -219,8 +221,10 @@ async function dispatchAfterClassify(lead, categoria, opts = {}) {
     await supabase.from('crm_activity').insert({
       lead_id: lead.id,
       action: 'Template disparado',
-      detail: `Auto: ${tpl.template_name} (${categoria})`,
-      responsible: 'AIKON (auto)',
+      detail: opts.reactivation
+        ? `Reativação ${opts.reactivationDays || ''}d: ${tpl.template_name}`.trim()
+        : `Auto: ${tpl.template_name} (${categoria})`,
+      responsible: opts.reactivation ? 'Cron (reativação)' : 'AIKON (auto)',
     });
 
     return { dispatched: true, template_name: tpl.template_name, conversation_id: conversationId };

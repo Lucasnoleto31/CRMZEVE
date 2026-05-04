@@ -4,12 +4,13 @@
  * Tarefas:
  *   1. Auto-Ghost: promover leads em status='novo' que receberam disparo
  *      há > 24h e nunca responderam → status='ghost' (loss_category='sem_resposta').
- *   2. Recalcular `score` de todos os leads ativos (cache que alimenta
- *      a pill "🔥 Quentes" e a ordenação do Hoje sem custo no client).
- *   3. Detectar leads em Ghost há 30/60/90 dias e gerar notificação
- *      pro admin sugerir reativação. NÃO move status nem dispara mensagem
- *      — só sugere na bandeja para o humano decidir.
- *   4. Detectar inconsistências (lead que respondeu mas está sem responsável).
+ *   2. Auto-reativação: leads em Ghost há exatamente 30/60/90 dias recebem
+ *      template de reativação via Chatwoot (cw-dispatch.js, stage='ghost').
+ *      Custo ~R$0.55 por disparo — passa pelos mesmos gates de cooldown/horário.
+ *   3. Auto-Morto: ghost > 95 dias sem nunca ter respondido → status='morto'.
+ *      Margem de 5 dias após 3ª reativação. Quem respondeu não é matado.
+ *   4. Recalcular `score` de todos os leads ativos.
+ *   5. Detectar inconsistências (lead que respondeu mas está sem responsável).
  *
  * Disparo automático de mensagens fica na Fase 5 (cw-dispatch.js + gate).
  *
@@ -153,52 +154,101 @@ async function recomputeScores() {
   return { total: leads?.length || 0, updated };
 }
 
-async function suggestReactivations() {
+// Dispara template de reativação para leads em Ghost há exatamente 30, 60 ou 90 dias.
+// Reusa cw-dispatch.js (mesmos gates de cooldown/horário/quota), passando stage='ghost'
+// — o template a ser enviado é o que estiver cadastrado em crm_stage_templates(stage='ghost').
+// Se não houver template, cw-dispatch retorna skipped:'no_template' e nada acontece.
+async function autoReactivateGhosts() {
+  const { dispatchAfterClassify } = require('./cw-dispatch');
   const today = new Date();
   const targets = [30, 60, 90];
-  let suggested = 0;
-
-  // Busca admins
-  const { data: admins } = await supabase
-    .from('crm_users').select('id').eq('role', 'admin').eq('active', true);
-  if (!admins?.length) return { suggested: 0, skip: 'no admins' };
+  const result = { dispatched: 0, skipped: 0, errors: 0, by_day: {} };
 
   for (const days of targets) {
     const cutoffStart = new Date(today.getTime() - (days + 1) * 86400000).toISOString().slice(0, 10);
     const cutoffEnd   = new Date(today.getTime() - days * 86400000).toISOString().slice(0, 10);
 
-    // Reativação só faz sentido pra Ghost (sumiram), não Morto (recusaram)
-    const { data: leads } = await supabase
+    const { data: leads, error } = await supabase
       .from('crm_leads')
-      .select('id, name, stage_entered_at, status')
+      .select('*')
       .eq('status', 'ghost')
       .eq('archived', false)
       .gte('stage_entered_at', cutoffStart)
       .lt('stage_entered_at', cutoffEnd);
 
-    for (const l of leads || []) {
-      // Evita duplicar notificação no mesmo dia
-      const { data: existing } = await supabase
-        .from('crm_notifications')
-        .select('id')
-        .eq('lead_id', l.id)
-        .eq('type', 'reactivation_suggested')
-        .gte('created_at', new Date(today.getTime() - 86400000).toISOString())
-        .limit(1);
-      if (existing?.length) continue;
-
-      for (const a of admins) {
-        await supabase.from('crm_notifications').insert({
-          user_id: a.id,
-          lead_id: l.id,
-          type: 'reactivation_suggested',
-          message: `${l.name || 'Lead'} está em Ghost há ${days}d — vale tentar reativar?`,
-        });
-      }
-      suggested++;
+    if (error) {
+      result.errors++;
+      result.by_day[days] = { error: error.message };
+      continue;
     }
+
+    const dayResult = { candidates: leads?.length || 0, dispatched: 0, skipped: 0 };
+    for (const l of leads || []) {
+      try {
+        const r = await dispatchAfterClassify(l, l.categoria_ia || null, {
+          manual: true,           // pula AIKON_AUTO_DISPATCH (cron tem decisão própria)
+          stage: 'ghost',         // usa template cadastrado para etapa ghost
+          reactivation: true,
+          reactivationDays: days, // marca atividade como "Reativação Xd"
+        });
+        if (r?.dispatched) { dayResult.dispatched++; result.dispatched++; }
+        else { dayResult.skipped++; result.skipped++; }
+      } catch (e) {
+        result.errors++;
+        console.error(`autoReactivateGhosts ${days}d lead ${l.id}: ${e.message}`);
+      }
+    }
+    result.by_day[days] = dayResult;
   }
-  return { suggested };
+  return result;
+}
+
+// Promove a 'morto' leads em Ghost há > 95 dias que nunca responderam desde
+// que viraram Ghost. Margem de 5 dias após a 3ª reativação (90d). Se o lead
+// respondeu depois de virar Ghost, NÃO mata — o humano decide o que fazer
+// (vendedor pode reabrir manualmente).
+async function autoMorrerGhostsAntigos() {
+  const cutoff = new Date(Date.now() - 95 * 86400000).toISOString().slice(0, 10);
+  const today  = new Date().toISOString().slice(0, 10);
+  const now    = new Date().toISOString();
+
+  const { data: leads, error } = await supabase
+    .from('crm_leads')
+    .select('id, name, stage_entered_at, last_inbound_at')
+    .eq('status', 'ghost')
+    .eq('archived', false)
+    .lt('stage_entered_at', cutoff)
+    .limit(500);
+
+  if (error) throw error;
+  if (!leads?.length) return { promoted: 0, candidates: 0 };
+
+  let promoted = 0, skipped_responded = 0;
+  for (const l of leads) {
+    // Respondeu DEPOIS de virar Ghost? Pula — não é morto, talvez voltou.
+    if (l.last_inbound_at && l.stage_entered_at &&
+        new Date(l.last_inbound_at) > new Date(l.stage_entered_at)) {
+      skipped_responded++;
+      continue;
+    }
+    const { error: ue } = await supabase
+      .from('crm_leads')
+      .update({
+        status: 'morto',
+        stage_entered_at: today,
+        updated_at: now,
+      })
+      .eq('id', l.id);
+    if (ue) continue;
+    promoted++;
+    await supabase.from('crm_activity').insert({
+      lead_id: l.id,
+      action: 'Auto-Morto',
+      detail: '95+ dias em Ghost sem resposta — promovido automaticamente',
+      responsible: 'sistema',
+    }).then(() => {}, () => {});
+  }
+  return { promoted, candidates: leads.length, skipped_responded };
 }
 
 async function detectInconsistencies() {
@@ -281,8 +331,12 @@ module.exports = async (req, res) => {
   } catch (e) { result.scores = { error: e.message }; }
 
   try {
-    result.reactivations = await suggestReactivations();
+    result.reactivations = await autoReactivateGhosts();
   } catch (e) { result.reactivations = { error: e.message }; }
+
+  try {
+    result.auto_morto = await autoMorrerGhostsAntigos();
+  } catch (e) { result.auto_morto = { error: e.message }; }
 
   try {
     result.inconsistencies = await detectInconsistencies();
