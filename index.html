@@ -2299,8 +2299,11 @@ function getFiltered(){
   const t=today();
   return leads.filter(l=>{
     if(q){
+      const qd=q.replace(/\D/g,'');
+      // descarta prefixo internacional (+55/55) — telefone é salvo com 11 dígitos
+      const qdTail=qd.length>11?qd.slice(-11):qd;
       const hayName=l.name?.toLowerCase().includes(q);
-      const hayPhone=l.phone?.replace(/\D/g,'').includes(q.replace(/\D/g,''));
+      const hayPhone=qdTail?l.phone?.replace(/\D/g,'').includes(qdTail):false;
       const hayNotes=l.notes?.toLowerCase().includes(q);
       const hayResp=l.responsible?.toLowerCase().includes(q);
       if(!(hayName||hayPhone||hayNotes||hayResp))return false;
