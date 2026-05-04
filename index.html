@@ -2104,7 +2104,7 @@ function renderDashboard(){
   const c={Total:activeLeads.length};STATUSES.forEach(s=>c[s]=0);
   let pipeline=0,overdue=0;const t=today();
   activeLeads.forEach(l=>{
-    const st=STATUSES.includes(l.status)?l.status:'novo';
+    const st=getStage(l)||'novo';
     c[st]=(c[st]||0)+1;
     if(!isClosed(l.status)&&l.value) pipeline+=parseFloat(l.value)||0;
     const fOverdue=l.followup&&l.followup<t&&!isClosed(l.status);
@@ -2295,7 +2295,10 @@ function getFiltered(){
       const hayResp=l.responsible?.toLowerCase().includes(q);
       if(!(hayName||hayPhone||hayNotes||hayResp))return false;
     }
-    const nst=STATUSES.includes(l.status)?l.status:'novo';
+    // Filtra pela etapa REAL do funil (funnel_stage da view) — não por l.status,
+    // que só guarda as 7 manuais. Auto-etapas (ativo/aguardando/silencio/esfriando)
+    // só existem em getStage(l).
+    const nst=getStage(l)||'novo';
     if(st&&nst!==st)return false;if(re&&l.responsible!==re)return false;
     if(or&&l.origin!==or)return false;
     // data de entrada: datas específicas têm prioridade sobre range
@@ -2425,7 +2428,7 @@ function syncStatusPills(){
     if (el) el.textContent = n;
   };
   setCount('', countAll);
-  STATUSES.forEach(s => setCount(s, pool.filter(l => l.status === s).length));
+  STATUSES.forEach(s => setCount(s, pool.filter(l => getStage(l) === s).length));
 }
 
 function clearFilters(){
@@ -4215,7 +4218,7 @@ function renderVelocidadeEtapa(){
   const el=document.getElementById('ev-velocidade');if(!el)return;
   const stages=FUNNEL_STAGES.filter(s=>s!=='cliente');
   const rows=stages.map(s=>{
-    const group=active.filter(l=>(STATUSES.includes(l.status)?l.status:'novo')===s);
+    const group=active.filter(l=>(getStage(l)||'novo')===s);
     if(!group.length)return null;
     const avg=Math.round(group.reduce((acc,l)=>acc+diffDays(l.stage_entered_at),0)/group.length);
     const sla=SLA_CFG[s]||5;
@@ -5053,7 +5056,7 @@ function renderKanban(){
   const cols=showClosed?STATUSES:STATUSES.filter(s=>!isClosed(s));
   const active=leads.filter(l=>!l.archived);
   const byStatus={};cols.forEach(s=>byStatus[s]=[]);
-  active.forEach(l=>{const st=cols.includes(l.status)?l.status:(cols[0]||'novo');if(byStatus[st])byStatus[st].push(l);});
+  active.forEach(l=>{const stage=getStage(l)||'novo';const st=cols.includes(stage)?stage:(cols[0]||'novo');if(byStatus[st])byStatus[st].push(l);});
   const t=today();
   board.style.gridTemplateColumns=`repeat(${cols.length}, minmax(230px, 1fr))`;
   board.innerHTML=cols.map(s=>{
