@@ -186,10 +186,10 @@ async function autoReactivateGhosts() {
     for (const l of leads || []) {
       try {
         const r = await dispatchAfterClassify(l, l.categoria_ia || null, {
-          manual: true,           // pula AIKON_AUTO_DISPATCH (cron tem decisão própria)
-          stage: 'ghost',         // usa template cadastrado para etapa ghost
+          manual: true,                 // pula AIKON_AUTO_DISPATCH (cron tem decisão própria)
+          stage: `ghost_${days}`,       // ghost_30, ghost_60, ghost_90 — 1 template por janela
           reactivation: true,
-          reactivationDays: days, // marca atividade como "Reativação Xd"
+          reactivationDays: days,       // marca atividade como "Reativação Xd"
         });
         if (r?.dispatched) { dayResult.dispatched++; result.dispatched++; }
         else { dayResult.skipped++; result.skipped++; }

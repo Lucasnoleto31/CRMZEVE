@@ -1741,6 +1741,16 @@ const STAGE_CFG = {
                  bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)', hue:0,   auto:false, manual:true,  funnel:0 },
   morto:       { icon:'❌', label:'Morto',       clr:'#fca5a5', dot:'#ef4444', grd:'#7f1d1d',
                  bg:'rgba(239,68,68,.10)',   bd:'rgba(239,68,68,.30)',   hue:20,  auto:false, manual:true,  funnel:0 },
+  // Reativação automática de Ghost — 3 templates separados por janela de tempo.
+  // Não são etapas do funil (não afetam STATUSES nem o status do lead);
+  // só existem como chaves em crm_stage_templates.stage para o cron-daily disparar
+  // mensagens diferentes nos 30/60/90 dias.
+  ghost_30:    { icon:'👻', label:'Ghost 30d (1ª reativação)', clr:'#a1a1aa', dot:'#71717a', grd:'#27272a',
+                 bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)', hue:0, auto:true, manual:false, funnel:0 },
+  ghost_60:    { icon:'👻', label:'Ghost 60d (2ª reativação)', clr:'#a1a1aa', dot:'#71717a', grd:'#27272a',
+                 bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)', hue:0, auto:true, manual:false, funnel:0 },
+  ghost_90:    { icon:'👻', label:'Ghost 90d (última)',         clr:'#a1a1aa', dot:'#71717a', grd:'#27272a',
+                 bg:'rgba(120,120,130,.12)', bd:'rgba(120,120,130,.30)', hue:0, auto:true, manual:false, funnel:0 },
 };
 
 // Aliases legacy — código antigo ainda referencia SC/FUNNEL_HUE.
@@ -4821,7 +4831,9 @@ async function renderAutomacoes(){
 
 // Etapas onde faz sentido vincular template — todas exceto Cliente e Morto.
 // Cliente já fechou (não precisa de template); Morto recusou (não vamos insistir).
-const TEMPLATABLE_STAGES = ['novo','aguardando','silencio','ativo','esfriando','atendimento','reuniao','abrindo','ghost'];
+// Ghost foi quebrado em 3 janelas (ghost_30/60/90) — cada uma usa um template
+// próprio na reativação automática (cron-daily.js → autoReactivateGhosts).
+const TEMPLATABLE_STAGES = ['novo','aguardando','silencio','ativo','esfriando','atendimento','reuniao','abrindo','ghost_30','ghost_60','ghost_90'];
 
 function renderAutomacoesSummary(){
   const wrap=document.getElementById('automacoes-stage-map');
