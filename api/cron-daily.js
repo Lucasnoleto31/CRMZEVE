@@ -11,11 +11,14 @@
  *      Margem de 5 dias após 3ª reativação. Quem respondeu não é matado.
  *   4. Recalcular `score` de todos os leads ativos.
  *   5. Detectar inconsistências (lead que respondeu mas está sem responsável).
+ *   6. Reconciliar timestamps Chatwoot ↔ CRM nas últimas 25h (corrige gaps
+ *      em que cw-webhook falhou — cold start, falha de rede, etc.).
  *
  * Disparo automático de mensagens fica na Fase 5 (cw-dispatch.js + gate).
  *
  * Variáveis de ambiente:
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY
+ *   CHATWOOT_URL, CHATWOOT_TOKEN, CHATWOOT_ACCOUNT_ID (para reconciliação)
  *   CRON_SECRET (opcional — se setado, exige header `Authorization: Bearer <secret>`)
  *
  * Vercel Cron passa header `x-vercel-cron: 1` automaticamente.
@@ -251,6 +254,89 @@ async function autoMorrerGhostsAntigos() {
   return { promoted, candidates: leads.length, skipped_responded };
 }
 
+// Reconcilia timestamps Chatwoot ↔ CRM nas últimas RECONCILE_WINDOW_HOURS
+// horas. Cobre o caso onde cw-webhook falhou silenciosamente (cold start,
+// rede, gap de disponibilidade). Idempotente — só atualiza se o CRM está
+// atrás do Chatwoot. Não dispara classificação Claude nem notificações.
+async function reconcileChatwootGap() {
+  const CW_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
+  const CW_TOKEN = process.env.CHATWOOT_TOKEN;
+  const CW_ACCOUNT = process.env.CHATWOOT_ACCOUNT_ID;
+  const WINDOW_HOURS = parseInt(process.env.RECONCILE_WINDOW_HOURS || '25', 10);
+  const MAX_PAGES = 10;
+  const PARALLEL = 15;
+
+  if (!CW_URL || !CW_TOKEN || !CW_ACCOUNT) return { skip: 'chatwoot_env_missing' };
+
+  const sinceUnix = Math.floor((Date.now() - WINDOW_HOURS * 3600 * 1000) / 1000);
+
+  const cwGet = async (path) => {
+    const r = await fetch(CW_URL + path, { headers: { api_access_token: CW_TOKEN } });
+    if (!r.ok) throw new Error('CW ' + r.status);
+    return r.json();
+  };
+
+  // 1) Lista conversas com atividade na janela
+  const convs = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let d;
+    try { d = await cwGet(`/api/v1/accounts/${CW_ACCOUNT}/conversations?status=all&page=${page}&assignee_type=all`); }
+    catch (e) { return { error: 'list:' + e.message, page, partial: convs.length }; }
+    const list = d.data?.payload || d.payload || [];
+    if (!list.length) break;
+    for (const c of list) if (c.last_activity_at >= sinceUnix) convs.push(c);
+    if (list.every(c => c.last_activity_at < sinceUnix)) break;
+  }
+
+  // 2) Para cada conversa: pre-check rápido contra CRM, só busca mensagens se CRM está atrás
+  const stats = { conversations: convs.length, fixed: 0, no_lead: 0, already_synced: 0, no_phone: 0, errors: 0 };
+
+  const reconcileOne = async (conv) => {
+    const phone = conv.meta?.sender?.phone_number || conv.contact?.phone_number || '';
+    if (!phone) { stats.no_phone++; return; }
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) { stats.no_phone++; return; }
+
+    const { data: arr } = await supabase.rpc('find_lead_by_phone_strict', { search_digits: digits });
+    const lead = arr?.[0];
+    if (!lead) { stats.no_lead++; return; }
+
+    const cwActivityMs = conv.last_activity_at * 1000;
+    const curIn = lead.last_inbound_at ? new Date(lead.last_inbound_at).getTime() : 0;
+    const curOut = lead.last_outbound_at ? new Date(lead.last_outbound_at).getTime() : 0;
+    if (Math.max(curIn, curOut) >= cwActivityMs) { stats.already_synced++; return; }
+
+    let msgs;
+    try { msgs = (await cwGet(`/api/v1/accounts/${CW_ACCOUNT}/conversations/${conv.id}/messages`)).payload || []; }
+    catch { stats.errors++; return; }
+
+    const inWindow = msgs.filter(m => (m.message_type === 0 || m.message_type === 1) && m.created_at >= sinceUnix);
+    if (!inWindow.length) { stats.already_synced++; return; }
+
+    const lastIn = inWindow.filter(m => m.message_type === 0).slice(-1)[0];
+    const lastOut = inWindow.filter(m => m.message_type === 1).slice(-1)[0];
+    const newIn = lastIn ? new Date(lastIn.created_at * 1000).toISOString() : null;
+    const newOut = lastOut ? new Date(lastOut.created_at * 1000).toISOString() : null;
+
+    const update = {};
+    if (newIn && (!lead.last_inbound_at || new Date(lead.last_inbound_at).getTime() < new Date(newIn).getTime())) update.last_inbound_at = newIn;
+    if (newOut && (!lead.last_outbound_at || new Date(lead.last_outbound_at).getTime() < new Date(newOut).getTime())) update.last_outbound_at = newOut;
+    if (!lead.chatwoot_conversation_id) update.chatwoot_conversation_id = conv.id;
+    if (!Object.keys(update).length) { stats.already_synced++; return; }
+
+    const { error } = await supabase.from('crm_leads').update(update).eq('id', lead.id);
+    if (error) stats.errors++;
+    else stats.fixed++;
+  };
+
+  for (let i = 0; i < convs.length; i += PARALLEL) {
+    await Promise.allSettled(convs.slice(i, i + PARALLEL).map(reconcileOne));
+  }
+
+  stats.window_hours = WINDOW_HOURS;
+  return stats;
+}
+
 async function detectInconsistencies() {
   const issues = [];
 
@@ -341,6 +427,12 @@ module.exports = async (req, res) => {
   try {
     result.inconsistencies = await detectInconsistencies();
   } catch (e) { result.inconsistencies = { error: e.message }; }
+
+  // Reconciliação Chatwoot ↔ CRM por último — depende de rede externa,
+  // não bloqueia as outras tarefas se falhar.
+  try {
+    result.reconcile = await reconcileChatwootGap();
+  } catch (e) { result.reconcile = { error: e.message }; }
 
   result.elapsed_ms = Date.now() - start;
   console.log('cron-daily:', JSON.stringify(result));
