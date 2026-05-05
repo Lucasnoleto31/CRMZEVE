@@ -672,6 +672,7 @@
     <button class="spill flex-shrink-0" id="spill-overdue"     onclick="setOverdueFilter()" style="display:none;"><span class="dot" style="background:var(--rose)"></span>⚠️ Vencidos</button>
     <button class="spill flex-shrink-0" id="spill-hot"         onclick="setHotFilter()" title="Apenas leads com score ≥ 65"><span class="dot" style="background:#f87171"></span>🔥 Quentes</button>
     <button class="spill flex-shrink-0" id="spill-sla"         onclick="setSlaFilter()" title="Leads com SLA estourado nesta etapa"><span class="dot" style="background:var(--amber)"></span>⏱ SLA estourado</button>
+    <button class="spill flex-shrink-0" id="spill-respondeu"   onclick="setRespondeuFilter()" title="Em Atendimento, Reunião ou Abrindo — cliente respondeu por último"><span class="dot" style="background:#34d399"></span>💬 Respondeu <span class="spill-count" id="count-respondeu"></span></button>
     <button class="spill flex-shrink-0" id="spill-ia"          onclick="cycleIaFilter()" title="Alternar filtro de contatos tocados pela IA"><span class="dot" style="background:var(--cyan)"></span><span id="spill-ia-label">Todos os contatos</span></button>
   </div>
 
@@ -1893,6 +1894,7 @@ let offlineMode=false; // true quando o proxy Supabase falhou e estamos em local
 let iaFilter='all';    // 'all' | 'ia' | 'noia' — filtra por contatos tocados pela IA
 let hotFilter=false;   // pill "🔥 Quentes" (score >= 65)
 let slaOverdueFilter=false; // pill "⏱ SLA estourado"
+let respondeuFilter=false; // pill "💬 Respondeu" (status manual ativo + cliente respondeu por último)
 let signalFilter=null; // 'ativo'|'aguardando'|'silencio'|'esfriando'|'ghost'|'morto'|'novo'|null
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -2334,6 +2336,15 @@ function getFiltered(){
       const sla=getSlaStatus(l);
       if(!sla||!sla.overdue)return false;
     }
+    // filtro "💬 Respondeu" — em status manual ativo (atendimento/reuniao/abrindo)
+    // e o cliente foi o último a falar (last_inbound_at >= last_outbound_at)
+    if(respondeuFilter){
+      if(!['atendimento','reuniao','abrindo'].includes(l.status))return false;
+      if(!l.last_inbound_at)return false;
+      const inn=new Date(l.last_inbound_at).getTime();
+      const out=l.last_outbound_at?new Date(l.last_outbound_at).getTime():0;
+      if(inn<out)return false;
+    }
     // filtro por sinal de vida
     if(signalFilter && getSignal(l)!==signalFilter)return false;
     // filtro ações vencidas: follow-up OU próxima ação vencida (exceto Convertido/Perdido)
@@ -2396,6 +2407,16 @@ function setSlaFilter(){
   renderTable();
 }
 
+// Filtro "💬 Respondeu" — leads em atendimento/reuniao/abrindo onde o cliente
+// foi o último a falar. Sinaliza "precisa atender agora — vendedor já pegou
+// o lead mas a bola está com a gente".
+function setRespondeuFilter(){
+  respondeuFilter=!respondeuFilter;
+  const pill=document.getElementById('spill-respondeu');
+  if(pill) pill.classList.toggle('active-pill',respondeuFilter);
+  renderTable();
+}
+
 // Filtro por sinal de vida (alterna: clicar de novo desativa)
 function setSignalFilter(sig){
   signalFilter = (signalFilter === sig) ? null : sig;
@@ -2442,6 +2463,15 @@ function syncStatusPills(){
   };
   setCount('', countAll);
   STATUSES.forEach(s => setCount(s, pool.filter(l => getStage(l) === s).length));
+  // Contador "💬 Respondeu": status manual ativo + cliente respondeu por último
+  const respondeu = pool.filter(l => {
+    if (!['atendimento','reuniao','abrindo'].includes(l.status)) return false;
+    if (!l.last_inbound_at) return false;
+    const inn = new Date(l.last_inbound_at).getTime();
+    const out = l.last_outbound_at ? new Date(l.last_outbound_at).getTime() : 0;
+    return inn >= out;
+  }).length;
+  setCount('respondeu', respondeu);
 }
 
 function clearFilters(){
@@ -2452,9 +2482,11 @@ function clearFilters(){
   iaFilter='all';
   hotFilter=false;
   slaOverdueFilter=false;
+  respondeuFilter=false;
   signalFilter=null;
   document.getElementById('spill-hot')?.classList.remove('active-pill');
   document.getElementById('spill-sla')?.classList.remove('active-pill');
+  document.getElementById('spill-respondeu')?.classList.remove('active-pill');
   ['ativo','aguardando','silencio','esfriando','ghost'].forEach(s =>
     document.getElementById('spill-sig-'+s)?.classList.remove('active-pill'));
   updateTagFilterLabel();renderDateChips();buildTagDropdown();
