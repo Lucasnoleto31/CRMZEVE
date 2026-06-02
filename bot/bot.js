@@ -40,6 +40,17 @@ function formatarTelefone(numero) {
   return local;
 }
 
+// Telefone BR válido: 10 (fixo) ou 11 (celular) dígitos locais. LIDs do
+// WhatsApp (participantes que não compartilham número real) vêm com 14+
+// dígitos e não são telefones — devem ser ignorados pra não poluir o CRM
+// nem queimar chamadas no Chatwoot com erro 422 "Phone number should be in
+// e164 format".
+function isTelefoneValido(numero) {
+  const digits = String(numero || '').replace(/\D/g, '');
+  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  return local.length === 10 || local.length === 11;
+}
+
 function formatarData(ts) {
   if (!ts) return 'Desconhecida';
   const d = new Date(ts * 1000);
@@ -328,7 +339,16 @@ async function importarMembrosExistentes(chat, rl, telefonesExistentes) {
   }));
 
   // Ordena por data de entrada (mais antigos primeiro)
-  const ordenados = [...participantes].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  const todosOrdenados = [...participantes].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
+  // Separa participantes com LID (sem número real) — viram lixo no CRM e
+  // estouram 422 no Chatwoot. São descartados antes de qualquer gravação.
+  const invalidos = todosOrdenados.filter(p => !isTelefoneValido(p.number));
+  const ordenados = todosOrdenados.filter(p => isTelefoneValido(p.number));
+
+  if (invalidos.length > 0) {
+    console.log(`⚠️  ${invalidos.length} participante(s) com LID (sem telefone real) — ignorados.\n`);
+  }
 
   console.log('─────────────────────────────────────────────────────────────────────────');
   console.log(`  ${ordenados.length} membros encontrados em "${groupName}"`);
@@ -503,7 +523,7 @@ Bem-vindo! Antes de te apresentar o que fazemos, me fala: como tá sua operaçã
 // Para trocar o texto, edite o template no Meta (e reflita aqui pra log).
 const TEMPLATES_NOVO_LEAD = [
   {
-    template_name: 'COLE_AQUI_template_name_A',
+    template_name: 'bemvindo_comunidade',
     template_body:
 `Bem-vindo! Artur aqui, do time do Fabrício.
 Uma dica pra você tirar o máximo da comunidade: o Fabrício mostra as operações ao vivo no dia a dia, então fica de olho.
@@ -512,7 +532,7 @@ E me conta você já tá no mercado ou tá chegando agora? Assim eu te mostro po
     category: 'MARKETING',
   },
   {
-    template_name: 'COLE_AQUI_template_name_B',
+    template_name: 'pesquisa_comunidade',
     template_body:
 `E aí! Que bom ter você na comunidade do Fabrício 🙌 Pra eu te direcionar certinho, me conta como tá hoje:
 1️⃣ Começando agora
@@ -522,7 +542,7 @@ E me conta você já tá no mercado ou tá chegando agora? Assim eu te mostro po
     category: 'MARKETING',
   },
   {
-    template_name: 'COLE_AQUI_template_name_C',
+    template_name: 'bemvindo_comunidade2',
     template_body:
 `Oi, tudo certo? Bem-vindo à comunidade! Aqui é o Artur trabalho junto com o Fabrício.
 Aqui você vai ver ele operando ao vivo no dia a dia e quem quer, a gente coloca pra operar junto, dentro da assessoria.
@@ -584,6 +604,14 @@ async function getStageTemplate(stage) {
 async function chatwootDisparar(lead, leadId, stage = 'novo') {
   if (!CW_ATIVO || !CW_URL || !CW_ACCOUNT || !CW_TOKEN || !CW_INBOX) {
     console.log('⚠️  Chatwoot não configurado — disparo automático ignorado.');
+    return false;
+  }
+
+  // Defesa em profundidade: se algum lead foi cadastrado com telefone-LID por
+  // outro caminho (import legado, edição manual, etc), evita queimar chamada
+  // na API do Chatwoot só pra tomar 422.
+  if (!isTelefoneValido(lead.phone)) {
+    console.log(`⚠️  Telefone inválido (${lead.phone}) — disparo ignorado.`);
     return false;
   }
 
@@ -831,7 +859,12 @@ client.on('group_join', async (notification) => {
       try {
         const contact = await client.getContactById(memberId);
 
-        const phoneFormatado = formatarTelefone(contact.number || memberId.replace('@c.us', ''));
+        const rawNumber = contact.number || memberId.replace('@c.us', '');
+        if (!isTelefoneValido(rawNumber)) {
+          console.log(`\n⏭  Participante sem telefone real (LID): ${memberId} — ignorado.`);
+          continue;
+        }
+        const phoneFormatado = formatarTelefone(rawNumber);
         // Fallback encadeado: pushname > name > verifiedName > shortName > formattedName.
         // Se nada estiver populado (acontece em contatos novos que nunca mandaram mensagem
         // para este número ou que não compartilham nome), usa o próprio telefone como nome —
