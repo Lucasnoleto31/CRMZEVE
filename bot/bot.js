@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const readline = require('readline');
 const { createClient } = require('@supabase/supabase-js');
+const { TEMPLATES_BOAS_VINDAS } = require('./templates');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -514,47 +515,8 @@ Bem-vindo! Antes de te apresentar o que fazemos, me fala: como tá sua operaçã
 2️⃣ Operando e querendo crescer
 3️⃣ Operando mas inconsistente`;
 
-// Variantes de template disparadas quando um lead novo cai no CRM.
-// Sorteia uma das 3 aleatoriamente — gera A/B test natural e evita que a base
-// reconheça o disparo como mensagem em massa.
-//
-// IMPORTANTE: template_name precisa bater EXATAMENTE com um template aprovado
-// no Meta. Substitua os placeholders pelos nomes que você aprovou.
-// Para trocar o texto, edite o template no Meta (e reflita aqui pra log).
-const TEMPLATES_NOVO_LEAD = [
-  {
-    template_name: 'bemvindo_comunidade',
-    template_body:
-`Bem-vindo! Artur aqui, do time do Fabrício.
-
-Uma dica pra você tirar o máximo da comunidade: o Fabrício mostra as operações ao vivo no dia a dia, então fica de olho.
-
-E me conta você já tá no mercado ou tá chegando agora? Assim eu te mostro por onde começar.`,
-    language: 'pt_BR',
-    category: 'MARKETING',
-  },
-  {
-    template_name: 'pesquisa_comunidade',
-    template_body:
-`E aí! Que bom ter você na comunidade do Fabrício 🙌 Pra eu te direcionar certinho, me conta como tá hoje:
-1️⃣ Começando agora
-2️⃣ Já opero e quero evoluir
-3️⃣ Opero mas tô inconsistente`,
-    language: 'pt_BR',
-    category: 'MARKETING',
-  },
-  {
-    template_name: 'bemvindo_comunidade2',
-    template_body:
-`Oi, tudo certo? Bem-vindo à comunidade! Aqui é o Artur trabalho junto com o Fabrício.
-
-Aqui você vai ver ele operando ao vivo no dia a dia e quem quer, a gente coloca pra operar junto, dentro da assessoria.
-
-Mas primeiro me conta: qual seu momento no mercado hoje?`,
-    language: 'pt_BR',
-    category: 'MARKETING',
-  },
-];
+// Templates rotacionados a cada novo lead que cai no CRM ficam em
+// bot/templates.js — fonte única compartilhada com disparo-massa.js.
 
 // Converte "(11) 99999-9999" → "+5511999999999"
 function toE164(phone) {
@@ -579,14 +541,14 @@ async function cwApi(path, method = 'GET', body = null) {
 }
 
 // Busca o mapeamento etapa → template.
-// Stage 'novo' usa rotação aleatória local (TEMPLATES_NOVO_LEAD) pra dar A/B
+// Stage 'novo' usa rotação aleatória local (TEMPLATES_BOAS_VINDAS) pra dar A/B
 // natural no disparo de boas-vindas. Demais stages continuam vindo da tabela
 // crm_stage_templates (configurável pela aba "Automações" do CRM).
 async function getStageTemplate(stage) {
-  if (stage === 'novo' && TEMPLATES_NOVO_LEAD.length > 0) {
-    const i = Math.floor(Math.random() * TEMPLATES_NOVO_LEAD.length);
-    const escolhido = TEMPLATES_NOVO_LEAD[i];
-    console.log(`   🎲 Variante sorteada: ${i + 1}/${TEMPLATES_NOVO_LEAD.length} (${escolhido.template_name})`);
+  if (stage === 'novo' && TEMPLATES_BOAS_VINDAS.length > 0) {
+    const i = Math.floor(Math.random() * TEMPLATES_BOAS_VINDAS.length);
+    const escolhido = TEMPLATES_BOAS_VINDAS[i];
+    console.log(`   🎲 Variante sorteada: ${i + 1}/${TEMPLATES_BOAS_VINDAS.length} (${escolhido.template_name})`);
     return escolhido;
   }
 
