@@ -526,7 +526,9 @@ const TEMPLATES_NOVO_LEAD = [
     template_name: 'bemvindo_comunidade',
     template_body:
 `Bem-vindo! Artur aqui, do time do Fabrício.
+
 Uma dica pra você tirar o máximo da comunidade: o Fabrício mostra as operações ao vivo no dia a dia, então fica de olho.
+
 E me conta você já tá no mercado ou tá chegando agora? Assim eu te mostro por onde começar.`,
     language: 'pt_BR',
     category: 'MARKETING',
@@ -545,7 +547,9 @@ E me conta você já tá no mercado ou tá chegando agora? Assim eu te mostro po
     template_name: 'bemvindo_comunidade2',
     template_body:
 `Oi, tudo certo? Bem-vindo à comunidade! Aqui é o Artur trabalho junto com o Fabrício.
+
 Aqui você vai ver ele operando ao vivo no dia a dia e quem quer, a gente coloca pra operar junto, dentro da assessoria.
+
 Mas primeiro me conta: qual seu momento no mercado hoje?`,
     language: 'pt_BR',
     category: 'MARKETING',
