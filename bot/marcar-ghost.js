@@ -24,6 +24,8 @@
 //   node bot/marcar-ghost.js --limit=50            # piloto em 50 leads
 //   node bot/marcar-ghost.js --delay=500           # ms entre chamadas (default 500)
 //   node bot/marcar-ghost.js --no-sync-status      # não mexer em crm_leads.status
+//   node bot/marcar-ghost.js --mes=2026-06         # só marca leads que entraram
+//                                                  # na comunidade nesse mês (entry)
 // ═══════════════════════════════════════════════════════════════════════
 
 require('dotenv').config();
@@ -150,6 +152,25 @@ async function main() {
   const delayArg = args.find(a => a.startsWith('--delay='));
   const delayMs = delayArg ? parseInt(delayArg.split('=')[1], 10) : 500;
 
+  // --mes=YYYY-MM: filtra por entry (data de entrada na comunidade).
+  const mesArg = args.find(a => a.startsWith('--mes='));
+  let entryDesde = null, entryAte = null, mesLabel = null;
+  if (mesArg) {
+    const valor = mesArg.split('=')[1];
+    const m = /^(\d{4})-(\d{2})$/.exec(valor);
+    if (!m) {
+      console.error(`❌ --mes inválido: "${valor}". Use YYYY-MM (ex: --mes=2026-06).`);
+      process.exit(1);
+    }
+    const ano = parseInt(m[1], 10);
+    const mes = parseInt(m[2], 10);
+    entryDesde = `${ano}-${String(mes).padStart(2, '0')}-01`;
+    const proxAno = mes === 12 ? ano + 1 : ano;
+    const proxMes = mes === 12 ? 1 : mes + 1;
+    entryAte = `${proxAno}-${String(proxMes).padStart(2, '0')}-01`;
+    mesLabel = `${ano}-${String(mes).padStart(2, '0')}`;
+  }
+
   console.log('═══════════════════════════════════════════════════════');
   console.log(`  MARCAR GHOST — aplica label '${label}' em quem não respondeu`);
   console.log('═══════════════════════════════════════════════════════');
@@ -160,6 +181,7 @@ async function main() {
     console.log('  🔴 MODO EXECUÇÃO — labels serão aplicadas no Chatwoot');
   }
   console.log(`  📅 Threshold: ${dias} dia(s) sem resposta`);
+  if (mesLabel) console.log(`  📆 Filtro: entry em ${mesLabel} (${entryDesde} a ${entryAte})`);
   console.log(`  🔄 Sincroniza status no Supabase: ${noSyncStatus ? 'NÃO' : 'sim (só pra status=novo)'}`);
   if (limit) console.log(`  📐 Limite: ${limit} leads`);
   console.log(`  ⏱  Delay entre chamadas: ${delayMs}ms`);
@@ -178,14 +200,16 @@ async function main() {
   const pageSize = 1000;
   const candidatos = [];
   while (true) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('crm_leads')
-      .select('id, name, phone, status, last_outbound_at, last_inbound_at')
+      .select('id, name, phone, status, last_outbound_at, last_inbound_at, entry')
       .not('last_outbound_at', 'is', null)
       .is('last_inbound_at', null)
       .lt('last_outbound_at', cutoff)
-      .order('last_outbound_at', { ascending: true })
-      .range(fromRow, fromRow + pageSize - 1);
+      .order('last_outbound_at', { ascending: true });
+    if (entryDesde) query = query.gte('entry', entryDesde);
+    if (entryAte)   query = query.lt('entry', entryAte);
+    const { data, error } = await query.range(fromRow, fromRow + pageSize - 1);
     if (error) {
       console.error('❌ Erro ao ler crm_leads:', error.message);
       process.exit(1);
