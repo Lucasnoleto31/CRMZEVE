@@ -19,7 +19,7 @@
 // Uso:
 //   node bot/marcar-ghost.js                       # DRY-RUN (default)
 //   node bot/marcar-ghost.js --executar            # APLICA AS LABELS
-//   node bot/marcar-ghost.js --dias=7              # threshold em dias (default 7)
+//   node bot/marcar-ghost.js --dias=2              # threshold em dias (default 2)
 //   node bot/marcar-ghost.js --label=ghost         # nome da label (default ghost)
 //   node bot/marcar-ghost.js --limit=50            # piloto em 50 leads
 //   node bot/marcar-ghost.js --delay=500           # ms entre chamadas (default 500)
@@ -144,7 +144,7 @@ async function main() {
   const labelArg = args.find(a => a.startsWith('--label='));
   const label = labelArg ? labelArg.split('=')[1] : 'ghost';
   const diasArg = args.find(a => a.startsWith('--dias='));
-  const dias = diasArg ? parseInt(diasArg.split('=')[1], 10) : 7;
+  const dias = diasArg ? parseInt(diasArg.split('=')[1], 10) : 2;
   const limitArg = args.find(a => a.startsWith('--limit='));
   const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : null;
   const delayArg = args.find(a => a.startsWith('--delay='));

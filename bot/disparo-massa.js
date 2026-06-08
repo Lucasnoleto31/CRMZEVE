@@ -6,8 +6,13 @@
 //   node bot/disparo-massa.js --executar            # DISPARA DE VERDADE
 //   node bot/disparo-massa.js --executar --limit=50 # piloto em 50 leads
 //   node bot/disparo-massa.js --delay=3000          # 3s entre envios
-//   node bot/disparo-massa.js --incluir-todos       # ignora filtro de status
-//                                                   # (default: só status='novo')
+//   node bot/disparo-massa.js --incluir-todos       # ignora filtro de label
+//                                                   # (default: só quem NÃO tem label)
+//   node bot/disparo-massa.js --apenas-label=ghost  # MODO RECONTATO: inverte
+//                                                   # filtro (só quem TEM essa label)
+//                                                   # e troca pool pra TEMPLATES_RECONTATO
+//   node bot/disparo-massa.js --mes=2026-06         # só leads que entraram na
+//                                                   # comunidade nesse mês (campo entry)
 //
 // Por que dry-run é default: o disparo é ação irreversível e cara
 // (~R$ 0,55/msg). Você precisa passar --executar explícito pra valer.
@@ -30,7 +35,10 @@
 require('dotenv').config();
 const readline = require('readline');
 const { createClient } = require('@supabase/supabase-js');
-const { TEMPLATES_BOAS_VINDAS } = require('./templates');
+const { TEMPLATES_BOAS_VINDAS, TEMPLATES_RECONTATO } = require('./templates');
+
+// Pool atual de templates pra sorteio. Setado em main() baseado nas flags.
+let templatesPool = TEMPLATES_BOAS_VINDAS;
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -60,7 +68,7 @@ function toE164(phone) {
 }
 
 function sortearTemplate() {
-  return TEMPLATES_BOAS_VINDAS[Math.floor(Math.random() * TEMPLATES_BOAS_VINDAS.length)];
+  return templatesPool[Math.floor(Math.random() * templatesPool.length)];
 }
 
 async function cwApi(path, method = 'GET', body = null) {
@@ -258,13 +266,49 @@ async function main() {
   const args = process.argv.slice(2);
   const isExecutar = args.includes('--executar');
   const incluirTodos = args.includes('--incluir-todos');
+  const apenasLabelArg = args.find(a => a.startsWith('--apenas-label='));
+  const apenasLabel = apenasLabelArg ? apenasLabelArg.split('=')[1] : null;
   const limitArg = args.find(a => a.startsWith('--limit='));
   const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : null;
   const delayArg = args.find(a => a.startsWith('--delay='));
   const delayMs = delayArg ? parseInt(delayArg.split('=')[1], 10) : 2000;
 
+  // --mes=YYYY-MM: filtra por entry (data de entrada na comunidade) dentro
+  // do mês. Vira range [primeiro-dia, primeiro-dia-do-mes-seguinte).
+  const mesArg = args.find(a => a.startsWith('--mes='));
+  let entryDesde = null, entryAte = null, mesLabel = null;
+  if (mesArg) {
+    const valor = mesArg.split('=')[1];
+    const m = /^(\d{4})-(\d{2})$/.exec(valor);
+    if (!m) {
+      console.error(`❌ --mes inválido: "${valor}". Use o formato YYYY-MM (ex: --mes=2026-06).`);
+      process.exit(1);
+    }
+    const ano = parseInt(m[1], 10);
+    const mes = parseInt(m[2], 10);
+    entryDesde = `${ano}-${String(mes).padStart(2, '0')}-01`;
+    const proxAno = mes === 12 ? ano + 1 : ano;
+    const proxMes = mes === 12 ? 1 : mes + 1;
+    entryAte = `${proxAno}-${String(proxMes).padStart(2, '0')}-01`;
+    mesLabel = `${ano}-${String(mes).padStart(2, '0')}`;
+  }
+
+  // Modo RECONTATO: --apenas-label=ghost troca o pool pra TEMPLATES_RECONTATO
+  // e inverte o filtro (inclui só quem tem a label, em vez de quem não tem).
+  // Pra outras labels (--apenas-label=cliente, por ex), mantém o pool default.
+  const isModoRecontato = apenasLabel === 'ghost';
+  if (isModoRecontato) {
+    templatesPool = TEMPLATES_RECONTATO;
+  }
+
   console.log('═══════════════════════════════════════════════════════');
-  console.log('  DISPARO EM MASSA — 5 templates aleatórios para a base');
+  if (isModoRecontato) {
+    console.log('  DISPARO EM MASSA — MODO RECONTATO (label \'ghost\')');
+  } else if (apenasLabel) {
+    console.log(`  DISPARO EM MASSA — APENAS com label '${apenasLabel}'`);
+  } else {
+    console.log(`  DISPARO EM MASSA — ${templatesPool.length} templates aleatórios pra base`);
+  }
   console.log('═══════════════════════════════════════════════════════');
   if (!isExecutar) {
     console.log('  🟡 MODO DRY-RUN — nenhuma mensagem será enviada');
@@ -272,6 +316,9 @@ async function main() {
   } else {
     console.log('  🔴 MODO EXECUÇÃO — disparos reais via Chatwoot/Meta');
   }
+  if (apenasLabel) console.log(`  🏷  Filtro: só leads com label '${apenasLabel}'`);
+  if (mesLabel) console.log(`  📅 Filtro: entry em ${mesLabel} (${entryDesde} a ${entryAte})`);
+  console.log(`  📚 Pool de templates: ${templatesPool.length} (${templatesPool.map(t => t.template_name).join(', ')})`);
   if (limit) console.log(`  📐 Limite: ${limit} leads`);
   console.log(`  ⏱  Delay entre envios: ${delayMs}ms`);
   console.log('');
@@ -286,25 +333,27 @@ async function main() {
     }
   }
   if (isExecutar) {
-    const placeholders = TEMPLATES_BOAS_VINDAS.filter(t => t.template_name.startsWith('COLE_AQUI_'));
+    const placeholders = templatesPool.filter(t => t.template_name.startsWith('COLE_AQUI_'));
     if (placeholders.length > 0) {
-      console.error(`❌ ${placeholders.length} template(s) ainda com placeholder COLE_AQUI_. Edite disparo-massa.js antes de executar:`);
+      console.error(`❌ ${placeholders.length} template(s) ainda com placeholder COLE_AQUI_. Edite bot/templates.js antes de executar:`);
       placeholders.forEach(t => console.error(`   • ${t.template_name}`));
       process.exit(1);
     }
   }
 
-  // 1. Carrega base (paginado)
+  // 1. Carrega base (paginado, filtrado por mês no servidor se --mes foi passado)
   console.log('⏳ Carregando leads do CRM...');
   let fromRow = 0;
   const pageSize = 1000;
   const leads = [];
   while (true) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('crm_leads')
-      .select('id, name, phone, status')
-      .order('created_at', { ascending: true })
-      .range(fromRow, fromRow + pageSize - 1);
+      .select('id, name, phone, status, entry')
+      .order('created_at', { ascending: true });
+    if (entryDesde) query = query.gte('entry', entryDesde);
+    if (entryAte)   query = query.lt('entry', entryAte);
+    const { data, error } = await query.range(fromRow, fromRow + pageSize - 1);
     if (error) {
       console.error('❌ Erro ao ler crm_leads:', error.message);
       process.exit(1);
@@ -314,7 +363,7 @@ async function main() {
     if (data.length < pageSize) break;
     fromRow += pageSize;
   }
-  console.log(`✅ ${leads.length} leads carregados.\n`);
+  console.log(`✅ ${leads.length} leads carregados${mesLabel ? ` (entry em ${mesLabel})` : ''}.\n`);
 
   // 2. Filtra inválidos (LIDs)
   const validos = leads.filter(l => isTelefoneValido(l.phone));
@@ -324,8 +373,9 @@ async function main() {
   }
 
   // 3. Filtro por etiquetas do Chatwoot
-  //    Default: dispara só pra quem NÃO tem nenhuma label (lead virgem)
-  //    Inclui também leads que ainda não existem como contato no Chatwoot.
+  //    Default (sem flag): dispara só pra quem NÃO tem nenhuma label.
+  //    --apenas-label=X: INVERTE — dispara só pra quem tem essa label.
+  //    --incluir-todos: ignora filtro.
   let elegiveis;
   if (incluirTodos) {
     elegiveis = validos;
@@ -338,28 +388,41 @@ async function main() {
     contatosCw.forEach(c => (c.labels.length > 0 ? comLabel++ : semLabel++));
     console.log(`   📊 Com label: ${comLabel}  |  Sem label: ${semLabel}\n`);
 
-    const excluidos = [];
-    elegiveis = validos.filter(lead => {
-      const digits10 = String(lead.phone).replace(/\D/g, '').slice(-10);
-      const cw = contatosCw.get(digits10);
-      if (!cw) return true;                       // sem contato Chatwoot → virgem
-      if (cw.labels.length === 0) return true;    // contato sem label → elegível
-      excluidos.push({ lead, labels: cw.labels });
-      return false;
-    });
+    if (apenasLabel) {
+      // Modo recontato / segmentado: INCLUI só quem tem a label especificada
+      elegiveis = validos.filter(lead => {
+        const digits10 = String(lead.phone).replace(/\D/g, '').slice(-10);
+        const cw = contatosCw.get(digits10);
+        return cw && cw.labels.includes(apenasLabel);
+      });
+      const ignorados = validos.length - elegiveis.length;
+      console.log(`🎯 ${elegiveis.length} lead(s) com label '${apenasLabel}' — vão receber disparo.`);
+      console.log(`   ${ignorados} lead(s) sem essa label — ignorados.\n`);
+    } else {
+      // Default: EXCLUI quem tem qualquer label
+      const excluidos = [];
+      elegiveis = validos.filter(lead => {
+        const digits10 = String(lead.phone).replace(/\D/g, '').slice(-10);
+        const cw = contatosCw.get(digits10);
+        if (!cw) return true;
+        if (cw.labels.length === 0) return true;
+        excluidos.push({ lead, labels: cw.labels });
+        return false;
+      });
 
-    if (excluidos.length > 0) {
-      const labelCounts = {};
-      excluidos.forEach(({ labels }) => labels.forEach(l => {
-        labelCounts[l] = (labelCounts[l] || 0) + 1;
-      }));
-      console.log(`🚫 ${excluidos.length} lead(s) excluído(s) por já terem etiqueta no Chatwoot.`);
-      console.log('   Top labels nos excluídos:');
-      Object.entries(labelCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 8)
-        .forEach(([l, c]) => console.log(`     • ${l.padEnd(25)} ${c}`));
-      console.log(`   Pra ignorar esse filtro: --incluir-todos\n`);
+      if (excluidos.length > 0) {
+        const labelCounts = {};
+        excluidos.forEach(({ labels }) => labels.forEach(l => {
+          labelCounts[l] = (labelCounts[l] || 0) + 1;
+        }));
+        console.log(`🚫 ${excluidos.length} lead(s) excluído(s) por já terem etiqueta no Chatwoot.`);
+        console.log('   Top labels nos excluídos:');
+        Object.entries(labelCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 8)
+          .forEach(([l, c]) => console.log(`     • ${l.padEnd(25)} ${c}`));
+        console.log(`   Pra ignorar esse filtro: --incluir-todos\n`);
+      }
     }
   }
 

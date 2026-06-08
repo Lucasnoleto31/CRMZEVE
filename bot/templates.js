@@ -79,4 +79,36 @@ Me responde só o nome da corretora, eu te explico.`,
   },
 ];
 
-module.exports = { TEMPLATES_BOAS_VINDAS };
+// ─── Templates de RECONTATO ──────────────────────────────────────────────
+// Disparados pelo disparo-massa.js quando rodado com --apenas-label=ghost.
+// Pra leads que já receberam disparo e nunca responderam (label 'ghost').
+// Estratégia: limpa-ou-resgata — qualifica quem ainda quer receber conteúdo
+// e identifica definitivamente quem virou lixo (pra parar de queimar dinheiro).
+const TEMPLATES_RECONTATO = [
+  {
+    template_name: 'recontato_lista_limpa',
+    template_body:
+`Aqui é o Artur. Tô fazendo uma limpa na minha lista esse mês e antes de te tirar daqui queria te perguntar:
+
+Você ainda quer receber conteúdo do Fabrício sobre operação?
+
+SIM se quer continuar. PARAR se prefere que eu pare por aqui.
+
+Sem ressentimento, prometo.`,
+    language: 'pt_BR',
+    category: 'MARKETING',
+  },
+  {
+    template_name: 'recontato_novidade_fabricio',
+    template_body:
+`Faz um tempo que não falo contigo, foi mal.
+
+Aproveita que tô voltando que tem uma coisa nova: o Fabrício mudou o operacional dele no mini esse mês. Posso te mandar como ficou?
+
+Responde SIM. Sem custo, sem pegadinha.`,
+    language: 'pt_BR',
+    category: 'MARKETING',
+  },
+];
+
+module.exports = { TEMPLATES_BOAS_VINDAS, TEMPLATES_RECONTATO };
